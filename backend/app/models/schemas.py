@@ -74,6 +74,25 @@ class JournalOut(BaseModel):
     created: str
 
 
+# --- Rituals ---
+class MorningRitualCreate(BaseModel):
+    forecast: str
+    intention: str
+    activity_type: str = Field(alias="activityType")
+    completed_at: str = Field(alias="completedAt")
+
+
+class WindDownRitualCreate(BaseModel):
+    release_item: str = Field(alias="releaseItem")
+    gratitudes: list[str]
+    audio_choice: str = Field(alias="audioChoice")
+    timer: str
+
+
+class ProfileMilestonesUpdate(BaseModel):
+    unlocked_badges: list[str] = Field(alias="unlockedBadges")
+
+
 # --- AI ---
 class AIRecommendRequest(BaseModel):
     context: str = ""

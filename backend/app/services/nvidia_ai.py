@@ -1,30 +1,7 @@
-"""NVIDIA AI API integration service.
-
-Uses the OpenAI-compatible SDK pointed at NVIDIA's API endpoint.
-Model: nvidia/nemotron-3-super-120b-a12b with thinking/reasoning support.
-"""
+"""NVIDIA AI API integration service."""
 
 from openai import OpenAI
 from app.config import NVIDIA_API_KEY, NVIDIA_API_URL, NVIDIA_MODEL
-
-SYSTEM_PROMPT = """You are a compassionate mental wellness assistant called "Calm Guide".
-Your role is to:
-- Listen empathetically to the user's feelings
-- Suggest relevant mental health resources and coping techniques
-- Provide grounding exercises when the user is anxious
-- Encourage professional help when appropriate
-- Never diagnose or prescribe medication
-- Keep responses warm, concise, and actionable
-
-Available resources you can recommend:
-Crisis Hotlines, Guided Meditations, Therapy Finder, Self-Care Routines,
-Anxiety Toolkit, Support Groups, Journaling Prompts, Sleep Hygiene,
-Mood Tracker, Nutrition & Mind, Movement & Yoga, Goal Setting,
-Boundary Setting, Podcasts & Audio, Nature Therapy, Digital Detox,
-Hydration Tracker, Art Therapy, Gratitude Journal, Breathing Exercises,
-Mindfulness Bells, Panic Button, Habit Builder, Music for Focus.
-
-Always be supportive and non-judgmental. Keep responses under 200 words."""
 
 
 def _get_client() -> OpenAI:
@@ -35,36 +12,48 @@ def _get_client() -> OpenAI:
     )
 
 
-async def chat_completion(messages: list[dict]) -> str:
+async def chat_completion(
+    messages: list[dict],
+    *,
+    system_prompt: str | None = None,
+    model: str | None = None,
+    temperature: float = 0.7,
+    top_p: float = 0.9,
+    max_tokens: int = 180,
+) -> str:
     """Send a chat completion request to NVIDIA API and return the full response."""
     client = _get_client()
 
-    full_messages = [{"role": "system", "content": SYSTEM_PROMPT}] + messages
+    full_messages = messages
+    if system_prompt:
+        full_messages = [{"role": "system", "content": system_prompt}] + messages
 
     completion = client.chat.completions.create(
-        model=NVIDIA_MODEL,
+        model=model or NVIDIA_MODEL,
         messages=full_messages,
-        temperature=0.7,
-        top_p=0.95,
-        max_tokens=1024,
+        temperature=temperature,
+        top_p=top_p,
+        max_tokens=max_tokens,
         stream=False,
     )
 
     return completion.choices[0].message.content or ""
 
 
-async def chat_completion_stream(messages: list[dict]):
+async def chat_completion_stream(messages: list[dict], *, system_prompt: str | None = None):
     """Stream a chat completion response from NVIDIA API. Yields content chunks."""
     client = _get_client()
 
-    full_messages = [{"role": "system", "content": SYSTEM_PROMPT}] + messages
+    full_messages = messages
+    if system_prompt:
+        full_messages = [{"role": "system", "content": system_prompt}] + messages
 
     completion = client.chat.completions.create(
         model=NVIDIA_MODEL,
         messages=full_messages,
         temperature=0.7,
-        top_p=0.95,
-        max_tokens=1024,
+        top_p=0.9,
+        max_tokens=180,
         stream=True,
     )
 

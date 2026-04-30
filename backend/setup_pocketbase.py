@@ -140,6 +140,58 @@ AI_CONVERSATIONS_SCHEMA = {
     "deleteRule": "user = @request.auth.id",
 }
 
+MORNING_RITUALS_SCHEMA = {
+    "name": "morning_rituals",
+    "type": "base",
+    "schema": [
+        {"name": "user", "type": "relation", "required": True,
+         "options": {"collectionId": "_pb_users_auth_", "maxSelect": 1}},
+        {"name": "forecast", "type": "text", "required": True},
+        {"name": "intention", "type": "text", "required": True},
+        {"name": "activity_type", "type": "text", "required": True},
+        {"name": "completed_at", "type": "date", "required": True},
+    ],
+    "listRule": "user = @request.auth.id",
+    "viewRule": "user = @request.auth.id",
+    "createRule": "@request.auth.id != ''",
+    "updateRule": "user = @request.auth.id",
+    "deleteRule": "user = @request.auth.id",
+}
+
+WIND_DOWN_RITUALS_SCHEMA = {
+    "name": "wind_down_rituals",
+    "type": "base",
+    "schema": [
+        {"name": "user", "type": "relation", "required": True,
+         "options": {"collectionId": "_pb_users_auth_", "maxSelect": 1}},
+        {"name": "release_item", "type": "text", "required": True},
+        {"name": "gratitudes", "type": "json", "required": False},
+        {"name": "audio_choice", "type": "text", "required": True},
+        {"name": "timer", "type": "text", "required": True},
+    ],
+    "listRule": "user = @request.auth.id",
+    "viewRule": "user = @request.auth.id",
+    "createRule": "@request.auth.id != ''",
+    "updateRule": "user = @request.auth.id",
+    "deleteRule": "user = @request.auth.id",
+}
+
+USER_PROFILES_SCHEMA = {
+    "name": "user_profiles",
+    "type": "base",
+    "schema": [
+        {"name": "user", "type": "relation", "required": True,
+         "options": {"collectionId": "_pb_users_auth_", "maxSelect": 1}},
+        {"name": "unlocked_badges", "type": "json", "required": False},
+        {"name": "badge_history", "type": "json", "required": False},
+    ],
+    "listRule": "user = @request.auth.id",
+    "viewRule": "user = @request.auth.id",
+    "createRule": "@request.auth.id != ''",
+    "updateRule": "user = @request.auth.id",
+    "deleteRule": "user = @request.auth.id",
+}
+
 
 # ============================================================
 # Seed Data — The 24 Original Resource Cards
@@ -200,12 +252,12 @@ def seed_resources(token: str) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Set up PocketBase for The Calm Center")
+    parser = argparse.ArgumentParser(description="Set up PocketBase for MindCradle")
     parser.add_argument("--email", required=True, help="PocketBase admin email")
     parser.add_argument("--password", required=True, help="PocketBase admin password")
     args = parser.parse_args()
 
-    print("🔧 The Calm Center — PocketBase Setup")
+    print("🔧 MindCradle — PocketBase Setup")
     print("=" * 40)
 
     # 1. Login
@@ -217,6 +269,9 @@ def main():
     create_collection(token, MOOD_LOGS_SCHEMA)
     create_collection(token, JOURNAL_ENTRIES_SCHEMA)
     create_collection(token, AI_CONVERSATIONS_SCHEMA)
+    create_collection(token, MORNING_RITUALS_SCHEMA)
+    create_collection(token, WIND_DOWN_RITUALS_SCHEMA)
+    create_collection(token, USER_PROFILES_SCHEMA)
 
     # 3. Seed resources
     print("\n🌱 Seeding data...")

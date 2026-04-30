@@ -30,6 +30,7 @@ async def signup(req: SignupRequest):
             "password": req.password,
             "passwordConfirm": req.password_confirm,
             "name": req.name,
+            "verified": True,
         })
         # Auto-login after signup
         result = await pb.auth_with_password(req.email, req.password)

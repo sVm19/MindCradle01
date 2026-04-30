@@ -1,7 +1,7 @@
 # Wellness Stats Design
 
 - Date: 2026-04-29
-- Product: The Calm Center frontend
+- Product: MindCradle frontend
 - Scope: Frontend-only wellness stats engine and live dashboard wiring
 - Status: Approved for planning
 
