@@ -275,6 +275,8 @@ async def chat(
             reply=reply,
             conversation_id=req.conversation_id or "new",
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
 
