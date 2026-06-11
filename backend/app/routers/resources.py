@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query
 from typing import Optional
-from app.services.pocketbase import pb
+from app.services.supabase import pb
 
 router = APIRouter()
 

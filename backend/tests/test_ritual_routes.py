@@ -56,10 +56,3 @@ def test_winddown_ritual_payload_is_accepted(monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {"id": "ritual_2", "saved": True}
-
-
-def test_setup_script_mentions_new_collections():
-    setup_text = Path("setup_pocketbase.py").read_text(encoding="utf-8")
-    assert "morning_rituals" in setup_text
-    assert "wind_down_rituals" in setup_text
-    assert "user_profiles" in setup_text

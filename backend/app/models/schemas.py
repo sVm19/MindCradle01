@@ -18,9 +18,14 @@ class SignupRequest(BaseModel):
 
 class AuthResponse(BaseModel):
     token: str
+    refresh_token: str = ""
     user_id: str
     name: str
     email: str
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
 
 
 # --- Resources ---

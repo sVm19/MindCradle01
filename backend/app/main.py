@@ -10,10 +10,10 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# CORS — allow the Next.js frontend
+# CORS — allow the frontend (Vite dev on 5173, or configured FRONTEND_URL)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL, "http://localhost:3000"],
+    allow_origins=[FRONTEND_URL, "http://localhost:3000", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -8,11 +8,16 @@ from typing import Optional
 from fastapi import APIRouter, Header, HTTPException
 
 from app.models.schemas import AIChatRequest, AIChatResponse, AIRecommendRequest
-from app.services import nvidia_ai
-from app.services.pocketbase import pb
+from app.services import openrouter_ai
+from app.services.supabase import pb, JWTExpiredError
+import os
+
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+FALLBACK_MODE = False  # Set to True only for local testing without OpenRouter API
+
+
 
 ARIA_SYSTEM_PROMPT = """You are ARIA, a quiet companion inside MindCradle.
 You are not a therapist, doctor, or coach.
@@ -125,34 +130,36 @@ def _extract_top_words(entries: list[dict]) -> list[str]:
 
 async def _build_user_context(token: str, conversation_id: Optional[str]) -> dict:
     claims = _decode_token_claims(token)
-    user_id = claims.get("id", "")
+    user_id = claims.get("sub", "")
     user_name = claims.get("name") or claims.get("email") or "Friend"
     since = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+
+    filter_user = f'user_id="{user_id}"' if user_id else ""
 
     recent_moods = await pb.list_records(
         "mood_logs",
         token=token,
-        params={"perPage": 50, "sort": "-created", "filter": f'created >= "{since}"'},
+        params={"perPage": 50, "sort": "-created", "filter": f'{filter_user} && created >= "{since}"' if filter_user else f'created >= "{since}"'},
     )
     recent_journals = await pb.list_records(
         "journal_entries",
         token=token,
-        params={"perPage": 50, "sort": "-created", "filter": f'created >= "{since}"'},
+        params={"perPage": 50, "sort": "-created", "filter": f'{filter_user} && created >= "{since}"' if filter_user else f'created >= "{since}"'},
     )
     morning = await pb.list_records(
         "morning_rituals",
         token=token,
-        params={"perPage": 1, "sort": "-created"},
+        params={"perPage": 1, "sort": "-created", "filter": filter_user} if filter_user else {"perPage": 1, "sort": "-created"},
     )
     wind_down = await pb.list_records(
         "wind_down_rituals",
         token=token,
-        params={"perPage": 200, "sort": "-created"},
+        params={"perPage": 200, "sort": "-created", "filter": filter_user} if filter_user else {"perPage": 200, "sort": "-created"},
     )
     convo = await pb.list_records(
         "ai_conversations",
         token=token,
-        params={"perPage": 1, "sort": "-updated"},
+        params={"perPage": 1, "sort": "-updated", "filter": filter_user} if filter_user else {"perPage": 1, "sort": "-updated"},
     )
 
     recent_mood_items = (recent_moods.get("items") or [])[:7]
@@ -239,7 +246,8 @@ async def chat(
     token = _normalize_token(authorization)
     if not token:
         raise HTTPException(status_code=401, detail="Missing authorization token")
-
+    # Log incoming request details
+    logger.info(f"CHAT API: Received request - message: {req.message!r}, conversation_id: {req.conversation_id!r}")
     if _is_crisis_text(req.message):
         user_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()[:12]
         logger.warning("ARIA crisis handoff triggered user=%s", user_hash)
@@ -249,20 +257,53 @@ async def chat(
         )
 
     try:
-        context = await _build_user_context(token, req.conversation_id)
+        # Build user context — gracefully degrade if JWT is expired
+        try:
+            context = await _build_user_context(token, req.conversation_id)
+        except JWTExpiredError:
+            logger.warning("CHAT API: JWT expired — returning 401 to trigger token refresh")
+            raise HTTPException(
+                status_code=401,
+                detail="Session expired. Please refresh your token.",
+            )
+        except Exception as ctx_err:
+            # Context building failed for a non-JWT reason — use empty context
+            logger.warning("CHAT API: Context build failed (%s), using empty context", ctx_err)
+            context = {
+                "user_id": "",
+                "name": "Friend",
+                "intention": None,
+                "streak": 0,
+                "recent_moods": [],
+                "recent_journal_themes": [],
+                "conversation_history": [],
+                "conversation_id": req.conversation_id or "new",
+            }
+
         contextual_user_prompt = (
             "User context:\n"
             f"{_context_block(context)}\n\n"
             f"User message:\n{req.message}"
         )
-        reply = await nvidia_ai.chat_completion(
-            [{"role": "user", "content": contextual_user_prompt}],
-            system_prompt=ARIA_SYSTEM_PROMPT,
-            model="nemotron-4",
-            temperature=0.7,
-            top_p=0.9,
-            max_tokens=180,
-        )
+        # Determine reply - either use fallback or call OpenRouter service
+        if FALLBACK_MODE:
+            # Fallback mode — return a mock reply without calling OpenRouter
+            fallback_reply = "I'm having trouble connecting right now. Please try again in a moment."
+            logger.info("CHAT API: FALLBACK_MODE enabled, returning mock reply")
+            reply = fallback_reply
+        else:
+            try:
+                reply = await openrouter_ai.chat_completion(
+                    [{"role": "user", "content": contextual_user_prompt}],
+                    system_prompt=ARIA_SYSTEM_PROMPT,
+                    temperature=0.7,
+                    top_p=0.9,
+                    max_tokens=180,
+                )
+            except Exception as e:
+                # Log the error and re‑raise as HTTPException (will include original message)
+                logger.error("CHAT API: OpenRouter call failed: %s", str(e))
+                raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
 
         if not _passes_safety_filter(reply):
             raise HTTPException(
@@ -270,7 +311,14 @@ async def chat(
                 detail="ARIA response failed safety filter and was blocked.",
             )
 
-        await _store_conversation(token, context, req.message, reply)
+        # Store conversation — don't let this fail the whole request
+        try:
+            await _store_conversation(token, context, req.message, reply)
+        except JWTExpiredError:
+            logger.warning("CHAT API: JWT expired during conversation save — skipping save")
+        except Exception as save_err:
+            logger.warning("CHAT API: Failed to save conversation: %s", save_err)
+
         return AIChatResponse(
             reply=reply,
             conversation_id=req.conversation_id or "new",
@@ -289,7 +337,7 @@ async def chat_stream(
     """Send a message to the AI wellness assistant (streaming SSE)."""
     async def generate():
         try:
-            async for chunk in nvidia_ai.chat_completion_stream(
+            async for chunk in openrouter_ai.chat_completion_stream(
                 [{"role": "user", "content": req.message}]
             ):
                 yield f"data: {chunk}\n\n"
@@ -307,7 +355,7 @@ async def recommend(
 ):
     """Get AI-powered resource recommendations based on context."""
     try:
-        result = await nvidia_ai.get_recommendation(
+        result = await openrouter_ai.get_recommendation(
             mood_level=5,
             emotions=[],
             history_summary=req.context,

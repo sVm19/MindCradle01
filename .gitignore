@@ -1,1 +1,44 @@
-# Empty
+# Ignore environment and secret files
+.env
+*.env
+**/.env
+.env.local
+.env.example
+*.env.example
+**/*.env.example
+.env.*
+
+# Common secret/key files
+*.pem
+*.key
+*.p12
+credentials.json
+
+# Node / frontend build artifacts
+node_modules/
+.next/
+dist/
+build/
+.svelte-kit/
+
+# Python caching and environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.ruff_cache/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp

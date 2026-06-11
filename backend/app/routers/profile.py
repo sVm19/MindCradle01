@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Header, HTTPException
 
 from app.models.schemas import ProfileMilestonesUpdate
-from app.services.pocketbase import pb
+from app.services.supabase import pb
 
 router = APIRouter()
 
