@@ -2,11 +2,40 @@ import { useState, useRef, useEffect } from 'react';
 import { ai as aiApi, resources as resourcesApi, mood as moodApi, journal as journalApi } from '@/lib/api';
 import type { ResourceItem, MoodItem, JournalItem } from '@/lib/api';
 import { useAuth, getInitials } from '@/lib/auth';
+import { Lock, Heart, Brain, Target, Lightbulb, Sparkles } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'aria';
   content: string;
+  thinkingMessage?: string;
+  thinkingIcon?: 'brain' | 'lock' | 'heart' | 'target' | 'lightbulb' | 'sparkle';
 }
+
+const renderMessageContent = (content: string) => {
+  const regex = /(🔒|💙|🤔|🎯|📍|✨|❤️)/g;
+  const parts = content.split(regex);
+  if (parts.length === 1) return content;
+
+  return parts.map((part, index) => {
+    switch (part) {
+      case '🔒':
+        return <Lock key={index} size={16} className="inline-block mx-0.5 text-blue-500 align-text-bottom" />;
+      case '💙':
+      case '❤️':
+        return <Heart key={index} size={16} className="inline-block mx-0.5 text-red-500 align-text-bottom" />;
+      case '🤔':
+        return <Brain key={index} size={16} className="inline-block mx-0.5 text-purple-500 align-text-bottom" />;
+      case '🎯':
+        return <Target key={index} size={16} className="inline-block mx-0.5 text-orange-500 align-text-bottom" />;
+      case '📍':
+        return <Lightbulb key={index} size={16} className="inline-block mx-0.5 text-yellow-500 align-text-bottom" />;
+      case '✨':
+        return <Sparkles key={index} size={16} className="inline-block mx-0.5 text-blue-400 align-text-bottom" />;
+      default:
+        return part;
+    }
+  });
+};
 
 export default function ARIA() {
   const { user } = useAuth();
@@ -79,9 +108,12 @@ export default function ARIA() {
       if (res && res.id) {
         setConversationId(res.id);
         if (res.messages) {
+          const hasContext = res.context_used?.is_personalized;
           setMessages(res.messages.map((m: any) => ({
             role: m.role === 'user' ? 'user' : 'aria',
-            content: m.content
+            content: m.content,
+            thinkingMessage: m.role !== 'user' && hasContext ? "I'm putting this together with what I know about you..." : undefined,
+            thinkingIcon: m.role !== 'user' && hasContext ? 'brain' : undefined
           })));
         }
       }
@@ -122,7 +154,15 @@ export default function ARIA() {
       const res = await aiApi.chat(text, conversationId, responseType, contextData);
       const nextConvoId = res.conversation_id;
       if (!conversationId) setConversationId(nextConvoId);
-      setMessages((prev) => [...prev, { role: 'aria', content: res.reply }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'aria',
+          content: res.reply,
+          thinkingMessage: responseType ? "I'm putting this together with what I know about you..." : undefined,
+          thinkingIcon: responseType ? 'brain' : undefined
+        }
+      ]);
 
       if (res.crisis_detected) {
         setCrisisDetected(true);
@@ -423,7 +463,7 @@ export default function ARIA() {
               onClick={handleEndConversation}
               className="px-4 py-2 bg-rose/10 hover:bg-rose/20 border border-rose/30 text-rose rounded-xl text-xs font-medium transition-all flex items-center gap-2"
             >
-              🔒 End & Summarize Chat
+              <Lock size={14} className="text-rose" /> End & Summarize Chat
             </button>
           )}
           <button
@@ -431,7 +471,7 @@ export default function ARIA() {
             onClick={handleOpenSettings}
             className="px-4 py-2 bg-bg2 hover:bg-bg3 border border-border text-text2 hover:text-text rounded-xl text-xs font-medium transition-all flex items-center gap-2"
           >
-            🧠 Manage ARIA's Memory
+            <Brain size={14} className="text-purple-500" /> Manage ARIA's Memory
           </button>
         </div>
       </div>
@@ -440,7 +480,7 @@ export default function ARIA() {
       {crisisDetected && (
         <div className="bg-rose/15 border border-rose/30 rounded-2xl p-5 text-left space-y-4 animate-slideIn">
           <div className="flex items-start gap-3.5">
-            <span className="text-2xl mt-0.5">❤️</span>
+            <Heart size={24} className="text-red-500 mt-0.5 flex-shrink-0" />
             <div className="space-y-1">
               <div className="text-xs text-rose font-bold uppercase tracking-wider">You deserve support right now</div>
               <p className="text-sm text-text leading-relaxed">
@@ -479,7 +519,7 @@ export default function ARIA() {
       {messages.length === 0 && checkInMessage && (
         <div className="bg-gradient-to-r from-accent/15 to-teal/15 border border-accent/25 rounded-2xl p-5 text-left space-y-4 animate-slideIn">
           <div className="flex items-center gap-3">
-            <span className="text-xl">🌸</span>
+            <Sparkles size={20} className="text-blue-400 flex-shrink-0" />
             <div>
               <div className="text-xs text-accent font-semibold uppercase tracking-wider">Aria's Check-in</div>
               <p className="text-sm text-text leading-relaxed mt-0.5">{checkInMessage}</p>
@@ -510,11 +550,11 @@ export default function ARIA() {
       {messages.length === 0 && (
         <section className="bg-bg2 border border-border rounded-[20px] px-8 py-10 text-center space-y-6">
           <div className="w-16 h-16 rounded-full bg-gradient-to-br from-accent2 to-teal mx-auto flex items-center justify-center text-3xl">
-            ✦
+            <Sparkles size={32} className="text-white animate-pulse" />
           </div>
           <div>
             <h2 className="text-xl font-light text-text mb-3">
-              Hi, I am ARIA. I am here to listen, suggest resources, and support your mental well-being journey. How are you feeling today?
+              You're safe to share, I'm listening
             </h2>
           </div>
           <div className="flex flex-wrap gap-3 justify-center">
@@ -639,19 +679,30 @@ export default function ARIA() {
                   </div>
                 )}
                 <div className="flex flex-col gap-1 max-w-[75%]">
+                  {message.role === 'aria' && message.thinkingMessage && (
+                    <div className="text-gray-500 text-sm italic mb-1 flex items-center gap-1.5 opacity-80">
+                      {message.thinkingIcon === 'brain' && <Brain size={14} className="text-purple-500" />}
+                      {message.thinkingIcon === 'lock' && <Lock size={14} className="text-blue-500" />}
+                      {message.thinkingIcon === 'heart' && <Heart size={14} className="text-red-500" />}
+                      {message.thinkingIcon === 'target' && <Target size={14} className="text-orange-500" />}
+                      {message.thinkingIcon === 'lightbulb' && <Lightbulb size={14} className="text-yellow-500" />}
+                      {message.thinkingIcon === 'sparkle' && <Sparkles size={14} className="text-blue-400" />}
+                      <span>{message.thinkingMessage}</span>
+                    </div>
+                  )}
                   <div
-                    className={`px-4 py-3 rounded-[14px] w-full ${
+                    className={`aria-message px-4 py-3 rounded-[14px] w-full ${
                       message.role === 'user'
                         ? 'bg-accent text-white'
                         : 'bg-bg3 border border-border text-text'
                     }`}
                   >
-                    <p className="text-sm leading-relaxed">{message.content}</p>
+                    <p className="text-sm leading-relaxed">{renderMessageContent(message.content)}</p>
                   </div>
                   {message.role === 'aria' && (
                     <div className="mt-1 ml-2 flex flex-col gap-1.5">
                       <span className="text-[10px] text-text3 flex items-center gap-1">
-                        💾 This helps ARIA know you better
+                        <Lock size={10} className="text-blue-500" /> This helps ARIA know you better
                       </span>
                       {feedbackLogged[index] ? (
                         <span className="text-[10px] text-teal font-medium flex items-center gap-1">
@@ -694,23 +745,26 @@ export default function ARIA() {
               </div>
             ))}
 
-            {showContextIndicator && (
-              <div className="flex gap-2 items-center text-xs text-accent/80 font-light italic animate-pulse px-4 py-2 bg-accent/5 rounded-full border border-accent/10 w-fit mx-auto my-2" role="status" aria-live="polite">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-ping" />
-                ARIA is remembering your context...
-              </div>
-            )}
-
-            {/* Typing indicator */}
+            {/* Typing/Thinking indicator */}
             {loading && (
-              <div className="flex gap-3 justify-start" role="status" aria-live="polite">
+              <div className="flex gap-3 justify-start animate-fadeIn" role="status" aria-live="polite">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent2 to-teal flex items-center justify-center text-sm flex-shrink-0" aria-hidden="true">
                   ✦
                 </div>
-                <div className="bg-bg3 border border-border px-4 py-3 rounded-[14px] flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-text3 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-text3 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-text3 animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div className="flex flex-col gap-1 max-w-[75%]">
+                  <div className="text-gray-500 text-sm italic flex items-center gap-1.5 mb-1.5 opacity-80 animate-pulse">
+                    <Brain size={14} className="text-purple-500" />
+                    <span>
+                      {showContextIndicator
+                        ? "I'm putting this together with what I know about you..."
+                        : "Thinking..."}
+                    </span>
+                  </div>
+                  <div className="bg-bg3 border border-border px-4 py-3 rounded-[14px] flex items-center gap-1.5 w-fit">
+                    <span className="w-1.5 h-1.5 rounded-full bg-text3 animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-text3 animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-text3 animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
                 </div>
               </div>
             )}
@@ -720,7 +774,7 @@ export default function ARIA() {
             <div className="bg-bg2/90 backdrop-blur-md border border-border rounded-[16px] p-4 flex flex-col sm:flex-row items-center justify-between gap-4 animate-slideIn">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent text-sm">
-                  🧠
+                  <Brain size={18} className="text-accent" />
                 </div>
                 <div>
                   <div className="text-sm font-medium text-text">Add this to memory?</div>
@@ -770,7 +824,7 @@ export default function ARIA() {
                 title="ARIA will remember this conversation"
               />
               <span className="text-[10px] text-text3 ml-2 flex items-center gap-1">
-                🔒 ARIA will remember this conversation
+                <Lock size={12} className="text-blue-500 inline mr-1" /> ARIA will remember this conversation
               </span>
             </div>
             <button
@@ -827,10 +881,9 @@ export default function ARIA() {
       {showSettingsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="bg-bg2 border border-border w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-slideIn">
-            {/* Modal Header */}
             <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-bg3">
               <h2 className="text-lg font-light text-text flex items-center gap-2">
-                🧠 Manage ARIA's Memory
+                <Brain size={18} className="text-purple-500" /> Manage ARIA's Memory
               </h2>
               <button
                 type="button"
