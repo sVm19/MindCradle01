@@ -14,8 +14,8 @@ Get-Content $envPath | ForEach-Object {
 }
 
 # Set your credentials (replace with your own values or export them as env vars before running)
-$email = "imshubham7004@gmail.com"
-$password = "Shubham@220"
+$email = "your-email@example.com"
+$password = "your-password"
 
 # Build request payload
 $payload = @{ email = $email; password = $password } | ConvertTo-Json
