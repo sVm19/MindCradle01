@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { ai as aiApi, resources as resourcesApi, mood as moodApi, journal as journalApi } from '@/lib/api';
 import type { ResourceItem, MoodItem, JournalItem } from '@/lib/api';
 import { useAuth, getInitials } from '@/lib/auth';
+import { useARIA } from '@/context/ARIAContext';
 import { Lock, Heart, Brain, Target, Lightbulb, Sparkles } from 'lucide-react';
 
 interface Message {
@@ -41,10 +42,16 @@ export default function ARIA() {
   const { user } = useAuth();
   const initials = user ? getInitials(user.name || user.email) : '?';
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const {
+    messages,
+    setMessages,
+    conversationId,
+    setConversationId,
+    isLoading: loading,
+    setLoading,
+    clearARIAConversation,
+  } = useARIA();
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [resources, setResources] = useState<ResourceItem[]>([]);
 
   const [allMoods, setAllMoods] = useState<MoodItem[]>([]);
@@ -374,8 +381,7 @@ export default function ARIA() {
     try {
       setLoading(true);
       await aiApi.endConversation(conversationId);
-      setConversationId(undefined);
-      setMessages([]);
+      clearARIAConversation();
       setCrisisDetected(false);
       setCrisisSeverity(null);
       setToastMessage('Conversation ended and summarized.');
@@ -451,7 +457,12 @@ export default function ARIA() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="text-xs text-accent tracking-[0.1em] uppercase mb-4">PRIVATE SUPPORT</div>
-          <h1 className="text-3xl font-light text-text mb-2">ARIA</h1>
+          <h1 className="text-3xl font-light text-text mb-2 flex items-center gap-3">
+            ARIA
+            <span className="text-[10px] font-normal bg-bg3 border border-border px-2 py-0.5 rounded-md text-text3">
+              {messages.length} messages cached
+            </span>
+          </h1>
           <p className="text-sm text-text2">
             Your conversational AI guide and anonymous support. Not a substitute for professional mental health care.
           </p>

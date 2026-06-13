@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { ARIAProvider } from '@/context/ARIAContext';
 import { registerFCMToken, listenForMessages } from '@/lib/firebase';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -86,9 +87,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <ARIAProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </ARIAProvider>
     </AuthProvider>
   );
 }
