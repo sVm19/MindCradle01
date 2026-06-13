@@ -1,19 +1,24 @@
 import { useState } from 'react';
+import { Frown, Meh, Smile, Sun, Wind, Activity, PenTool, Footprints, Heart, Moon } from 'lucide-react';
 import { rituals as ritualsApi } from '@/lib/api';
 
 const MOOD_LABELS: Record<number, string> = {
   0: 'Heavy', 1: 'Unsettled', 2: 'Neutral', 3: 'Hopeful', 4: 'Bright',
 };
-const MOOD_EMOJIS: Record<number, string> = {
-  0: '😟', 1: '😐', 2: '🙂', 3: '😊', 4: '😁',
+const MOOD_ICONS: Record<number, React.ReactNode> = {
+  0: <Frown className="w-7 h-7 text-rose-400" />,
+  1: <Meh className="w-7 h-7 text-amber-400" />,
+  2: <Smile className="w-7 h-7 text-yellow-400" />,
+  3: <Smile className="w-7 h-7 text-teal-400" />,
+  4: <Sun className="w-7 h-7 text-green-400" />,
 };
 const ACTIVITIES = [
-  { id: 'breathwork', label: 'Breathwork', icon: '🌬️', desc: '2 min box breathing' },
-  { id: 'stretch', label: 'Stretch', icon: '🧘', desc: 'Gentle morning stretch' },
-  { id: 'journal', label: 'Journal', icon: '📝', desc: 'Quick brain dump' },
-  { id: 'walk', label: 'Walk', icon: '🚶', desc: 'Short outdoor walk' },
-  { id: 'gratitude', label: 'Gratitude', icon: '🙏', desc: 'Name 3 things' },
-  { id: 'none', label: 'Skip today', icon: '💤', desc: 'Rest is valid too' },
+  { id: 'breathwork', label: 'Breathwork', icon: <Wind className="w-6 h-6 text-sky-400" />, desc: '2 min box breathing' },
+  { id: 'stretch', label: 'Stretch', icon: <Activity className="w-6 h-6 text-emerald-400" />, desc: 'Gentle morning stretch' },
+  { id: 'journal', label: 'Journal', icon: <PenTool className="w-6 h-6 text-indigo-400" />, desc: 'Quick brain dump' },
+  { id: 'walk', label: 'Walk', icon: <Footprints className="w-6 h-6 text-amber-400" />, desc: 'Short outdoor walk' },
+  { id: 'gratitude', label: 'Gratitude', icon: <Heart className="w-6 h-6 text-rose-400" />, desc: 'Name 3 things' },
+  { id: 'none', label: 'Skip today', icon: <Moon className="w-6 h-6 text-gray-400" />, desc: 'Rest is valid too' },
 ];
 
 export default function Morning() {
@@ -70,7 +75,7 @@ export default function Morning() {
       {/* Progress */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2.5 text-[10px] tracking-[0.12em] uppercase text-accent">
-          <span className="text-lg">☀</span>
+          <Sun className="w-4 h-4 text-accent animate-pulse" />
           STEP {step} OF 3
         </div>
         <div className="flex gap-1.5 ml-2">
@@ -100,13 +105,13 @@ export default function Morning() {
               <div key={i} className="flex flex-col items-center gap-3">
                 <button
                   onClick={() => setForecast(i)}
-                  className={`w-16 h-16 rounded-full flex items-center justify-center text-3xl transition-all ${
+                  className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
                     forecast === i
                       ? 'bg-accent/20 border-2 border-accent scale-110'
                       : 'bg-bg3 border border-border hover:bg-bg4 hover:border-border2'
                   }`}
                 >
-                  {MOOD_EMOJIS[i]}
+                  {MOOD_ICONS[i]}
                 </button>
                 <span className="text-xs text-text3">{MOOD_LABELS[i]}</span>
               </div>

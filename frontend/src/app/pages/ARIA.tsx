@@ -3,7 +3,7 @@ import { ai as aiApi, resources as resourcesApi, mood as moodApi, journal as jou
 import type { ResourceItem, MoodItem, JournalItem } from '@/lib/api';
 import { useAuth, getInitials } from '@/lib/auth';
 import { useARIA } from '@/context/ARIAContext';
-import { Lock, Heart, Brain, Target, Lightbulb, Sparkles } from 'lucide-react';
+import { Lock, Heart, Brain, Target, Lightbulb, Sparkles, Phone, MessageSquare, ThumbsUp, ThumbsDown, Meh, Wind, PhoneCall, X, Zap, Flower2, AlignLeft, HeartHandshake } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'aria';
@@ -505,13 +505,13 @@ export default function ARIA() {
               href="tel:988"
               className="px-4 py-2 bg-rose hover:bg-rose-600 text-white rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5"
             >
-              📞 Call/Text 988 (Crisis Lifeline)
+              <Phone size={14} /> Call/Text 988 (Crisis Lifeline)
             </a>
             <a
               href="sms:741741?&body=HOME"
               className="px-4 py-2 bg-rose/10 hover:bg-rose/20 border border-rose/30 text-rose rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5"
             >
-              💬 Text HOME to 741741 (Crisis Text Line)
+              <MessageSquare size={14} /> Text HOME to 741741 (Crisis Text Line)
             </a>
             <button
               onClick={() => {
@@ -725,23 +725,23 @@ export default function ARIA() {
                           <button
                             type="button"
                             onClick={() => handleFeedback(index, message.content, 3)}
-                            className="px-2 py-0.5 bg-bg3 hover:bg-bg4 border border-border rounded-full text-[10px] text-text2 hover:text-text transition-all"
+                            className="px-2 py-0.5 bg-bg3 hover:bg-bg4 border border-border rounded-full text-[10px] text-text2 hover:text-text transition-all flex items-center gap-1"
                           >
-                            👍 Very
+                            <ThumbsUp size={10} /> Very
                           </button>
                           <button
                             type="button"
                             onClick={() => handleFeedback(index, message.content, 2)}
-                            className="px-2 py-0.5 bg-bg3 hover:bg-bg4 border border-border rounded-full text-[10px] text-text2 hover:text-text transition-all"
+                            className="px-2 py-0.5 bg-bg3 hover:bg-bg4 border border-border rounded-full text-[10px] text-text2 hover:text-text transition-all flex items-center gap-1"
                           >
-                            😐 Somewhat
+                            <Meh size={10} /> Somewhat
                           </button>
                           <button
                             type="button"
                             onClick={() => handleFeedback(index, message.content, 1)}
-                            className="px-2 py-0.5 bg-bg3 hover:bg-bg4 border border-border rounded-full text-[10px] text-text2 hover:text-text transition-all"
+                            className="px-2 py-0.5 bg-bg3 hover:bg-bg4 border border-border rounded-full text-[10px] text-text2 hover:text-text transition-all flex items-center gap-1"
                           >
-                            👎 Not really
+                            <ThumbsDown size={10} /> Not really
                           </button>
                         </div>
                       )}
@@ -868,12 +868,12 @@ export default function ARIA() {
           ) : (
             <>
               <div className="bg-bg2 border border-border rounded-[14px] px-5 py-4 hover:border-border2 transition-all cursor-pointer">
-                <div className="text-lg mb-2">🧘</div>
+                <div className="text-lg mb-2 text-accent"><Wind size={20} /></div>
                 <div className="text-sm text-text mb-1">Breathing Exercises</div>
                 <div className="text-xs text-text3">Quick calm techniques</div>
               </div>
               <div className="bg-bg2 border border-border rounded-[14px] px-5 py-4 hover:border-border2 transition-all cursor-pointer">
-                <div className="text-lg mb-2">📞</div>
+                <div className="text-lg mb-2 text-accent"><PhoneCall size={20} /></div>
                 <div className="text-sm text-text mb-1">Crisis Hotline</div>
                 <div className="text-xs text-text3">24/7 support — call 988</div>
               </div>
@@ -902,9 +902,9 @@ export default function ARIA() {
                   setShowSettingsModal(false);
                   setEditingInsightId(null);
                 }}
-                className="text-text3 hover:text-text text-sm transition-all"
+                className="text-text3 hover:text-text text-sm transition-all flex items-center gap-1"
               >
-                ✕ Close
+                <X size={14} /> Close
               </button>
             </div>
 
@@ -954,20 +954,28 @@ export default function ARIA() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
                       <div className="bg-bg2 border border-border rounded-lg p-2.5 text-center">
                         <div className="text-[10px] text-text3 uppercase tracking-[0.02em]">Advice Type</div>
-                        <div className="text-text font-medium mt-0.5">
-                          {personality.preference_advice_type === 'direct_advice' ? '⚡ Direct Advice' : '🌸 Gentle Suggestions'}
+                        <div className="text-text font-medium mt-0.5 flex items-center justify-center gap-1.5">
+                          {personality.preference_advice_type === 'direct_advice' ? (
+                            <>
+                              <Zap size={12} className="text-amber-400" /> Direct Advice
+                            </>
+                          ) : (
+                            <>
+                              <Flower2 size={12} className="text-pink-400" /> Gentle Suggestions
+                            </>
+                          )}
                         </div>
                       </div>
                       <div className="bg-bg2 border border-border rounded-lg p-2.5 text-center">
                         <div className="text-[10px] text-text3 uppercase tracking-[0.02em]">Response Length</div>
-                        <div className="text-text font-medium mt-0.5">
-                          📏 {personality.response_length_preference}
+                        <div className="text-text font-medium mt-0.5 flex items-center justify-center gap-1.5">
+                          <AlignLeft size={12} className="text-accent" /> {personality.response_length_preference}
                         </div>
                       </div>
                       <div className="bg-bg2 border border-border rounded-lg p-2.5 text-center">
                         <div className="text-[10px] text-text3 uppercase tracking-[0.02em]">Emotional Openness</div>
-                        <div className="text-text font-medium mt-0.5">
-                          👐 {personality.emotional_openness}
+                        <div className="text-text font-medium mt-0.5 flex items-center justify-center gap-1.5">
+                          <HeartHandshake size={12} className="text-accent" /> {personality.emotional_openness}
                         </div>
                       </div>
                     </div>

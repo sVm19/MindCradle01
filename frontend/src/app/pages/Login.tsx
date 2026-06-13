@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '@/lib/auth';
+import Logo from '@/app/components/Logo';
 
 export default function Login() {
   const { login } = useAuth();
@@ -33,11 +34,8 @@ export default function Login() {
 
       <div className="w-full max-w-[380px] mx-auto px-6 relative z-10 animate-fadeIn">
         {/* Logo */}
-        <div className="flex items-center gap-2.5 font-[family-name:var(--font-serif)] text-xl font-light text-text tracking-[0.02em] mb-10 justify-center">
-          <div className="w-9 h-9 rounded-[10px] bg-gradient-to-br from-accent2 to-teal flex items-center justify-center text-base">
-            🌊
-          </div>
-          MindCradle
+        <div className="flex justify-center mb-8">
+          <Logo className="h-12 w-auto text-text" />
         </div>
 
         <div className="bg-bg2 border border-border rounded-[24px] px-8 py-8">

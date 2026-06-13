@@ -7,10 +7,10 @@
   --font-sans: 'DM Sans', system-ui, sans-serif;
 
   /* Backgrounds */
-  --bg: #0a0b12;
-  --bg2: #11121e;
-  --bg3: #181926;
-  --bg4: #1f2032;
+  --bg: #0d0d10;
+  --bg2: rgba(24, 24, 28, 0.45);
+  --bg3: rgba(36, 36, 42, 0.65);
+  --bg4: rgba(48, 48, 56, 0.75);
 
   /* Borders */
   --border: rgba(255,255,255,0.07);
@@ -114,15 +114,7 @@
     position: relative;
   }
 
-  /* Noise texture overlay */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-  }
+
 
   /* Scrollbar */
   ::-webkit-scrollbar {
@@ -134,5 +126,11 @@
   ::-webkit-scrollbar-thumb {
     background: var(--bg4);
     border-radius: 3px;
+  }
+
+  /* Glassmorphism support */
+  .bg-bg2, .bg-bg3, .bg-bg4, .bg-card {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 }

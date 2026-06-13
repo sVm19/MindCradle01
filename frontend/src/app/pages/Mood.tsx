@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Frown, Meh, Smile, Laugh, Compass, Activity, BatteryWarning, AlertCircle, Heart, Flame, HelpCircle, Ghost, Sparkles, ThumbsDown } from 'lucide-react';
 import { mood as moodApi, ai as aiApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
-const MOOD_EMOJIS: Record<number, string> = { 1: '😟', 2: '😐', 3: '🙂', 4: '😊', 5: '😁' };
+const MOOD_ICONS: Record<number, React.ReactNode> = {
+  1: <Frown className="w-6 h-6 text-rose-400" />,
+  2: <Meh className="w-6 h-6 text-amber-400" />,
+  3: <Smile className="w-6 h-6 text-yellow-400" />,
+  4: <Smile className="w-6 h-6 text-teal-400" />,
+  5: <Laugh className="w-6 h-6 text-green-400" />
+};
 // Backend accepts 1–10; we map the 5-step UI to steps of 2
 const MOOD_TO_LEVEL: Record<number, number> = { 1: 2, 2: 4, 3: 6, 4: 8, 5: 10 };
 
@@ -30,14 +36,25 @@ export default function Mood() {
   } | null>(null);
 
   const allFeelings = [
-    '😌 Relaxed', '😊 Happy', '😢 Sad', '😰 Stressed', '🥱 Exhausted',
-    '😔 Anxious', '🤗 Grateful', '😡 Angry', '😐 Neutral', '🤔 Confused',
-    '😨 Scared', '🤩 Excited', '😞 Frustrated', '🙂 Content',
+    { label: 'Relaxed', icon: <Compass className="w-4 h-4 text-sky-400" /> },
+    { label: 'Happy', icon: <Smile className="w-4 h-4 text-green-400" /> },
+    { label: 'Sad', icon: <Frown className="w-4 h-4 text-blue-400" /> },
+    { label: 'Stressed', icon: <Activity className="w-4 h-4 text-orange-400" /> },
+    { label: 'Exhausted', icon: <BatteryWarning className="w-4 h-4 text-purple-400" /> },
+    { label: 'Anxious', icon: <AlertCircle className="w-4 h-4 text-yellow-500" /> },
+    { label: 'Grateful', icon: <Heart className="w-4 h-4 text-pink-400" /> },
+    { label: 'Angry', icon: <Flame className="w-4 h-4 text-rose-500" /> },
+    { label: 'Neutral', icon: <Meh className="w-4 h-4 text-gray-400" /> },
+    { label: 'Confused', icon: <HelpCircle className="w-4 h-4 text-indigo-400" /> },
+    { label: 'Scared', icon: <Ghost className="w-4 h-4 text-violet-400" /> },
+    { label: 'Excited', icon: <Sparkles className="w-4 h-4 text-amber-400" /> },
+    { label: 'Frustrated', icon: <ThumbsDown className="w-4 h-4 text-red-400" /> },
+    { label: 'Content', icon: <Smile className="w-4 h-4 text-teal-400" /> },
   ];
 
-  const toggleFeeling = (feeling: string) => {
+  const toggleFeeling = (feelingLabel: string) => {
     setFeelings((prev) =>
-      prev.includes(feeling) ? prev.filter((f) => f !== feeling) : [...prev, feeling],
+      prev.includes(feelingLabel) ? prev.filter((f) => f !== feelingLabel) : [...prev, feelingLabel],
     );
   };
 
@@ -136,7 +153,7 @@ export default function Mood() {
                   : 'bg-bg3 border border-border hover:bg-bg4'
               }`}
             >
-              {MOOD_EMOJIS[mood]}
+              {MOOD_ICONS[mood]}
             </button>
           ))}
         </div>
@@ -151,15 +168,16 @@ export default function Mood() {
         <div className="flex flex-wrap gap-2">
           {allFeelings.map((feeling) => (
             <button
-              key={feeling}
-              onClick={() => toggleFeeling(feeling)}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
-                feelings.includes(feeling)
+              key={feeling.label}
+              onClick={() => toggleFeeling(feeling.label)}
+              className={`px-3 py-1.5 rounded-lg text-sm transition-all flex items-center gap-1.5 ${
+                feelings.includes(feeling.label)
                   ? 'bg-accent/20 border border-accent text-accent'
                   : 'bg-bg3 border border-border text-text2 hover:bg-bg4'
               }`}
             >
-              {feeling}
+              {feeling.icon}
+              <span>{feeling.label}</span>
             </button>
           ))}
         </div>

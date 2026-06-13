@@ -1,20 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { useAuth, getInitials } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi, profile as profileApi } from '@/lib/api';
 import type { ResourceItem } from '@/lib/api';
+import { Lock, Award, Sprout, BarChart3, Settings, Moon, Wind, PenTool } from 'lucide-react';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const SHORT_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-function formatDate(d: Date): string {
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-}
-
 export default function Dashboard() {
   const { user } = useAuth();
-  const initials = user ? getInitials(user.name || user.email) : '?';
-  const greeting = new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening';
 
   // Mood data
   const [moodItems, setMoodItems] = useState<{ created: string; level: number }[]>([]);
@@ -28,12 +23,6 @@ export default function Dashboard() {
   // AI Insight
   const [ariaInsight, setAriaInsight] = useState('');
   const [ariaLoading, setAriaLoading] = useState(true);
-
-  // Proactive check-ins
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [replyText, setReplyText] = useState<{ [key: string]: string }>({});
-  const [sendingReply, setSendingReply] = useState<{ [key: string]: boolean }>({});
 
   // Recovery patterns
   const [recoveryData, setRecoveryData] = useState<{ history: any[]; stats: any } | null>(null);
@@ -55,26 +44,6 @@ export default function Dashboard() {
       })
       .finally(() => {
         setSavingContact(false);
-      });
-  };
-
-  const handleSendReply = (checkinId: string) => {
-    const text = replyText[checkinId];
-    if (!text || !text.trim()) return;
-
-    setSendingReply((prev) => ({ ...prev, [checkinId]: true }));
-    aiApi.respondToProactiveCheckin(checkinId, text)
-      .then((updatedCheckin) => {
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === checkinId ? updatedCheckin : n))
-        );
-        setReplyText((prev) => ({ ...prev, [checkinId]: '' }));
-      })
-      .catch((err) => {
-        console.error('Failed to respond to proactive check-in:', err);
-      })
-      .finally(() => {
-        setSendingReply((prev) => ({ ...prev, [checkinId]: false }));
       });
   };
 
@@ -125,13 +94,6 @@ export default function Dashboard() {
       setAriaLoading(false);
     });
 
-    // Schedule proactive check-in in background and load notification list
-    aiApi.scheduleCheckin().catch(() => {}).finally(() => {
-      aiApi.listProactiveCheckins().then((list) => {
-        setNotifications(list);
-      }).catch(() => {});
-    });
-
     // Fetch recovery patterns
     aiApi.getRecoveryPatterns().then((data) => {
       setRecoveryData(data);
@@ -154,125 +116,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-fadeIn">
-      {/* Greeting */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-xs text-text3 tracking-[0.1em] uppercase mb-1.5">{formatDate(new Date())}</div>
-          <div className="font-[family-name:var(--font-serif)] text-[30px] font-light text-text italic">
-            Good {greeting},{' '}
-            <span className="not-italic text-accent">{user?.name?.split(' ')[0] || 'there'}</span> ✦
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="bg-bg3 border border-border rounded-full px-3.5 py-1.5 text-xs text-text2">
-            Set today's intention →
-          </div>
-
-          {/* Notification Center */}
-          <div className="relative">
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="w-[38px] h-[38px] rounded-full bg-bg2 border border-border flex items-center justify-center text-lg hover:border-border2 hover:bg-white/5 transition-all relative"
-            >
-              🔔
-              {notifications.filter((n) => !n.actual_response).length > 0 && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-accent rounded-full border border-bg2 animate-pulse" />
-              )}
-            </button>
-
-            {showNotifications && (
-              <div className="absolute right-0 mt-2.5 w-[360px] bg-bg2 border border-border rounded-[20px] shadow-[0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-[20px] p-5 z-50 text-left">
-                <div className="flex items-center justify-between pb-3 border-b border-border mb-3">
-                  <div className="font-[family-name:var(--font-serif)] text-sm font-medium text-text">
-                    ✦ Aria's Reached Out
-                  </div>
-                  <div className="text-[10px] text-text3 uppercase tracking-wider">
-                    {notifications.filter((n) => !n.actual_response).length} pending
-                  </div>
-                </div>
-
-                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
-                  {notifications.length === 0 ? (
-                    <div className="text-center py-6 text-xs text-text3 italic">
-                      No recent notifications.
-                    </div>
-                  ) : (
-                    notifications.map((n) => {
-                      const hasResponded = !!n.actual_response;
-                      const dateLabel = new Date(n.scheduled_time).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      });
-
-                      return (
-                        <div
-                          key={n.id}
-                          className="bg-bg3/50 border border-border/50 rounded-xl p-3.5 space-y-2.5 hover:border-border transition-all"
-                        >
-                          <div className="text-[12.5px] text-text font-light leading-relaxed">
-                            "{n.suggested_message}"
-                          </div>
-                          
-                          <div className="flex items-center justify-between text-[10px] text-text3">
-                            <span>{dateLabel}</span>
-                            {hasResponded && (
-                              <span className="text-green flex items-center gap-1 font-medium">
-                                ✓ Responded
-                              </span>
-                            )}
-                          </div>
-
-                          {!hasResponded ? (
-                            <div className="space-y-2 pt-1">
-                              <textarea
-                                className="w-full bg-bg4 border border-border rounded-lg p-2 text-xs text-text placeholder-text3 focus:outline-none focus:border-accent resize-none h-14"
-                                placeholder="Write your reply..."
-                                value={replyText[n.id] || ''}
-                                onChange={(e) =>
-                                  setReplyText({ ...replyText, [n.id]: e.target.value })
-                                }
-                              />
-                              <div className="flex justify-between items-center">
-                                <Link
-                                  to={`/aria?checkin=${n.id}`}
-                                  className="text-[11px] text-accent hover:underline"
-                                >
-                                  Chat in ARIA →
-                                </Link>
-                                <button
-                                  disabled={sendingReply[n.id] || !replyText[n.id]?.trim()}
-                                  onClick={() => handleSendReply(n.id)}
-                                  className="bg-accent text-white px-3 py-1 rounded-md text-[11px] font-medium hover:bg-accent/80 transition-all disabled:opacity-50"
-                                >
-                                  {sendingReply[n.id] ? 'Sending…' : 'Send'}
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="bg-bg4/35 border border-border/30 rounded-lg p-2.5 text-xs text-text3 italic">
-                              <div className="text-[9px] uppercase tracking-wider text-text3/60 mb-1">
-                                Your response
-                              </div>
-                              "{n.actual_response}"
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="w-[38px] h-[38px] rounded-full bg-gradient-to-br from-accent2 to-teal flex items-center justify-center text-[13px] font-medium text-white cursor-pointer">
-            {initials}
-          </div>
-        </div>
-      </div>
-
       {/* Today's Rituals */}
       <section>
         <div className="text-[10.5px] tracking-[0.14em] uppercase text-accent font-medium mb-4">
@@ -281,9 +124,8 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 gap-4">
           <Link
             to="/morning"
-            className="bg-bg2 border border-border rounded-[20px] px-6 py-5 cursor-pointer transition-all hover:border-border2 hover:-translate-y-0.5 relative overflow-hidden group"
+            className="bg-bg2 border border-border rounded-[20px] px-6 py-5 cursor-pointer relative overflow-hidden"
           >
-            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-accent2 to-accent opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="text-[10px] tracking-[0.12em] uppercase text-text3 mb-2.5 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_8px_var(--accent)]" /> Ritual
             </div>
@@ -300,9 +142,8 @@ export default function Dashboard() {
 
           <Link
             to="/wind-down"
-            className="bg-bg2 border border-border rounded-[20px] px-6 py-5 cursor-pointer transition-all hover:border-border2 hover:-translate-y-0.5 relative overflow-hidden group"
+            className="bg-bg2 border border-border rounded-[20px] px-6 py-5 cursor-pointer relative overflow-hidden"
           >
-            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-teal to-accent opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="text-[10px] tracking-[0.12em] uppercase text-text3 mb-2.5 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-teal shadow-[0_0_8px_var(--teal)]" /> Evening Ritual
             </div>
@@ -455,9 +296,9 @@ export default function Dashboard() {
             ))
           ) : (
             [
-              { type: 'Sleep Story', name: 'The Observatory', icon: '◑' },
-              { type: 'Breathwork', name: 'Box Breath', icon: '◉' },
-              { type: 'Micro-Journal', name: '3 Bullet Reflection', icon: '✎' },
+              { type: 'Sleep Story', name: 'The Observatory', icon: <Moon className="w-5 h-5 text-teal-400" /> },
+              { type: 'Breathwork', name: 'Box Breath', icon: <Wind className="w-5 h-5 text-sky-400" /> },
+              { type: 'Micro-Journal', name: '3 Bullet Reflection', icon: <PenTool className="w-5 h-5 text-indigo-400" /> },
             ].map((item, i) => (
               <div
                 key={i}
@@ -484,7 +325,9 @@ export default function Dashboard() {
         <section>
           <div className="flex items-center justify-between mb-4">
             <div className="text-[10.5px] tracking-[0.14em] uppercase text-accent font-medium flex items-center gap-2">
-              <span>🌱 Recovery Progress</span>
+              <span className="flex items-center gap-1.5">
+                <Sprout size={16} /> Recovery Progress
+              </span>
               {recoveryData.stats.average_recovery_days > 0 && (
                 <span className="text-[9px] bg-accent/10 border border-accent/20 text-accent px-2 py-0.5 rounded-full font-sans normal-case tracking-normal">
                   {recoveryData.stats.trend_description}
@@ -608,7 +451,11 @@ export default function Dashboard() {
               className={`bg-bg2 border border-border rounded-[14px] px-4 py-4 text-center transition-all ${badge.unlocked ? 'opacity-100' : 'opacity-40'}`}
             >
               <div className="w-10 h-10 rounded-full bg-bg4 mx-auto mb-2.5 flex items-center justify-center text-base text-text3">
-                {badge.unlocked ? '🏅' : '🔒'}
+                {badge.unlocked ? (
+                  <Award size={18} className="text-amber animate-pulse" />
+                ) : (
+                  <Lock size={18} className="text-text3" />
+                )}
               </div>
               <div className="text-[12.5px] text-text mb-0.5">{badge.name}</div>
               <div className="text-[11px] text-text3">{badge.unlocked ? 'Earned' : 'Locked'}</div>
@@ -622,7 +469,9 @@ export default function Dashboard() {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-[10.5px] tracking-[0.14em] uppercase text-accent font-medium flex items-center gap-2">
-              <span>📊 ARIA Engagement & A/B Insights</span>
+              <span className="flex items-center gap-1.5">
+                <BarChart3 size={16} /> ARIA Engagement & A/B Insights
+              </span>
             </div>
           </div>
           
@@ -723,8 +572,8 @@ export default function Dashboard() {
 
       {/* Settings Section */}
       <section className="space-y-4">
-        <div className="text-[10.5px] tracking-[0.14em] uppercase text-accent font-medium">
-          ⚙️ Aria Settings
+        <div className="text-[10.5px] tracking-[0.14em] uppercase text-accent font-medium flex items-center gap-1.5">
+          <Settings size={16} /> Aria Settings
         </div>
         <div className="bg-bg2 border border-border rounded-[20px] p-6 space-y-4">
           <div className="space-y-1">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Pause, Loader2 } from 'lucide-react';
+import { Play, Pause, Loader2, BookOpen, Music } from 'lucide-react';
 import { journal as journalApi, ai as aiApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
@@ -97,7 +97,7 @@ export default function Journal() {
       {/* Prompt */}
       <section className="bg-bg2 border border-border rounded-[20px] px-6 py-5">
         <div className="flex items-start gap-3 mb-3">
-          <span className="text-lg">📖</span>
+          <span className="text-lg flex items-center text-accent mt-0.5"><BookOpen size={18} /></span>
           <div>
             <div className="text-xs text-accent tracking-wider uppercase mb-1">TODAY'S PROMPT</div>
             <h2 className="text-base font-medium text-text">{TODAY_PROMPT}</h2>
@@ -131,7 +131,7 @@ export default function Journal() {
               </div>
 
               <div className="text-xs text-text3 flex items-center gap-2">
-                <span>🎵</span>
+                <Music size={14} className="text-text3" />
                 <span>{track.duration}</span>
               </div>
             </div>

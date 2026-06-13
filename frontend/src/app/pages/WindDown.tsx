@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Moon, Leaf, HandHelping, Lightbulb } from 'lucide-react';
+import { Check, Moon, Leaf, HandHelping, Lightbulb, Book, Sparkles, CloudRain } from 'lucide-react';
 import { rituals as ritualsApi } from '@/lib/api';
 
 export default function WindDown() {
@@ -66,7 +66,7 @@ export default function WindDown() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2.5 text-[10px] tracking-[0.12em] uppercase text-teal mb-6">
-          <span className="text-lg">☽</span>
+          <Moon size={14} className="text-teal" />
           EVENING RITUAL
         </div>
         <h1 className="text-3xl font-light text-text mb-2">Wind Down</h1>
@@ -137,13 +137,13 @@ export default function WindDown() {
               <div className="text-sm text-text font-medium">Drift into sleep</div>
               <div className="text-xs text-text3">Choose your sleep companion</div>
             </div>
-            <div className="text-lg">🌙</div>
+            <div className="text-lg text-teal"><Moon size={18} /></div>
           </div>
           <div className="space-y-2">
             {[
-              { id: 'quiet-library', title: 'The Quiet Library', icon: '📚' },
-              { id: 'moonlit-garden', title: 'Moonlit Garden', icon: '🌺' },
-              { id: 'rainy-window', title: 'Rainy Window', icon: '🌧️' },
+              { id: 'quiet-library', title: 'The Quiet Library', icon: <Book className="w-5 h-5 text-teal-400" /> },
+              { id: 'moonlit-garden', title: 'Moonlit Garden', icon: <Sparkles className="w-5 h-5 text-teal-400" /> },
+              { id: 'rainy-window', title: 'Rainy Window', icon: <CloudRain className="w-5 h-5 text-teal-400" /> },
             ].map((story) => (
               <button
                 key={story.id}
