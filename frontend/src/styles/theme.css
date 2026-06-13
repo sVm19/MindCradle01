@@ -1,0 +1,138 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* MindCradle Design System */
+  --font-size: 15px;
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+
+  /* Backgrounds */
+  --bg: #0a0b12;
+  --bg2: #11121e;
+  --bg3: #181926;
+  --bg4: #1f2032;
+
+  /* Borders */
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+
+  /* Text */
+  --text: #f0eeff;
+  --text2: rgba(240,238,255,0.6);
+  --text3: rgba(240,238,255,0.35);
+
+  /* Accent Colors */
+  --accent: #8b7cf8;
+  --accent2: #6c5ce7;
+  --accent-glow: rgba(139,124,248,0.15);
+
+  --teal: #4ecdc4;
+  --teal-dim: rgba(78,205,196,0.15);
+
+  --amber: #f9ca74;
+  --amber-dim: rgba(249,202,116,0.12);
+
+  --rose: #f093a0;
+  --rose-dim: rgba(240,147,160,0.12);
+
+  --green: #6bcb77;
+  --green-dim: rgba(107,203,119,0.12);
+
+  /* Radius */
+  --r-sm: 8px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+
+  /* Legacy compatibility */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--bg2);
+  --card-foreground: var(--text);
+  --primary: var(--accent);
+  --primary-foreground: var(--text);
+  --muted: var(--bg3);
+  --muted-foreground: var(--text2);
+  --radius: var(--r-md);
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+}
+
+.dark {
+  /* Dark mode is the default for MindCradle */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--bg2);
+  --card-foreground: var(--text);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg2: var(--bg2);
+  --color-bg3: var(--bg3);
+  --color-bg4: var(--bg4);
+  --color-border: var(--border);
+  --color-border2: var(--border2);
+  --color-text: var(--text);
+  --color-text2: var(--text2);
+  --color-text3: var(--text3);
+  --color-accent: var(--accent);
+  --color-accent2: var(--accent2);
+  --color-accent-glow: var(--accent-glow);
+  --color-teal: var(--teal);
+  --color-teal-dim: var(--teal-dim);
+  --color-amber: var(--amber);
+  --color-amber-dim: var(--amber-dim);
+  --color-rose: var(--rose);
+  --color-rose-dim: var(--rose-dim);
+  --color-green: var(--green);
+  --color-green-dim: var(--green-dim);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+}
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    font-size: var(--font-size);
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    position: relative;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--bg4);
+    border-radius: 3px;
+  }
+}
