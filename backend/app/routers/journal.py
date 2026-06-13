@@ -12,7 +12,11 @@ async def create_entry(
     authorization: Optional[str] = Header(None),
 ):
     """Save a journal entry for the authenticated user."""
-    data = {"prompt": req.prompt, "content": req.content}
+    data = {
+        "prompt": req.prompt,
+        "content": req.content,
+        "ai_reflection": req.ai_reflection,
+    }
     user_id = extract_user_id(authorization)
     if user_id:
         data["user"] = user_id

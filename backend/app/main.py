@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import FRONTEND_URL
-from app.routers import resources, mood, journal, ai, auth, rituals, profile
+from app.routers import resources, mood, journal, ai, auth, rituals, profile, notifications
 
 app = FastAPI(
     title="MindCradle API",
@@ -28,6 +28,7 @@ app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
 app.include_router(rituals.router, prefix="/api/rituals", tags=["rituals"])
 app.include_router(profile.router, prefix="/api/profile", tags=["profile"])
 app.include_router(profile.router, prefix="/api", tags=["profile"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 
 
 @app.get("/api/health")

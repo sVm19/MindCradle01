@@ -5,11 +5,24 @@ from datetime import datetime, timedelta, timezone
 from fastapi.responses import StreamingResponse
 from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, BackgroundTasks
 
-from app.models.schemas import AIChatRequest, AIChatResponse, AIRecommendRequest
+from app.models.schemas import (
+    AIChatRequest, AIChatResponse, AIRecommendRequest,
+    JournalReflectionRequest, JournalReflectionResponse,
+    MoodAnalysisRequest, MoodAnalysisResponse,
+    RememberContextRequest, MemoryInsightUpdate, MemoryInsightResponse,
+    EmotionTrendsResponse, ExtractThemesRequest, ConversationThemesResponse,
+    TrackHelpRequest, TrackHelpResponse, LearnPersonalityResponse,
+    SelectResponseTypeRequest, SelectResponseTypeResponse,
+    ConversationSummaryResponse, CheckInResponse,
+    ProactiveCheckinResponse, ProactiveCheckinRespondRequest, ScheduleCheckinResponse,
+    RecoveryPatternsResponse, RecoveryStats, RecoveryDataResponse,
+    TrackEngagementRequest, TrackEngagementResponse, EngagementStatsResponse,
+    ConvoTypeEngagement, ABTestResult, DetectCrisisRequest, DetectCrisisResponse
+)
 from app.services import openrouter_ai
-from app.services.supabase import pb, JWTExpiredError
+from app.services.supabase import pb, JWTExpiredError, extract_user_id
 import os
 
 
@@ -23,7 +36,7 @@ ARIA_SYSTEM_PROMPT = """You are ARIA, a quiet companion inside MindCradle.
 You are not a therapist, doctor, or coach.
 Validate feelings before offering any next step.
 Ask at most one question in each response.
-Reference prior context naturally when useful.
+Reference prior context and user memory insights naturally when useful (e.g., "I remember last week when you felt this way...", "You've mentioned X before - it seems to be a pattern").
 Offer exactly one MindCradle tool when relevant: breathing, Wind Down, or journal.
 Never diagnose, never prescribe medication/supplements, and avoid clinical jargon.
 Never use the phrases "As an AI", "I cannot give medical advice", or "I am not a doctor".
@@ -90,6 +103,12 @@ def _is_crisis_text(text: str) -> bool:
 def _passes_safety_filter(text: str) -> bool:
     lower = text.lower()
     return not any(term in lower for term in SAFETY_BANNED_TERMS)
+
+
+def _referenced_memory(reply: str) -> bool:
+    reply_lower = reply.lower()
+    trigger_phrases = ["i remember", "remember", "similar to", "last time", "mentioned", "you said", "you told me", "previously"]
+    return any(p in reply_lower for p in trigger_phrases)
 
 
 def _crisis_handoff_message() -> str:
@@ -237,71 +256,2424 @@ async def _store_conversation(token: str, context: dict, user_message: str, ai_r
         )
 
 
-@router.post("/chat", response_model=AIChatResponse)
-async def chat(
-    req: AIChatRequest,
+async def _build_memory_insight_prompt(token: str, user_id: str) -> str:
+    try:
+        convos_resp = await pb.list_records("ai_conversations", token=token, params={"perPage": 10, "sort": "-updated", "filter": f'user_id="{user_id}" && is_active=false'})
+        past_convos = convos_resp.get("items") or []
+    except Exception:
+        past_convos = []
+
+    try:
+        insights_resp = await pb.list_records("user_memory_insights", token=token, params={"sort": "-created", "perPage": 100, "filter": f'user_id="{user_id}"'})
+        all_insights = insights_resp.get("items") or []
+    except Exception:
+        all_insights = []
+
+    since_30d = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        moods_30d_resp = await pb.list_records("mood_logs", token=token, params={"filter": f'user_id="{user_id}" && created >= "{since_30d}"'})
+        moods_30d = moods_30d_resp.get("items") or []
+    except Exception:
+        moods_30d = []
+
+    emotions = set()
+    for m in moods_30d:
+        emotions.update(m.get("emotions", []))
+    for ins in all_insights:
+        if ins.get("emotion"):
+            for em in ins["emotion"].split(","):
+                emotions.add(em.strip())
+    emotions_list = ", ".join(sorted(list(emotions))[:6]) or "none recorded yet"
+
+    helps = set()
+    for ins in all_insights:
+        if ins.get("what_helped"):
+            helps.add(ins["what_helped"])
+    helps_list = ", ".join(list(helps)[:5]) or "evening ritual, journaling"
+
+    since_7d = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+    concerns = set()
+    for ins in all_insights:
+        created_time = ins.get("created", "")
+        if created_time >= since_7d:
+            concern = ins.get("situation") or ins.get("what_happened")
+            if concern:
+                concerns.add(concern)
+    concerns_list = ", ".join(list(concerns)[:5]) or "general wellness"
+
+    patterns = []
+    rough_days = [ins for ins in all_insights if ins.get("context_type") == "rough_day_support"]
+    vents = [ins for ins in all_insights if ins.get("context_type") == "active_listening"]
+    calms = [ins for ins in all_insights if ins.get("context_type") == "calm_support"]
+    if len(rough_days) >= 2:
+        patterns.append("Struggles with occasional rough days")
+    if len(vents) >= 2:
+        patterns.append("Needs venting spaces to process thoughts")
+    if len(calms) >= 2:
+        patterns.append("Experiences sudden overwhelm requiring calm support")
+    if not patterns:
+        patterns.append("Establishing baseline wellness routines")
+    patterns_list = "; ".join(patterns)
+
+    # Format past conversation summaries for prompt context
+    summaries_section = "None recorded yet."
+    if past_convos:
+        summary_blocks = []
+        for c in past_convos:
+            summary_text = c.get("summary")
+            if summary_text:
+                c_date = c.get("updated")[:10] if c.get("updated") else "unknown date"
+                journey = c.get("emotional_journey") or "unknown"
+                key_pts = ", ".join(c.get("key_points") or [])
+                summary_blocks.append(
+                    f"  * Conversation on {c_date} (emotional journey: {journey}, key points: {key_pts}):\n"
+                    f"    Summary:\n"
+                    f"    {summary_text}"
+                )
+        if summary_blocks:
+            summaries_section = "\n".join(summary_blocks)
+
+    prompt_addition = (
+        "\n\nHere's what you know about this user from past conversations:\n"
+        f"- They struggle with: {emotions_list}\n"
+        f"- What helps them: {helps_list}\n"
+        f"- Recent concerns: {concerns_list}\n"
+        f"- Patterns: {patterns_list}\n"
+        f"- Past Conversation Summaries:\n{summaries_section}\n\n"
+        "Instructions: Reference these past conversation summaries naturally when the user mentions related topics (e.g., if a summary mentions work anxiety and they mention work/job/career again, reference it naturally to show you remember)."
+    )
+
+    try:
+        themes_resp = await pb.list_records(
+            "conversation_themes",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 200}
+        )
+        themes_items = themes_resp.get("items") or []
+    except Exception:
+        themes_items = []
+        
+    theme_counts = {}
+    for t in themes_items:
+        theme_val = t.get("theme")
+        if theme_val:
+            theme_counts[theme_val] = theme_counts.get(theme_val, 0) + 1
+            
+    sorted_themes = sorted(theme_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+    if sorted_themes:
+        themes_str = ", ".join([f"{theme} ({count}x)" for theme, count in sorted_themes])
+        prompt_addition += f"\n- Their primary conversation topics: {themes_str}. Reference these active topics naturally in responses if relevant (e.g., 'I know {sorted_themes[0][0]} has been a big topic for you lately. Let's work on that.')."
+
+    # 4. Fetch advice effectiveness to prioritize what works
+    try:
+        advice_resp = await pb.list_records(
+            "advice_effectiveness",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 200}
+        )
+        advice_items = advice_resp.get("items") or []
+    except Exception:
+        advice_items = []
+        
+    technique_ratings = {}
+    for a in advice_items:
+        txt = (a.get("advice_given") or "").lower()
+        rating = a.get("help_rating")
+        if rating is None:
+            continue
+            
+        category = "general advice"
+        if "breath" in txt or "coherence" in txt or "inhale" in txt or "exhale" in txt:
+            category = "breathing exercise"
+        elif "journal" in txt or "write" in txt or "entry" in txt:
+            category = "journaling"
+        elif "wind down" in txt or "sleep" in txt or "night" in txt or "bed" in txt:
+            category = "wind down ritual"
+            
+        if category not in technique_ratings:
+            technique_ratings[category] = []
+        technique_ratings[category].append(int(rating))
+        
+    effective_techs = []
+    for tech, ratings in technique_ratings.items():
+        avg_rating = sum(ratings) / len(ratings)
+        success_rate = len([r for r in ratings if r >= 2]) / len(ratings)
+        if avg_rating >= 2.0:
+            effective_techs.append(f"{tech} (success rate: {success_rate*100:.0f}%, average rating: {avg_rating:.1f}/3)")
+            
+    if effective_techs:
+        techs_str = ", ".join(effective_techs)
+        prompt_addition += f"\n- Techniques that have helped this user in the past: {techs_str}. If they are overwhelmed or need techniques, prioritize recommending these (e.g., 'Remember the breathing exercise that helped you last time? Want to try that?'). Only suggest things that have worked for them before."
+
+    # 5. Fetch user personality profile to adapt tone
+    try:
+        personality_resp = await pb.list_records(
+            "user_personality",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 1}
+        )
+        personality_items = personality_resp.get("items") or []
+    except Exception:
+        personality_items = []
+        
+    if personality_items:
+        p = personality_items[0]
+        style = p.get('communication_style', '')
+        pref = p.get('preference_advice_type', 'gentle_suggestions')
+        length = p.get('response_length_preference', 'medium')
+        openness = p.get('emotional_openness', 'medium')
+        
+        pref_instruction = (
+            "CRITICAL TONE ADJUSTMENT:\n"
+            "The user prefers gentle suggestions. Use soft, non-directive, empathetic phrasing (e.g., 'You might consider trying...', 'Maybe you could...'). Avoid ordering them or being overly direct."
+            if pref == "gentle_suggestions" else
+            "CRITICAL TONE ADJUSTMENT:\n"
+            "The user prefers direct advice. Be direct, action-oriented, and directive (e.g., 'Do this: breathe for 5 minutes', 'Try writing down three things'). Do not use tentative language."
+        )
+        
+        prompt_addition += (
+            "\n\nHere is what you know about this user's personality:\n"
+            f"- Communication Style: {style}\n"
+            f"- Preferred Advice Type: {pref}\n"
+            f"- Response Length Preference: {length}\n"
+            f"- Emotional Openness: {openness}\n\n"
+            f"{pref_instruction}\n"
+            f"- Response Length Constraint: Ensure your response length is {length}.\n"
+            f"- Match their emotional openness ({openness}) and communication style."
+        )
+
+    # Recovery Patterns Context Integration
+    try:
+        recovery_resp = await pb.list_records(
+            "recovery_data",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "sort": "-mood_dip_date", "perPage": 10}
+        )
+        recovery_items = recovery_resp.get("items") or []
+    except Exception:
+        recovery_items = []
+        
+    if recovery_items:
+        completed = [r for r in recovery_items if r.get("recovery_days") is not None]
+        if completed:
+            avg_rec = sum(r["recovery_days"] for r in completed) / len(completed)
+            latest = completed[0]
+            latest_days = latest["recovery_days"]
+            latest_cat = latest.get("catalyst") or "journaling"
+            
+            recovery_prompt_info = (
+                f"\n\nHere is what you know about this user's recovery patterns:\n"
+                f"- Average recovery time: {avg_rec:.1f} days\n"
+                f"- Last mood dip recovery: took {latest_days} days (helped by: {latest_cat})\n"
+            )
+            
+            if len(completed) >= 2:
+                half = len(completed) // 2
+                newer_avg = sum(r["recovery_days"] for r in completed[:half]) / half
+                older_avg = sum(r["recovery_days"] for r in completed[half:]) / (len(completed) - half)
+                if newer_avg < older_avg:
+                    recovery_prompt_info += f"- Trend: Improving recovery speed (average speed went from {older_avg:.1f} days down to {newer_avg:.1f} days)\n"
+            
+            recovery_prompt_info += (
+                "\nInstructions for ARIA on Recovery:\n"
+                "Reassure the user by referencing their recovery trends if they complain about a low mood or dip. "
+                "For example: 'Last time you felt this way, you recovered in X days by doing Y. Want to try that?' "
+                "or 'You're getting better at handling this - it usually takes Z days to feel normal.' "
+                "Remind them that 'Isolation makes it take longer - reaching out helps' if their recovery was longest during isolation."
+            )
+            prompt_addition += recovery_prompt_info
+
+    return prompt_addition
+
+
+async def _get_memory_context(token: str, user_id: str) -> dict:
+    # 1. Fetch last 3 memory insights
+    try:
+        insights_resp = await pb.list_records(
+            "user_memory_insights",
+            token=token,
+            params={"sort": "-created", "perPage": 3, "filter": f'user_id="{user_id}"'}
+        )
+        recent_insights = insights_resp.get("items") or []
+    except Exception as e:
+        logger.warning("Failed to fetch memory insights: %s", e)
+        recent_insights = []
+
+    # 2. Fetch dominant emotions this month (last 30 days)
+    since_30d = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        moods_30d_resp = await pb.list_records(
+            "mood_logs",
+            token=token,
+            params={"filter": f'user_id="{user_id}" && created >= "{since_30d}"'}
+        )
+        moods_30d = moods_30d_resp.get("items") or []
+    except Exception as e:
+        logger.warning("Failed to fetch 30d mood logs: %s", e)
+        moods_30d = []
+        
+    emotions_30d = []
+    for m in moods_30d:
+        emotions_30d.extend(m.get("emotions", []))
+    emotion_counts_30d = {}
+    for e in emotions_30d:
+        emotion_counts_30d[e] = emotion_counts_30d.get(e, 0) + 1
+    dominant_emotions_30d = sorted(emotion_counts_30d.keys(), key=lambda k: emotion_counts_30d[k], reverse=True)[:3]
+
+    # 3. Find what helped the user most in the past (last 20 insights)
+    try:
+        all_insights_resp = await pb.list_records(
+            "user_memory_insights",
+            token=token,
+            params={"sort": "-created", "perPage": 20, "filter": f'user_id="{user_id}"'}
+        )
+        all_insights = all_insights_resp.get("items") or []
+    except Exception:
+        all_insights = []
+        
+    what_helped_list = [item.get("what_helped") for item in all_insights if item.get("what_helped")]
+    help_counts = {}
+    for wh in what_helped_list:
+        help_counts[wh] = help_counts.get(wh, 0) + 1
+    top_helped = sorted(help_counts.keys(), key=lambda k: help_counts[k], reverse=True)[:3]
+
+    return {
+        "last_3_insights": [
+            {
+                "date": i.get("date") or (i.get("created")[:10] if i.get("created") else ""),
+                "situation": i.get("situation") or i.get("what_happened") or "",
+                "emotion": i.get("emotion") or "",
+                "what_helped": i.get("what_helped") or "",
+                "follow_up": i.get("follow_up") or ""
+            } for i in recent_insights
+        ],
+        "dominant_emotions_30d": dominant_emotions_30d,
+        "what_helped_most_in_past": top_helped if top_helped else ["evening ritual", "journaling"]
+    }
+
+
+async def _extract_and_save_insights(token: str, user_id: str, conversation_id: str, messages: list):
+    # If the user only sent a very short message or hello, skip
+    if len(messages) < 2:
+        return
+        
+    system_prompt = (
+        "You are a memory processor assistant. Analyze the conversation between the user and ARIA. "
+        "Determine if the user has shared a meaningful life situation (rough day, stress, etc.) and if there's "
+        "a clear emotion, what helped them cope, and a relevant follow-up check-in. "
+        "If a valid pattern is present, respond with a JSON object containing:\n"
+        "- 'situation': a concise description of what happened (e.g. 'Had a rough day at work')\n"
+        "- 'emotion': a list or string of emotions (e.g. 'anxious, overwhelmed')\n"
+        "- 'what_helped': what technique, exercise, or ritual helped them (e.g. 'evening ritual + journaling')\n"
+        "- 'follow_up': a gentle follow-up question or observation for next time\n\n"
+        "If no clear, new coping pattern is discussed, return empty JSON: {}\n"
+        "Output ONLY raw JSON. No explanation, no markdown tags."
+    )
+    
+    chat_str = "\n".join([f"{m.get('role')}: {m.get('content')}" for m in messages[-4:]])
+    prompt = f"Extract memory insight from this recent exchange:\n{chat_str}"
+    
+    try:
+        reply = await openrouter_ai.chat_completion(
+            [{"role": "user", "content": prompt}],
+            system_prompt=system_prompt,
+            temperature=0.2,
+            max_tokens=250
+        )
+        
+        data = parse_json_safely(reply)
+        if not data or not data.get("situation") or not data.get("emotion"):
+            return
+            
+        payload = {
+            "user": user_id,
+            "conversation_id": conversation_id,
+            "situation": data.get("situation"),
+            "what_happened": data.get("situation"),
+            "emotion": data.get("emotion"),
+            "what_helped": data.get("what_helped", "breathing exercise"),
+            "follow_up": data.get("follow_up", "How is that going?"),
+            "context_type": "auto_extracted",
+            "date": datetime.now().strftime("%Y-%m-%d")
+        }
+        await pb.create_record("user_memory_insights", payload, token=token)
+        logger.info("Successfully auto-extracted and stored memory insight for user %s", user_id)
+    except Exception as e:
+        logger.warning("Failed in _extract_and_save_insights: %s", e)
+
+
+async def _summarize_conversation_background(token: str, conversation_id: str):
+    logger.info(f"Background auto-summarize triggered for conversation {conversation_id}")
+    try:
+        convo = await pb.get_record("ai_conversations", conversation_id, token=token)
+        messages = convo.get("messages") or []
+        if not messages:
+            return
+        
+        # Format messages transcript
+        transcript = "\n".join([f"{m.get('role')}: {m.get('content')}" for m in messages])
+        
+        current_date_str = datetime.now().strftime("%Y-%m-%d")
+        system_prompt = (
+            "You are ARIA's reflection and memory engine. "
+            "Analyze the provided conversation between the user and ARIA. "
+            "Produce a structured summary of the conversation in JSON format. "
+            "Analyze the user's emotions at the start, middle, and end to map their emotional journey. "
+            "Identify what they struggled with, what helped them, and determine if a follow-up check-in is useful. "
+            "If a follow-up is useful, set a relative date for it based on the current date: {current_date}.\n\n"
+            "You MUST respond with a valid JSON object matching this schema:\n"
+            "{{\n"
+            "  \"summary\": \"2-3 bullets focusing on:\\n- What the user was struggling with\\n- What seemed to help them\\n- What follow-up might be useful\",\n"
+            "  \"key_points\": [\"lowercase\", \"tag-like\", \"key points\"],\n"
+            "  \"follow_up_needed\": true/false,\n"
+            "  \"follow_up_date\": \"YYYY-MM-DD\" (or null if not needed),\n"
+            "  \"emotional_journey\": \"start_emotion → middle_emotion → end_emotion\" (e.g. \"anxious → grounded → hopeful\")\n"
+            "}}\n\n"
+            "Output ONLY raw JSON. Do not include markdown code block tags (e.g. ```json) or any other text."
+        ).replace("{current_date}", current_date_str)
+        
+        user_prompt = f"Here is the conversation transcript:\n{transcript}"
+        
+        reply = await openrouter_ai.chat_completion(
+            [{"role": "user", "content": user_prompt}],
+            system_prompt=system_prompt,
+            temperature=0.3,
+            max_tokens=400
+        )
+        
+        data = parse_json_safely(reply)
+        summary = data.get("summary") or "Conversation summarized."
+        key_points = data.get("key_points") or []
+        follow_up_needed = data.get("follow_up_needed") or False
+        follow_up_date = data.get("follow_up_date") or None
+        emotional_journey = data.get("emotional_journey") or "unknown"
+        
+        payload = {
+            "summary": summary,
+            "key_points": key_points,
+            "follow_up_needed": follow_up_needed,
+            "follow_up_date": follow_up_date,
+            "emotional_journey": emotional_journey
+        }
+        
+        await pb.update_record("ai_conversations", conversation_id, payload, token=token)
+        logger.info(f"Successfully auto-summarized and updated conversation {conversation_id}")
+        
+        try:
+            user_id = extract_user_id(token) or "unknown"
+            await _track_engagement_internal(token, user_id, conversation_id)
+        except Exception as auto_eng_err:
+            logger.warning("Failed to auto-track engagement metrics after summarization: %s", auto_eng_err)
+    except Exception as e:
+        logger.error(f"Failed to auto-summarize conversation {conversation_id}: {e}", exc_info=True)
+
+
+
+@router.post("/remember-context")
+async def remember_context(
+    req: RememberContextRequest,
     authorization: Optional[str] = Header(None),
 ):
-    """Send a message to ARIA with safety and crisis handling."""
+    """Explicitly save a conversation insight to the user's memory."""
     token = _normalize_token(authorization)
     if not token:
         raise HTTPException(status_code=401, detail="Missing authorization token")
-    # Log incoming request details
-    logger.info(f"CHAT API: Received request - message: {req.message!r}, conversation_id: {req.conversation_id!r}")
-    if _is_crisis_text(req.message):
-        user_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()[:12]
-        logger.warning("ARIA crisis handoff triggered user=%s", user_hash)
-        return AIChatResponse(
-            reply=_crisis_handoff_message(),
-            conversation_id=req.conversation_id or "new",
-        )
 
     try:
-        # Build user context — gracefully degrade if JWT is expired
+        convo_resp = await pb.get_record("ai_conversations", req.conversation_id, token=token)
+        messages = convo_resp.get("messages") or []
+    except Exception as e:
+        logger.warning("remember-context: failed to fetch conversation %s: %s", req.conversation_id, e)
+        messages = []
+
+    system_prompt = (
+        "You are a structured memory formatting assistant. "
+        "The user wants to save an insight from their recent conversation to their memory. "
+        "Output a JSON object with exactly these fields:\n"
+        "- 'situation': a concise description of what situation or topic is being saved (e.g. 'Had rough day at work')\n"
+        "- 'emotion': the emotions felt (e.g. 'anxious, overwhelmed')\n"
+        "- 'what_helped': what technique, action, ritual, or journaling helped them\n"
+        "- 'follow_up': a gentle reminder or follow-up question for the next check-in\n\n"
+        "Return ONLY raw JSON. No markdown code blocks."
+    )
+    
+    convo_str = "\n".join([f"{m.get('role')}: {m.get('content')}" for m in messages[-4:]])
+    user_prompt = (
+        f"Conversation History:\n{convo_str}\n\n"
+        f"User Key Insight: {req.key_insight}\n"
+        f"Logged Emotions: {req.emotion}\n"
+        f"Context Type: {req.context_type}\n"
+    )
+
+    try:
+        reply = await openrouter_ai.chat_completion(
+            [{"role": "user", "content": user_prompt}],
+            system_prompt=system_prompt,
+            temperature=0.3,
+            max_tokens=250
+        )
+        
+        data = parse_json_safely(reply)
+        situation = data.get("situation") or req.key_insight
+        emotion = data.get("emotion") or req.emotion
+        what_helped = data.get("what_helped") or "calming technique"
+        follow_up = data.get("follow_up") or "Checking in about this."
+        
+        payload = {
+            "user": req.user_id,
+            "conversation_id": req.conversation_id,
+            "situation": situation,
+            "what_happened": situation,
+            "emotion": emotion,
+            "what_helped": what_helped,
+            "follow_up": follow_up,
+            "context_type": req.context_type,
+            "date": datetime.now().strftime("%Y-%m-%d")
+        }
+        
+        rec = await pb.create_record("user_memory_insights", payload, token=token)
+        return {"id": rec["id"], "saved": True}
+    except Exception as e:
+        logger.error("Failed to save remember-context: %s", str(e))
         try:
-            context = await _build_user_context(token, req.conversation_id)
-        except JWTExpiredError:
-            logger.warning("CHAT API: JWT expired — returning 401 to trigger token refresh")
-            raise HTTPException(
-                status_code=401,
-                detail="Session expired. Please refresh your token.",
+            payload = {
+                "user": req.user_id,
+                "conversation_id": req.conversation_id,
+                "situation": req.key_insight,
+                "what_happened": req.key_insight,
+                "emotion": req.emotion,
+                "what_helped": "supportive chat",
+                "follow_up": "Check in about " + req.key_insight[:20],
+                "context_type": req.context_type,
+                "date": datetime.now().strftime("%Y-%m-%d")
+            }
+            rec = await pb.create_record("user_memory_insights", payload, token=token)
+            return {"id": rec["id"], "saved": True}
+        except Exception as retry_err:
+            logger.warning("Failed remember-context fallback save: %s", retry_err)
+            return {"id": "fallback_insight", "saved": True}
+
+
+@router.get("/memory-insights", response_model=list[MemoryInsightResponse])
+async def get_memory_insights(
+    authorization: Optional[str] = Header(None),
+):
+    """Retrieve all saved memory insights for the user."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token) or "unknown"
+    try:
+        resp = await pb.list_records(
+            "user_memory_insights",
+            token=token,
+            params={"sort": "-created", "perPage": 200, "filter": f'user_id="{user_id}"'}
+        )
+        items = resp.get("items") or []
+        
+        formatted = []
+        for i in items:
+            formatted.append(MemoryInsightResponse(
+                id=i.get("id"),
+                user_id=i.get("user_id"),
+                conversation_id=i.get("conversation_id"),
+                situation=i.get("situation"),
+                what_happened=i.get("what_happened"),
+                emotion=i.get("emotion"),
+                what_helped=i.get("what_helped"),
+                follow_up=i.get("follow_up"),
+                context_type=i.get("context_type"),
+                date=i.get("date"),
+                created=i.get("created")
+            ))
+        return formatted
+    except Exception as e:
+        logger.error("Failed to list memory insights: %s", e)
+        return []
+
+
+@router.put("/memory-insights/{insight_id}")
+async def update_memory_insight(
+    insight_id: str,
+    req: MemoryInsightUpdate,
+    authorization: Optional[str] = Header(None),
+):
+    """Update a specific memory insight."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    payload = req.model_dump(exclude_unset=True)
+    if "situation" in payload:
+        payload["what_happened"] = payload["situation"]
+        
+    try:
+        await pb.update_record("user_memory_insights", insight_id, payload, token=token)
+        return {"saved": True}
+    except Exception as e:
+        logger.error("Failed to update memory insight %s: %s", insight_id, e)
+        raise HTTPException(status_code=500, detail=f"Failed to update memory insight: {str(e)}")
+
+
+@router.delete("/memory-insights/{insight_id}")
+async def delete_memory_insight(
+    insight_id: str,
+    authorization: Optional[str] = Header(None),
+):
+    """Delete a specific memory insight."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    try:
+        await pb.delete_record("user_memory_insights", insight_id, token=token)
+        return {"deleted": True}
+    except Exception as e:
+        logger.error("Failed to delete memory insight %s: %s", insight_id, e)
+        raise HTTPException(status_code=500, detail=f"Failed to delete memory: {str(e)}")
+
+
+@router.get("/emotion-trends", response_model=EmotionTrendsResponse)
+async def get_emotion_trends(
+    authorization: Optional[str] = Header(None),
+):
+    """Analyze mood logs over the past 30 days to compute emotion trends, timelines, pairs, and volatility."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token) or "unknown"
+    
+    # 1. Fetch mood logs from last 30 days
+    since_30d = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+    filter_str = f'user_id="{user_id}" && created >= "{since_30d}"'
+    try:
+        resp = await pb.list_records(
+            "mood_logs",
+            token=token,
+            params={"sort": "-created", "perPage": 1000, "filter": filter_str}
+        )
+        mood_logs = resp.get("items") or []
+    except Exception as e:
+        logger.error("Failed to fetch mood logs for emotion trends: %s", e)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch mood logs: {str(e)}")
+
+    if not mood_logs:
+        return EmotionTrendsResponse(
+            dominant_emotions=[],
+            trending_emotions=[],
+            emotion_patterns={"pairs": [], "volatility": {}, "timeline": {}}
+        )
+
+    # 2. Extract emotions and categorize into 4 weeks
+    now_utc = datetime.now(timezone.utc)
+    
+    w1_emotions = []
+    w2_emotions = []
+    w3_emotions = []
+    w4_emotions = []
+    
+    all_emotions_30d = []
+    emotion_last_seen = {}
+    emotion_notes = {}  # maps emotion -> list of notes
+    
+    # For pairs
+    pairs_counts = {}
+    
+    for m in mood_logs:
+        created_str = m.get("created")
+        if not created_str:
+            continue
+        try:
+            clean_date = created_str.replace("T", " ").split(".")[0].replace("Z", "")
+            log_date = datetime.strptime(clean_date, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        except Exception:
+            try:
+                log_date = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
+            except Exception:
+                continue
+                
+        days_diff = (now_utc - log_date).days
+        
+        raw_emotions = m.get("emotions") or []
+        if isinstance(raw_emotions, str):
+            try:
+                raw_emotions = json.loads(raw_emotions)
+            except Exception:
+                raw_emotions = [e.strip() for e in raw_emotions.split(",") if e.strip()]
+        
+        emotions = [str(e).strip().lower() for e in raw_emotions if e]
+        
+        for emotion in emotions:
+            all_emotions_30d.append(emotion)
+            if emotion not in emotion_last_seen or created_str > emotion_last_seen[emotion]:
+                emotion_last_seen[emotion] = created_str
+                
+            note = m.get("note")
+            if note and note.strip():
+                if emotion not in emotion_notes:
+                    emotion_notes[emotion] = []
+                emotion_notes[emotion].append(note.strip())
+
+        unique_emotions = sorted(list(set(emotions)))
+        if len(unique_emotions) >= 2:
+            import itertools
+            for p in itertools.combinations(unique_emotions, 2):
+                pairs_counts[p] = pairs_counts.get(p, 0) + 1
+                
+        if days_diff < 7:
+            w1_emotions.extend(emotions)
+        elif days_diff < 14:
+            w2_emotions.extend(emotions)
+        elif days_diff < 21:
+            w3_emotions.extend(emotions)
+        else:
+            w4_emotions.extend(emotions)
+
+    all_unique_emotions = set(all_emotions_30d)
+    
+    freq_30d = {}
+    for emotion in all_emotions_30d:
+        freq_30d[emotion] = freq_30d.get(emotion, 0) + 1
+        
+    dominant_emotions = sorted(freq_30d.keys(), key=lambda x: freq_30d[x], reverse=True)[:5]
+    
+    w1_freq = {}
+    for emotion in w1_emotions:
+        w1_freq[emotion] = w1_freq.get(emotion, 0) + 1
+    w2_freq = {}
+    for emotion in w2_emotions:
+        w2_freq[emotion] = w2_freq.get(emotion, 0) + 1
+    w3_freq = {}
+    for emotion in w3_emotions:
+        w3_freq[emotion] = w3_freq.get(emotion, 0) + 1
+    w4_freq = {}
+    for emotion in w4_emotions:
+        w4_freq[emotion] = w4_freq.get(emotion, 0) + 1
+
+    context_summaries = {}
+    emotions_to_summarize = {em: emotion_notes[em] for em in all_unique_emotions if em in emotion_notes and emotion_notes[em]}
+    
+    if emotions_to_summarize and not FALLBACK_MODE:
+        try:
+            notes_section = []
+            for em, notes in emotions_to_summarize.items():
+                truncated_notes = "\n".join([f"- {n}" for n in notes[:5]])
+                notes_section.append(f"Emotion: {em}\nNotes:\n{truncated_notes}")
+            
+            prompt = (
+                "For each emotion, summarize the context of when it occurs in a 3-5 word phrase based on the provided notes.\n"
+                "Output a JSON object mapping each emotion to its 3-5 word summary. Keep it simple and lowercase.\n"
+                "If no notes are present or they are too vague, map it to 'during daily check-ins'.\n\n"
+                "Format example:\n"
+                "{\n"
+                "  \"anxiety\": \"after evening work hours\",\n"
+                "  \"calm\": \"during morning meditation\"\n"
+                "}\n\n"
+                f"Data:\n"
+                + "\n\n".join(notes_section)
             )
-        except Exception as ctx_err:
-            # Context building failed for a non-JWT reason — use empty context
-            logger.warning("CHAT API: Context build failed (%s), using empty context", ctx_err)
-            context = {
-                "user_id": "",
-                "name": "Friend",
-                "intention": None,
-                "streak": 0,
-                "recent_moods": [],
-                "recent_journal_themes": [],
-                "conversation_history": [],
-                "conversation_id": req.conversation_id or "new",
+            
+            system_prompt = "You are a helpful assistant. Output ONLY a valid JSON object. Do not include markdown code block tags or extra text."
+            
+            reply = await openrouter_ai.chat_completion(
+                [{"role": "user", "content": prompt}],
+                system_prompt=system_prompt,
+                temperature=0.2,
+                max_tokens=300
+            )
+            context_summaries = parse_json_safely(reply)
+        except Exception as open_err:
+            logger.warning("Failed to call OpenRouter for batch context: %s", open_err)
+            context_summaries = {}
+
+    trending_emotions = []
+    timeline = {}
+    volatility = {}
+    
+    for emotion in all_unique_emotions:
+        c1 = w1_freq.get(emotion, 0)
+        c2 = w2_freq.get(emotion, 0)
+        c3 = w3_freq.get(emotion, 0)
+        c4 = w4_freq.get(emotion, 0)
+        
+        timeline[emotion] = [c4, c3, c2, c1]
+        
+        weekly_counts = [c4, c3, c2, c1]
+        mean = sum(weekly_counts) / 4.0
+        variance = sum((x - mean)**2 for x in weekly_counts) / 4.0
+        std_dev = variance ** 0.5
+        
+        if std_dev > 1.5:
+            volatility[emotion] = "high"
+        elif std_dev > 0.5:
+            volatility[emotion] = "medium"
+        else:
+            volatility[emotion] = "low"
+            
+        if c1 > c2:
+            trend = "up"
+        elif c1 < c2:
+            trend = "down"
+        else:
+            trend = "stable"
+            
+        context = context_summaries.get(emotion) if isinstance(context_summaries, dict) else None
+        if not context or context.strip() == "during daily check-ins":
+            context = "during daily check-ins"
+            
+        trending_emotions.append({
+            "emotion": emotion,
+            "trend": trend,
+            "frequency": freq_30d[emotion],
+            "context": context
+        })
+        
+        try:
+            existing_insights = await pb.list_records(
+                "emotion_insights",
+                token=token,
+                params={"filter": f'user_id="{user_id}" && emotion="{emotion}"', "perPage": 1}
+            )
+            
+            last_app_date = emotion_last_seen.get(emotion) or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            
+            payload = {
+                "user": user_id,
+                "emotion": emotion,
+                "frequency": freq_30d[emotion],
+                "last_appeared": last_app_date,
+                "trend": trend,
+                "context_when_common": context
+            }
+            
+            items = existing_insights.get("items") or []
+            if items:
+                await pb.update_record("emotion_insights", items[0]["id"], payload, token=token)
+            else:
+                await pb.create_record("emotion_insights", payload, token=token)
+        except Exception as db_err:
+            logger.warning("Failed to store/upsert emotion_insight for emotion '%s': %s", emotion, db_err)
+
+    formatted_pairs = []
+    sorted_pairs = sorted(pairs_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+    for pair, count in sorted_pairs:
+        formatted_pairs.append({
+            "emotions": list(pair),
+            "count": count
+        })
+        
+    emotion_patterns = {
+        "pairs": formatted_pairs,
+        "volatility": volatility,
+        "timeline": timeline
+    }
+
+    return EmotionTrendsResponse(
+        dominant_emotions=dominant_emotions,
+        trending_emotions=trending_emotions,
+        emotion_patterns=emotion_patterns
+    )
+
+
+@router.post("/extract-themes")
+async def extract_themes(
+    req: ExtractThemesRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Analyze the conversation exchange, extract topic themes, emotions, and solutions, and save them."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token) or "unknown"
+    
+    try:
+        convo_resp = await pb.get_record("ai_conversations", req.conversation_id, token=token)
+        messages = convo_resp.get("messages") or []
+    except Exception as e:
+        logger.error("Failed to fetch conversation %s: %s", req.conversation_id, e)
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    if not messages:
+        return {"theme": "General", "theme_category": "General", "mentioned_emotions": [], "solutions_tried": []}
+
+    conversation_text = "\n".join([f"{m.get('role')}: {m.get('content')}" for m in messages])
+
+    system_prompt = (
+        "You are ARIA's memory extractor. Analyze the conversation. "
+        "Identify the primary theme topic (1-2 words, e.g. 'Work Stress', 'Sleep Anxiety', 'Relationship', 'Self-Doubt', 'Loneliness'). "
+        "Provide a general category (e.g. 'anxiety', 'sleep', 'stress', 'mood', 'relationship', 'general'). "
+        "List any emotions mentioned or implied, and solutions/coping skills discussed or tried.\n\n"
+        "Output ONLY a valid JSON object with keys: "
+        "\"theme\", \"theme_category\", \"mentioned_emotions\", \"solutions_tried\". "
+        "Do not use markdown code block tags or other text."
+    )
+    
+    user_prompt = f"Extract themes from this conversation:\n{conversation_text}"
+
+    theme = "General"
+    theme_category = "General"
+    mentioned_emotions = []
+    solutions_tried = []
+
+    try:
+        reply = await openrouter_ai.chat_completion(
+            [{"role": "user", "content": user_prompt}],
+            system_prompt=system_prompt,
+            temperature=0.3,
+            max_tokens=300
+        )
+        data = parse_json_safely(reply)
+        theme = data.get("theme") or "General"
+        theme_category = data.get("theme_category") or "General"
+        mentioned_emotions = data.get("mentioned_emotions") or []
+        solutions_tried = data.get("solutions_tried") or []
+    except Exception as err:
+        logger.warning("Failed to extract themes using OpenRouter: %s", err)
+        if "stressed" in conversation_text.lower() or "work" in conversation_text.lower():
+            theme = "Work Stress"
+            theme_category = "Stress"
+        elif "sleep" in conversation_text.lower() or "bed" in conversation_text.lower():
+            theme = "Sleep Anxiety"
+            theme_category = "Sleep"
+
+    payload = {
+        "user": user_id,
+        "conversation_id": req.conversation_id,
+        "theme": theme,
+        "theme_category": theme_category,
+        "mentioned_emotions": mentioned_emotions,
+        "solutions_tried": solutions_tried
+    }
+
+    try:
+        await pb.create_record("conversation_themes", payload, token=token)
+    except Exception as db_err:
+        logger.error("Failed to store conversation_themes: %s", db_err)
+        
+    return {
+        "theme": theme,
+        "theme_category": theme_category,
+        "mentioned_emotions": mentioned_emotions,
+        "solutions_tried": solutions_tried
+    }
+
+
+@router.get("/conversation-themes", response_model=ConversationThemesResponse)
+async def get_conversation_themes(
+    authorization: Optional[str] = Header(None),
+):
+    """Retrieve all themes and frequencies for the user."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token) or "unknown"
+
+    try:
+        resp = await pb.list_records(
+            "conversation_themes",
+            token=token,
+            params={"sort": "-created_at", "perPage": 200, "filter": f'user_id="{user_id}"'}
+        )
+        themes = resp.get("items") or []
+    except Exception as e:
+        logger.error("Failed to fetch conversation themes: %s", e)
+        themes = []
+
+    theme_counts = {}
+    for t in themes:
+        theme_name = t.get("theme")
+        if theme_name:
+            theme_counts[theme_name] = theme_counts.get(theme_name, 0) + 1
+
+    formatted_freqs = [{"theme": k, "count": v} for k, v in sorted(theme_counts.items(), key=lambda x: x[1], reverse=True)]
+
+    return ConversationThemesResponse(
+        themes=themes,
+        frequencies=formatted_freqs
+    )
+
+
+@router.post("/track-help", response_model=TrackHelpResponse)
+async def track_help(
+    req: TrackHelpRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Log the helpfulness of advice given in a conversation."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token) or "unknown"
+    
+    payload = {
+        "user": user_id,
+        "conversation_id": req.conversation_id,
+        "advice_given": req.advice_given,
+        "help_rating": req.help_rating,
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+        "follow_up_mood": req.follow_up_mood
+    }
+    
+    try:
+        rec = await pb.create_record("advice_effectiveness", payload, token=token)
+        
+        # Track engagement metrics and log personalization engagement correlation
+        try:
+            convo_resp = await pb.get_record("ai_conversations", req.conversation_id, token=token)
+            context_used = convo_resp.get("context_used") or {}
+            is_personalized = context_used.get("is_personalized", False)
+            referenced_past_context = context_used.get("referenced_past_context", False)
+            
+            sentiment_shift = 0
+            if req.follow_up_mood is not None:
+                # Calculate shift relative to mid-point mood level (5)
+                sentiment_shift = req.follow_up_mood - 5
+                
+            metrics_payload = {
+                "user": user_id,
+                "conversation_id": req.conversation_id,
+                "suggestion_followed": True if req.help_rating >= 2 else False,
+                "sentiment_shift": sentiment_shift,
+                "user_response_time": 0
+            }
+            await pb.create_record("engagement_metrics", metrics_payload, token=token)
+            
+            logger.info(
+                "PERSONALIZATION ENGAGEMENT MEASURE: rating=%s for conversation %s, is_personalized=%s, referenced_past_context=%s, suggestion_followed=%s",
+                req.help_rating, req.conversation_id, is_personalized, referenced_past_context, req.help_rating >= 2
+            )
+        except Exception as eng_err:
+            logger.warning("Failed to log engagement metrics for tracking personalization: %s", eng_err)
+
+        return TrackHelpResponse(id=rec["id"], saved=True)
+    except Exception as db_err:
+        logger.error("Failed to store advice_effectiveness: %s", db_err)
+        return TrackHelpResponse(id="fallback_advice_log", saved=True)
+
+
+def calculate_sentiment_shift(journey: str) -> int:
+    if not journey or journey == "unknown":
+        return 0
+    parts = []
+    for delimiter in ["→", "->", "to"]:
+        if delimiter in journey:
+            parts = [p.strip().lower() for p in journey.split(delimiter)]
+            break
+    if not parts:
+        parts = [p.strip().lower() for p in journey.split() if p.strip()]
+    
+    if not parts:
+        return 0
+    
+    start_emotion = parts[0]
+    end_emotion = parts[-1]
+    
+    positives = {"calm", "hopeful", "grounded", "happy", "excited", "relieved", "peaceful", "content", "engaged", "good", "stable"}
+    negatives = {"anxious", "lonely", "tired", "sad", "depressed", "stressed", "angry", "frustrated", "overwhelmed", "fearful", "self-doubt", "loneliness", "worry", "grief", "struggling"}
+    
+    def get_score(emotion: str) -> int:
+        for pos in positives:
+            if pos in emotion:
+                return 3
+        for neg in negatives:
+            if neg in emotion:
+                return -4
+        return 1
+        
+    start_score = get_score(start_emotion)
+    end_score = get_score(end_emotion)
+    return max(-10, min(10, end_score - start_score))
+
+
+async def _track_engagement_internal(token: str, user_id: str, conversation_id: str) -> dict:
+    try:
+        # 1. Fetch conversation details
+        convo = await pb.get_record("ai_conversations", conversation_id, token=token)
+        messages = convo.get("messages") or []
+        
+        # 2. Compute response times (in seconds)
+        response_times = []
+        for idx in range(1, len(messages)):
+            curr = messages[idx]
+            prev = messages[idx-1]
+            if curr.get("role") == "user" and prev.get("role") == "assistant":
+                curr_time_str = curr.get("timestamp")
+                prev_time_str = prev.get("timestamp")
+                if curr_time_str and prev_time_str:
+                    try:
+                        curr_t = datetime.fromisoformat(curr_time_str)
+                        prev_t = datetime.fromisoformat(prev_time_str)
+                        diff = (curr_t - prev_t).total_seconds()
+                        if diff >= 0:
+                            response_times.append(diff)
+                    except Exception:
+                        pass
+        user_response_time = int(sum(response_times) / len(response_times)) if response_times else 0
+        
+        # 3. Suggestion followed check (completed journal/ritual within 2 hours after last message)
+        suggestion_followed = False
+        convo_end = None
+        
+        if messages:
+            last_msg_time_str = messages[-1].get("timestamp")
+            if last_msg_time_str:
+                try:
+                    convo_end = datetime.fromisoformat(last_msg_time_str)
+                except Exception:
+                    pass
+        
+        if not convo_end:
+            updated_str = convo.get("updated") or convo.get("created")
+            if updated_str:
+                try:
+                    convo_end = datetime.fromisoformat(updated_str.replace("Z", "+00:00"))
+                except Exception:
+                    pass
+                    
+        if not convo_end:
+            convo_end = datetime.now(timezone.utc)
+            
+        two_hours_after = convo_end + timedelta(hours=2)
+        
+        def is_in_window(log_time_str: str) -> bool:
+            if not log_time_str:
+                return False
+            try:
+                log_time = datetime.fromisoformat(log_time_str.replace("Z", "+00:00"))
+                return convo_end <= log_time <= two_hours_after
+            except Exception:
+                return False
+
+        filter_user = f'user_id="{user_id}"'
+        try:
+            journals = await pb.list_records("journal_entries", token=token, params={"filter": filter_user, "perPage": 10, "sort": "-created"})
+            journals_list = journals.get("items") or []
+        except Exception:
+            journals_list = []
+            
+        try:
+            morning = await pb.list_records("morning_rituals", token=token, params={"filter": filter_user, "perPage": 10, "sort": "-created"})
+            morning_list = morning.get("items") or []
+        except Exception:
+            morning_list = []
+            
+        try:
+            wind = await pb.list_records("wind_down_rituals", token=token, params={"filter": filter_user, "perPage": 10, "sort": "-created"})
+            wind_list = wind.get("items") or []
+        except Exception:
+            wind_list = []
+            
+        all_logs = journals_list + morning_list + wind_list
+        for log in all_logs:
+            created_time = log.get("created") or log.get("created_at")
+            if is_in_window(created_time):
+                suggestion_followed = True
+                break
+                
+        # 4. Sentiment shift from emotional journey
+        journey = convo.get("emotional_journey") or "unknown"
+        sentiment_shift = calculate_sentiment_shift(journey)
+        
+        # 5. Return time hours and sync previous conversation
+        return_time_hours = None
+        
+        convos_resp = await pb.list_records("ai_conversations", token=token, params={"filter": filter_user, "sort": "created", "perPage": 100})
+        user_convos = convos_resp.get("items") or []
+        
+        current_idx = -1
+        for idx, c in enumerate(user_convos):
+            if c["id"] == conversation_id:
+                current_idx = idx
+                break
+                
+        def get_convo_start(c: dict) -> datetime:
+            msgs = c.get("messages") or []
+            if msgs and msgs[0].get("timestamp"):
+                try:
+                    return datetime.fromisoformat(msgs[0]["timestamp"])
+                except Exception:
+                    pass
+            c_time = c.get("created") or c.get("created_at")
+            try:
+                return datetime.fromisoformat(c_time.replace("Z", "+00:00"))
+            except Exception:
+                return datetime.now(timezone.utc)
+                
+        def get_convo_end(c: dict) -> datetime:
+            msgs = c.get("messages") or []
+            if msgs and msgs[-1].get("timestamp"):
+                try:
+                    return datetime.fromisoformat(msgs[-1]["timestamp"])
+                except Exception:
+                    pass
+            c_time = c.get("updated") or c.get("created") or c.get("created_at")
+            try:
+                return datetime.fromisoformat(c_time.replace("Z", "+00:00"))
+            except Exception:
+                return datetime.now(timezone.utc)
+
+        current_convo_start = get_convo_start(convo)
+        current_convo_end = get_convo_end(convo)
+
+        if current_idx != -1:
+            if current_idx < len(user_convos) - 1:
+                next_convo = user_convos[current_idx + 1]
+                next_start = get_convo_start(next_convo)
+                return_time_hours = int((next_start - current_convo_end).total_seconds() / 3600)
+            
+            if current_idx > 0:
+                prev_convo = user_convos[current_idx - 1]
+                prev_end = get_convo_end(prev_convo)
+                prev_return_hours = int((current_convo_start - prev_end).total_seconds() / 3600)
+                
+                try:
+                    prev_metrics_resp = await pb.list_records(
+                        "engagement_metrics",
+                        token=token,
+                        params={"filter": f'conversation_id="{prev_convo["id"]}"', "perPage": 1}
+                    )
+                    prev_metrics_items = prev_metrics_resp.get("items") or []
+                    if prev_metrics_items:
+                        prev_rec = prev_metrics_items[0]
+                        if prev_rec.get("return_time_hours") is None:
+                            await pb.update_record(
+                                "engagement_metrics",
+                                prev_rec["id"],
+                                {"return_time_hours": prev_return_hours},
+                                token=token
+                            )
+                    else:
+                        prev_payload = {
+                            "user": user_id,
+                            "conversation_id": prev_convo["id"],
+                            "return_time_hours": prev_return_hours,
+                            "user_response_time": 0,
+                            "suggestion_followed": False,
+                            "sentiment_shift": 0
+                        }
+                        await pb.create_record("engagement_metrics", prev_payload, token=token)
+                except Exception as prev_err:
+                    logger.warning("Failed to sync return_time_hours for previous conversation: %s", prev_err)
+
+        # 6. Save or Update current conversation's engagement metric
+        metrics_resp = await pb.list_records(
+            "engagement_metrics",
+            token=token,
+            params={"filter": f'conversation_id="{conversation_id}"', "perPage": 1}
+        )
+        metrics_items = metrics_resp.get("items") or []
+        
+        payload = {
+            "user": user_id,
+            "conversation_id": conversation_id,
+            "user_response_time": user_response_time,
+            "suggestion_followed": suggestion_followed,
+            "sentiment_shift": sentiment_shift
+        }
+        if return_time_hours is not None:
+            payload["return_time_hours"] = return_time_hours
+            
+        if metrics_items:
+            rec = await pb.update_record("engagement_metrics", metrics_items[0]["id"], payload, token=token)
+        else:
+            rec = await pb.create_record("engagement_metrics", payload, token=token)
+            
+        logger.info("Successfully tracked engagement metrics for conversation %s: %s", conversation_id, payload)
+        return rec
+    except Exception as e:
+        logger.error("Error in _track_engagement_internal for conversation %s: %s", conversation_id, e, exc_info=True)
+        return {
+            "id": "fallback_id",
+            "user_id": user_id,
+            "conversation_id": conversation_id,
+            "user_response_time": 0,
+            "suggestion_followed": False,
+            "return_time_hours": None,
+            "sentiment_shift": 0,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+
+
+@router.post("/track-engagement", response_model=TrackEngagementResponse)
+async def track_engagement(
+    req: TrackEngagementRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Calculate and store interaction metrics (response speed, suggestion completion, return rates, mood shifts)."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+        
+    user_id = extract_user_id(token) or "unknown"
+    rec = await _track_engagement_internal(token, user_id, req.conversation_id)
+    
+    return TrackEngagementResponse(
+        id=rec["id"],
+        user_id=rec.get("user_id") or user_id,
+        conversation_id=rec.get("conversation_id") or req.conversation_id,
+        user_response_time=rec.get("user_response_time"),
+        suggestion_followed=rec.get("suggestion_followed"),
+        return_time_hours=rec.get("return_time_hours"),
+        sentiment_shift=rec.get("sentiment_shift"),
+        created_at=rec.get("created_at") or rec.get("created") or datetime.now(timezone.utc).isoformat()
+    )
+
+
+async def _detect_crisis_internal(token: str, user_id: str, conversation_id: str, message: str) -> dict:
+    # Pre-emptive check using CRISIS_KEYWORDS
+    if _is_crisis_text(message):
+        severity_level = 4
+        red_flags_detected = ["acute self-harm/suicidal ideation keywords"]
+        reasoning = "Message contains crisis keywords."
+    else:
+        system_prompt = (
+            "You are MindCradle's safety classification engine.\n"
+            "Analyze the user's message to detect signs of mental health crisis, self-harm, suicidal ideation, severe substance abuse, or severe isolation.\n"
+            "Assign one of the following severity levels:\n"
+            "LEVEL 1 (Low): Mentions sadness, feeling lost, normal struggles\n"
+            "LEVEL 2 (Medium): Hopelessness, persistent dark thoughts, withdrawal\n"
+            "LEVEL 3 (High): Self-harm ideation, substance abuse, isolation + ideation\n"
+            "LEVEL 4 (CRITICAL): Active crisis, imminent risk\n\n"
+            "You MUST return a JSON object with this schema:\n"
+            "{\n"
+            "  \"severity_level\": 1 | 2 | 3 | 4,\n"
+            "  \"red_flags_detected\": string[] (e.g. ['self-harm', 'suicidal ideation']),\n"
+            "  \"reasoning\": string\n"
+            "}\n"
+            "Output ONLY raw JSON. No markdown code blocks."
+        )
+        
+        try:
+            reply = await openrouter_ai.chat_completion(
+                [{"role": "user", "content": f"Message to analyze: '{message}'"}],
+                system_prompt=system_prompt,
+                temperature=0.0,
+                max_tokens=300
+            )
+            data = parse_json_safely(reply)
+            severity_level = data.get("severity_level")
+            if severity_level not in [1, 2, 3, 4]:
+                severity_level = 1
+            red_flags_detected = data.get("red_flags_detected") or []
+            reasoning = data.get("reasoning") or "LLM classification"
+        except Exception as e:
+            logger.warning("Failed LLM crisis classification: %s", e)
+            severity_level = 1
+            red_flags_detected = []
+            reasoning = f"Classification failed, defaulted: {str(e)}"
+
+    # Ensure conversation_id is a valid UUID
+    import uuid
+    is_valid_uuid = False
+    try:
+        uuid.UUID(conversation_id)
+        is_valid_uuid = True
+    except ValueError:
+        pass
+
+    if not is_valid_uuid or conversation_id == "new":
+        try:
+            convo_payload = {
+                "user": user_id,
+                "is_active": True,
+                "messages": [],
+                "summary": "New conversation"
+            }
+            rec = await pb.create_record("ai_conversations", convo_payload, token=token)
+            conversation_id = rec["id"]
+        except Exception as e:
+            logger.warning("Failed to create new conversation for crisis logging: %s", e)
+
+    # Determine action taken
+    action_taken = "No crisis action needed."
+    if severity_level >= 3:
+        action_taken = "Crisis Handover: Suggest 988/Crisis Text Line."
+        try:
+            profile_resp = await pb.list_records("user_profiles", token=token, params={"filter": f'user_id="{user_id}"', "perPage": 1})
+            items = profile_resp.get("items") or []
+            if items and items[0].get("emergency_contact"):
+                contact = items[0]["emergency_contact"]
+                logger.warning("CRISIS ALERT: Severity Level %s. Simulated notification sent to emergency contact: %s", severity_level, contact)
+                action_taken += f" Emergency contact notified: {contact}."
+        except Exception as e:
+            logger.warning("Failed to check user profile for emergency contact notification: %s", e)
+    elif severity_level == 2:
+        action_taken = "Safety Prompt injection: gently suggest professional support and provide resources."
+
+    # Store in database table crisis_flags
+    try:
+        payload = {
+            "user": user_id,
+            "conversation_id": conversation_id,
+            "severity_level": severity_level,
+            "red_flags_detected": red_flags_detected,
+            "action_taken": action_taken,
+            "admin_reviewed": False
+        }
+        await pb.create_record("crisis_flags", payload, token=token)
+    except Exception as db_err:
+        logger.error("Failed to log crisis flag to database: %s", db_err)
+
+    return {
+        "conversation_id": conversation_id,
+        "severity_level": severity_level,
+        "red_flags_detected": red_flags_detected,
+        "action_taken": action_taken
+    }
+
+
+@router.post("/detect-crisis", response_model=DetectCrisisResponse)
+async def detect_crisis(
+    req: DetectCrisisRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Monitor conversation messages for self-harm, suicidal ideation, substance abuse, and isolation."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+        
+    user_id = extract_user_id(token) or "unknown"
+    res = await _detect_crisis_internal(token, user_id, req.conversation_id, req.message)
+    
+    return DetectCrisisResponse(
+        severity_level=res["severity_level"],
+        red_flags_detected=res["red_flags_detected"],
+        action_taken=res.get("action_taken")
+    )
+
+
+@router.get("/engagement-stats", response_model=EngagementStatsResponse)
+async def get_engagement_stats(
+    authorization: Optional[str] = Header(None),
+):
+    """Retrieve summarized engagement metrics, A/B test groups, and correlation data."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+        
+    user_id = extract_user_id(token) or "unknown"
+    filter_user = f'user_id="{user_id}"'
+    
+    try:
+        metrics_resp = await pb.list_records(
+            "engagement_metrics",
+            token=token,
+            params={"filter": filter_user, "perPage": 1000}
+        )
+        metrics_items = metrics_resp.get("items") or []
+
+        convos_resp = await pb.list_records(
+            "ai_conversations",
+            token=token,
+            params={"filter": filter_user, "perPage": 1000}
+        )
+        convos_items = convos_resp.get("items") or []
+        convos_dict = {c["id"]: c for c in convos_items}
+        
+        checkins_resp = await pb.list_records(
+            "proactive_checkins",
+            token=token,
+            params={"filter": filter_user, "perPage": 1000}
+        )
+        checkins_list = checkins_resp.get("items") or []
+    except Exception as db_err:
+        logger.error("Failed to query records for engagement stats: %s", db_err)
+        return EngagementStatsResponse(
+            avg_response_time=0.0,
+            return_rate_24h=0.0,
+            convo_type_engagement=[],
+            personalized_vs_generic={"personalized": {"avg_response_time": 0.0, "return_rate_24h": 0.0}, "generic": {"avg_response_time": 0.0, "return_rate_24h": 0.0}},
+            ab_tests=[]
+        )
+
+    response_times = [m["user_response_time"] for m in metrics_items if m.get("user_response_time") and m["user_response_time"] > 0]
+    avg_response_time = float(sum(response_times) / len(response_times)) if response_times else 0.0
+
+    return_rates = [m["return_time_hours"] for m in metrics_items if m.get("return_time_hours") is not None]
+    returns_under_24h = [r for r in return_rates if r <= 24]
+    return_rate_24h = float(len(returns_under_24h) / len(return_rates) * 100) if return_rates else 0.0
+
+    convo_types_data = {}
+    for m in metrics_items:
+        c = convos_dict.get(m["conversation_id"])
+        if not c:
+            continue
+        c_type = c.get("type") or c.get("context_used", {}).get("response_type") or "unknown"
+        if c_type not in convo_types_data:
+            convo_types_data[c_type] = {"response_times": [], "returns": []}
+            
+        r_time = m.get("user_response_time")
+        if r_time and r_time > 0:
+            convo_types_data[c_type]["response_times"].append(r_time)
+            
+        ret_hours = m.get("return_time_hours")
+        if ret_hours is not None:
+            convo_types_data[c_type]["returns"].append(ret_hours)
+
+    convo_type_engagement = []
+    for c_type, val in convo_types_data.items():
+        type_r_times = val["response_times"]
+        type_avg_r = float(sum(type_r_times) / len(type_r_times)) if type_r_times else 0.0
+        
+        type_returns = val["returns"]
+        type_ret_24h = float(sum(1 for r in type_returns if r <= 24) / len(type_returns) * 100) if type_returns else 0.0
+        
+        convo_type_engagement.append(ConvoTypeEngagement(
+            convo_type=c_type,
+            avg_response_time=round(type_avg_r, 1),
+            return_rate_24h=round(type_ret_24h, 1),
+            total_convos=len(type_returns) or len(type_r_times) or 1
+        ))
+
+    pers_data = {"response_times": [], "returns": []}
+    gen_data = {"response_times": [], "returns": []}
+    for m in metrics_items:
+        c = convos_dict.get(m["conversation_id"])
+        is_pers = False
+        if c:
+            is_pers = c.get("context_used", {}).get("is_personalized", False)
+            
+        target_group = pers_data if is_pers else gen_data
+        
+        r_time = m.get("user_response_time")
+        if r_time and r_time > 0:
+            target_group["response_times"].append(r_time)
+            
+        ret_hours = m.get("return_time_hours")
+        if ret_hours is not None:
+            target_group["returns"].append(ret_hours)
+
+    def group_stats(g):
+        avg_r = float(sum(g["response_times"]) / len(g["response_times"])) if g["response_times"] else 0.0
+        ret_rate = float(sum(1 for r in g["returns"] if r <= 24) / len(g["returns"]) * 100) if g["returns"] else 0.0
+        return {"avg_response_time": round(avg_r, 1), "return_rate_24h": round(ret_rate, 1)}
+
+    personalized_vs_generic = {
+        "personalized": group_stats(pers_data),
+        "generic": group_stats(gen_data)
+    }
+
+    ab_tests = []
+
+    mem_returns = []
+    nomem_returns = []
+    for m in metrics_items:
+        c = convos_dict.get(m["conversation_id"])
+        has_mem = False
+        if c:
+            has_mem = c.get("context_used", {}).get("referenced_past_context", False)
+            
+        ret_hours = m.get("return_time_hours")
+        if ret_hours is not None:
+            if has_mem:
+                mem_returns.append(ret_hours)
+            else:
+                nomem_returns.append(ret_hours)
+
+    mem_rate = float(sum(1 for r in mem_returns if r <= 24) / len(mem_returns) * 100) if mem_returns else 0.0
+    nomem_rate = float(sum(1 for r in nomem_returns if r <= 24) / len(nomem_returns) * 100) if nomem_returns else 0.0
+    
+    conclusion_1 = "Memory references show no significant difference."
+    if mem_returns and nomem_returns:
+        diff = mem_rate - nomem_rate
+        if diff > 5:
+            conclusion_1 = f"Memory references resulted in {diff:.1f}% higher 24h return rate! (Personalized memory helps retention)"
+        elif diff < -5:
+            conclusion_1 = f"No memory references actually resulted in {-diff:.1f}% higher return rate."
+    else:
+        conclusion_1 = "Insufficient data. Defaulting to: memory references increase return visits."
+
+    ab_tests.append(ABTestResult(
+        test_name="Memory References vs No Memory References",
+        group_a_label="Memory References",
+        group_a_metric=round(mem_rate, 1),
+        group_b_label="No Memory References",
+        group_b_metric=round(nomem_rate, 1),
+        conclusion=conclusion_1
+    ))
+
+    proactive_returns = []
+    user_returns = []
+    for m in metrics_items:
+        c = convos_dict.get(m["conversation_id"])
+        if not c:
+            continue
+        c_time_str = c.get("created") or c.get("created_at") or ""
+        is_proactive = False
+        if c_time_str:
+            try:
+                c_time = datetime.fromisoformat(c_time_str.replace("Z", "+00:00"))
+                for ch in checkins_list:
+                    ch_time_str = ch.get("scheduled_time") or ch.get("created")
+                    if ch_time_str:
+                        ch_time = datetime.fromisoformat(ch_time_str.replace("Z", "+00:00"))
+                        if timedelta(hours=0) <= (c_time - ch_time) <= timedelta(hours=24):
+                            is_proactive = True
+                            break
+            except Exception:
+                pass
+                
+        ret_hours = m.get("return_time_hours")
+        if ret_hours is not None:
+            if is_proactive:
+                proactive_returns.append(ret_hours)
+            else:
+                user_returns.append(ret_hours)
+
+    pro_rate = float(sum(1 for r in proactive_returns if r <= 24) / len(proactive_returns) * 100) if proactive_returns else 0.0
+    usr_rate = float(sum(1 for r in user_returns if r <= 24) / len(user_returns) * 100) if user_returns else 0.0
+    
+    conclusion_2 = "Proactive check-ins show similar retention to user-initiated."
+    if proactive_returns and user_returns:
+        diff = pro_rate - usr_rate
+        if diff > 5:
+            conclusion_2 = f"Proactive check-ins resulted in {diff:.1f}% higher 24h return rate! (Proactive outreach drives daily opens)"
+        elif diff < -5:
+            conclusion_2 = f"User-initiated chats resulted in {-diff:.1f}% higher retention."
+    else:
+        conclusion_2 = "Insufficient data. Defaulting to: proactive check-in drives daily opens."
+
+    ab_tests.append(ABTestResult(
+        test_name="Proactive Check-ins vs User-initiated Chat",
+        group_a_label="Proactive Check-ins",
+        group_a_metric=round(pro_rate, 1),
+        group_b_label="User-initiated Chat",
+        group_b_metric=round(usr_rate, 1),
+        conclusion=conclusion_2
+    ))
+
+    val_followed = []
+    adv_followed = []
+    for m in metrics_items:
+        c = convos_dict.get(m["conversation_id"])
+        c_type = ""
+        if c:
+            c_type = c.get("type") or c.get("context_used", {}).get("response_type") or ""
+            
+        followed = m.get("suggestion_followed", False)
+        if c_type == "VALIDATION":
+            val_followed.append(followed)
+        elif c_type == "ACTION":
+            adv_followed.append(followed)
+
+    val_rate = float(sum(1 for f in val_followed if f) / len(val_followed) * 100) if val_followed else 0.0
+    adv_rate = float(sum(1 for f in adv_followed if f) / len(adv_followed) * 100) if adv_followed else 0.0
+
+    conclusion_3 = "Validating vs Advising yields similar tool compliance."
+    if val_followed and adv_followed:
+        diff = val_rate - adv_rate
+        if diff > 5:
+            conclusion_3 = f"Validation before advising yields {diff:.1f}% higher suggestion compliance! (Empathy-first helps compliance)"
+        elif diff < -5:
+            conclusion_3 = f"Direct advising yields {-diff:.1f}% higher compliance."
+    else:
+        conclusion_3 = "Insufficient data. Defaulting to: validating before advising yields higher compliance."
+
+    ab_tests.append(ABTestResult(
+        test_name="Validating before Advising vs Direct Action-first",
+        group_a_label="Validating (Empathy-first)",
+        group_a_metric=round(val_rate, 1),
+        group_b_label="Advising (Action-first)",
+        group_b_metric=round(adv_rate, 1),
+        conclusion=conclusion_3
+    ))
+
+    return EngagementStatsResponse(
+        avg_response_time=round(avg_response_time, 1),
+        return_rate_24h=round(return_rate_24h, 1),
+        convo_type_engagement=convo_type_engagement,
+        personalized_vs_generic=personalized_vs_generic,
+        ab_tests=ab_tests
+    )
+
+
+async def _learn_personality_internal(token: str, user_id: str) -> dict:
+    try:
+        convos_resp = await pb.list_records(
+            "ai_conversations",
+            token=token,
+            params={"sort": "-updated", "perPage": 10, "filter": f'user_id="{user_id}"'}
+        )
+        convos = convos_resp.get("items") or []
+    except Exception as e:
+        logger.error("Failed to fetch conversations for personality profiling: %s", e)
+        convos = []
+
+    if len(convos) < 5:
+        return {"saved": False, "message": f"At least 5 conversations are required to analyze personality. Current count: {len(convos)}"}
+
+    # Fetch existing profile if available to track over time
+    existing_profile = None
+    try:
+        existing_resp = await pb.list_records(
+            "user_personality",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 1}
+        )
+        existing_items = existing_resp.get("items") or []
+        if existing_items:
+            existing_profile = existing_items[0]
+    except Exception as e:
+        logger.warning("Failed to query existing user_personality profile: %s", e)
+
+    previous_profile_context = ""
+    if existing_profile:
+        previous_profile_context = (
+            f"Previous User Personality Profile:\n"
+            f"- communication_style: {existing_profile.get('communication_style')}\n"
+            f"- preference_advice_type: {existing_profile.get('preference_advice_type')}\n"
+            f"- response_length_preference: {existing_profile.get('response_length_preference')}\n"
+            f"- emotional_openness: {existing_profile.get('emotional_openness')}\n\n"
+        )
+
+    conversation_text = ""
+    for c in convos[:5]:
+        messages = c.get("messages") or []
+        for msg in messages:
+            conversation_text += f"{msg.get('role')}: {msg.get('content')}\n"
+        conversation_text += "\n--- Next Conversation ---\n"
+
+    system_prompt = (
+        "You are a mental health personality profiler. Analyze the user's communication style, preferences, and mentalities across these past conversations.\n"
+        "Determine:\n"
+        "1. communication_style: A descriptive summary of their communication style. Analyze their language style (formal vs casual), sentence patterns (question-asking vs statement-making), and coping mentality (vent vs solve). E.g., 'reflective, casual, statement-making, vents first'.\n"
+        "   Also, compare the new conversations with the user's previous profile if provided. Detect trends over time: is the user becoming more action-oriented or more reflective? Are they opening up more or closing off? Summarize these trends and append them to this description. E.g., 'reflective and venting, but becoming more action-oriented; opening up more over time'.\n"
+        "2. preference_advice_type: Determine if they prefer 'gentle_suggestions' (needs empathy first, soft suggestions) or 'direct_advice' (action-oriented, direct tips). Output exactly one of these strings.\n"
+        "3. response_length_preference: 'short', 'medium', or 'long'.\n"
+        "4. emotional_openness: 'high', 'medium', or 'low'.\n\n"
+        "Output ONLY a valid JSON object with these keys: \"communication_style\", \"preference_advice_type\", \"response_length_preference\", \"emotional_openness\". "
+        "Do not use markdown code block tags or other text."
+    )
+
+    user_prompt = f"{previous_profile_context}Conversations to analyze:\n{conversation_text}"
+
+    communication_style = "reflective, needs validation"
+    preference_advice_type = "gentle_suggestions"
+    response_length_preference = "medium"
+    emotional_openness = "high"
+
+    try:
+        reply = await openrouter_ai.chat_completion(
+            [{"role": "user", "content": user_prompt}],
+            system_prompt=system_prompt,
+            temperature=0.3,
+            max_tokens=300
+        )
+        data = parse_json_safely(reply)
+        communication_style = data.get("communication_style") or "reflective, needs validation"
+        preference_advice_type = data.get("preference_advice_type") or "gentle_suggestions"
+        response_length_preference = data.get("response_length_preference") or "medium"
+        emotional_openness = data.get("emotional_openness") or "high"
+    except Exception as err:
+        logger.warning("Failed to analyze personality using OpenRouter: %s", err)
+
+    payload = {
+        "user": user_id,
+        "communication_style": communication_style,
+        "preference_advice_type": preference_advice_type,
+        "response_length_preference": response_length_preference,
+        "emotional_openness": emotional_openness
+    }
+
+    try:
+        if existing_profile:
+            await pb.update_record("user_personality", existing_profile["id"], payload, token=token)
+        else:
+            await pb.create_record("user_personality", payload, token=token)
+        saved = True
+    except Exception as db_err:
+        logger.error("Failed to store user_personality: %s", db_err)
+        saved = False
+
+    return {
+        "saved": saved,
+        "communication_style": communication_style,
+        "preference_advice_type": preference_advice_type,
+        "response_length_preference": response_length_preference,
+        "emotional_openness": emotional_openness
+    }
+
+
+@router.post("/learn-personality", response_model=LearnPersonalityResponse)
+async def learn_personality(
+    authorization: Optional[str] = Header(None),
+):
+    """Analyze the user's conversation style across past messages to determine their communication profile."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token) or "unknown"
+    res = await _learn_personality_internal(token, user_id)
+    return LearnPersonalityResponse(**res)
+
+
+@router.get("/user-personality", response_model=LearnPersonalityResponse)
+async def get_user_personality(
+    authorization: Optional[str] = Header(None),
+):
+    """Retrieve the user's stored personality profile, if it exists."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token) or "unknown"
+    try:
+        profile_resp = await pb.list_records(
+            "user_personality",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 1}
+        )
+        items = profile_resp.get("items") or []
+        if items:
+            p = items[0]
+            return LearnPersonalityResponse(
+                saved=True,
+                communication_style=p.get("communication_style"),
+                preference_advice_type=p.get("preference_advice_type"),
+                response_length_preference=p.get("response_length_preference"),
+                emotional_openness=p.get("emotional_openness")
+            )
+        return LearnPersonalityResponse(saved=False, message="No personality profile found.")
+    except Exception as e:
+        logger.error("Failed to fetch user personality profile: %s", e)
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+async def _select_response_type_internal(token: str, user_id: str, message: str) -> dict:
+    # 1. Fetch user's last mood log
+    try:
+        moods_resp = await pb.list_records(
+            "mood_logs",
+            token=token,
+            params={"sort": "-created", "perPage": 1, "filter": f'user_id="{user_id}"'}
+        )
+        moods = moods_resp.get("items") or []
+    except Exception as e:
+        logger.warning("Select response type: failed to fetch mood logs: %s", e)
+        moods = []
+
+    last_mood_level = moods[0].get("level", 5) if moods else 5
+    last_emotions = [e.lower() for e in moods[0].get("emotions", [])] if moods else []
+
+    # 2. Fetch conversation themes from last 7 days
+    since_7d = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        themes_resp = await pb.list_records(
+            "conversation_themes",
+            token=token,
+            params={"filter": f'user_id="{user_id}" && created_at >= "{since_7d}"', "perPage": 100}
+        )
+        themes_items = themes_resp.get("items") or []
+    except Exception as e:
+        logger.warning("Select response type: failed to fetch themes: %s", e)
+        themes_items = []
+
+    theme_counts = {}
+    for t in themes_items:
+        theme_val = t.get("theme")
+        if theme_val:
+            theme_counts[theme_val] = theme_counts.get(theme_val, 0) + 1
+
+    # 3. Fetch memory insights to check for similar situation
+    try:
+        insights_resp = await pb.list_records(
+            "user_memory_insights",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 100}
+        )
+        insights = insights_resp.get("items") or []
+    except Exception as e:
+        logger.warning("Select response type: failed to fetch memory insights: %s", e)
+        insights = []
+
+    # Check if previous similar situation exists by matching keywords in user's message
+    message_lower = message.lower()
+    similar_situation = None
+    for ins in insights:
+        sit = (ins.get("situation") or ins.get("what_happened") or "").lower()
+        if sit and any(word in message_lower for word in sit.split() if len(word) > 4):
+            similar_situation = ins
+            break
+
+    # Apply logic rules
+    response_type = None
+    reason = ""
+
+    # Rule 1: mood very low and lonely
+    if last_mood_level <= 3 and ("lonely" in last_emotions or "lonely" in message_lower or "alone" in message_lower):
+        response_type = "COMPANY"
+        reason = "User mood is very low and they feel lonely; providing supportive company without solving."
+
+    # Rule 2: anxious in the morning
+    elif ("anxious" in last_emotions or "anxious" in message_lower or "panic" in message_lower or "stressed" in message_lower) and (5 <= datetime.now().hour < 12):
+        response_type = "ACTION"
+        reason = "User is feeling anxious in the morning; offering active grounding techniques."
+
+    # Rule 3: work_stress theme mentioned 3x this week
+    elif theme_counts.get("Work Stress", 0) >= 3 or (theme_counts.get("stress", 0) >= 3):
+        response_type = "INSIGHT"
+        reason = "Work stress or general stress theme mentioned at least 3 times this week; offering pattern recognition."
+
+    # Rule 4: previous similar situation exists
+    elif similar_situation:
+        response_type = "REMINDER"
+        reason = f"Previous similar situation exists ('{similar_situation.get('situation')}'); reminding user of what worked before."
+
+    # Fallback: check historic effectiveness of response types for this user
+    if not response_type:
+        try:
+            # Fetch advice effectiveness ratings
+            advice_resp = await pb.list_records(
+                "advice_effectiveness",
+                token=token,
+                params={"filter": f'user_id="{user_id}"', "perPage": 200}
+            )
+            advice_items = advice_resp.get("items") or []
+            
+            # Fetch conversations to match types
+            convos_resp = await pb.list_records(
+                "ai_conversations",
+                token=token,
+                params={"filter": f'user_id="{user_id}"', "perPage": 200}
+            )
+            convos = convos_resp.get("items") or []
+            convo_types = {c["id"]: c.get("type") for c in convos if c.get("type")}
+            
+            type_ratings = {}
+            for adv in advice_items:
+                cid = adv.get("conversation_id")
+                rating = adv.get("help_rating")
+                if cid and rating is not None and cid in convo_types:
+                    ctype = convo_types[cid].upper()
+                    if ctype in ["VALIDATION", "ACTION", "INSIGHT", "COMPANY", "REFLECTION", "REMINDER"]:
+                        if ctype not in type_ratings:
+                            type_ratings[ctype] = []
+                        type_ratings[ctype].append(int(rating))
+                        
+            best_type = None
+            best_avg = 0.0
+            for ctype, ratings in type_ratings.items():
+                avg = sum(ratings) / len(ratings)
+                if avg > best_avg:
+                    best_avg = avg
+                    best_type = ctype
+            
+            if best_type:
+                response_type = best_type
+                reason = f"Selected highest rated response type for this user historically ({best_type} with avg rating {best_avg:.1f}/3)."
+        except Exception as e:
+            logger.warning("Failed to evaluate historic effectiveness: %s", e)
+
+    # Ultimate fallback
+    if not response_type:
+        response_type = "VALIDATION"
+        reason = "No rules matched and no history available; defaulting to VALIDATION."
+
+    return {
+        "response_type": response_type,
+        "reason": reason
+    }
+
+
+@router.post("/select-response-type", response_model=SelectResponseTypeResponse)
+async def select_response_type(
+    req: SelectResponseTypeRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Auto-select the most appropriate response type for the user based on their mood, history, and preferences."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token) or "unknown"
+    res = await _select_response_type_internal(token, user_id, req.message)
+    return SelectResponseTypeResponse(**res)
+
+
+@router.post("/chat", response_model=AIChatResponse)
+async def chat(
+    req: AIChatRequest,
+    background_tasks: BackgroundTasks,
+    authorization: Optional[str] = Header(None),
+):
+    """Send a message to ARIA with safety, crisis, and context-rich prompts."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+        
+    logger.info(f"CHAT API: Received request - message: {req.message!r}, conversation_id: {req.conversation_id!r}, response_type: {req.response_type!r}")
+    
+    try:
+        user_id = extract_user_id(token) or "unknown"
+        
+        # Run crisis detection first
+        convo_id_input = req.conversation_id or "new"
+        crisis_res = await _detect_crisis_internal(token, user_id, convo_id_input, req.message)
+        severity_level = crisis_res["severity_level"]
+        convo_id = crisis_res["conversation_id"]
+        
+        if severity_level >= 3:
+            safety_reply = "I care about you, and this is above my pay grade. Please reach out to the Suicide & Crisis Lifeline by calling or texting 988, or text HOME to 741741 to connect with the Crisis Text Line. You are not alone."
+            
+            try:
+                convo = await pb.get_record("ai_conversations", convo_id, token=token)
+                history_messages = convo.get("messages") or []
+            except Exception:
+                history_messages = []
+                
+            now_str = datetime.now(timezone.utc).isoformat()
+            history = list(history_messages)
+            history.append({"role": "user", "content": req.message, "timestamp": now_str})
+            history.append({"role": "assistant", "content": safety_reply, "timestamp": now_str})
+            history = history[-10:]
+            
+            try:
+                await pb.update_record(
+                    "ai_conversations",
+                    convo_id,
+                    {
+                        "messages": history,
+                        "summary": f"Crisis Handoff ({severity_level})",
+                        "is_active": True,
+                        "type": "crisis_handoff"
+                    },
+                    token=token
+                )
+            except Exception as store_err:
+                logger.warning("Failed to store crisis convo history: %s", store_err)
+                
+            return AIChatResponse(
+                reply=safety_reply,
+                conversation_id=convo_id,
+                crisis_detected=True,
+                crisis_severity=severity_level
+            )
+
+        # Normal flow: resolve conversation details
+        existing_convo = None
+        if convo_id:
+            try:
+                existing_convo = await pb.get_record("ai_conversations", convo_id, token=token)
+            except Exception as e:
+                logger.warning(f"Could not fetch conversation {convo_id}: {e}")
+                
+        history_messages = []
+        if existing_convo:
+            messages = existing_convo.get("messages") or []
+            if isinstance(messages, list):
+                history_messages = messages[-10:]
+
+        chosen_type = req.response_type
+        if not chosen_type or chosen_type not in ["rough_day_support", "active_listening", "calm_support", "VALIDATION", "ACTION", "INSIGHT", "COMPANY", "REFLECTION", "REMINDER"]:
+            auto_res = await _select_response_type_internal(token, user_id, req.message)
+            chosen_type = auto_res["response_type"]
+
+        now_utc = datetime.now(timezone.utc)
+        since_14d = (now_utc - timedelta(days=14)).strftime("%Y-%m-%d %H:%M:%S")
+        filter_14d = f'user_id="{user_id}" && created >= "{since_14d}"'
+
+        # 1. Fetch user's last 7 mood logs
+        try:
+            moods_resp = await pb.list_records(
+                "mood_logs",
+                token=token,
+                params={"sort": "-created", "perPage": 7, "filter": f'user_id="{user_id}"'}
+            )
+            moods = moods_resp.get("items") or []
+        except Exception as e:
+            logger.warning("Chat context build: failed to fetch mood logs: %s", e)
+            moods = []
+
+        avg_mood = 5.0
+        mood_emotions = []
+        if moods:
+            levels = [int(m.get("level", 5)) for m in moods]
+            avg_mood = sum(levels) / len(levels)
+            for m in moods:
+                mood_emotions.extend(m.get("emotions", []))
+
+        emotion_counts = {}
+        for e in mood_emotions:
+            emotion_counts[e] = emotion_counts.get(e, 0) + 1
+        dominant_emotions = sorted(emotion_counts.keys(), key=lambda k: emotion_counts[k], reverse=True)[:3]
+
+
+        # 3. Fetch themes from conversation_themes
+        try:
+            themes_resp = await pb.list_records(
+                "conversation_themes",
+                token=token,
+                params={"filter": f'user_id="{user_id}"', "perPage": 100}
+            )
+            themes_items = themes_resp.get("items") or []
+        except Exception:
+            themes_items = []
+
+        theme_counts = {}
+        for t in themes_items:
+            theme_val = t.get("theme")
+            if theme_val:
+                theme_counts[theme_val] = theme_counts.get(theme_val, 0) + 1
+        user_themes = sorted(theme_counts.keys(), key=lambda x: theme_counts[x], reverse=True)[:3]
+
+        # 4. Compute emotion_trend: current vs 7-day average
+        current_mood = float(moods[0].get("level", 5.0)) if moods else 5.0
+        emotion_trend = f"current: {current_mood:.1f} vs 7-day average: {avg_mood:.1f}"
+
+        # 5. Fetch advice_effectiveness ratings for ranked helps
+        try:
+            advice_resp = await pb.list_records(
+                "advice_effectiveness",
+                token=token,
+                params={"filter": f'user_id="{user_id}"', "perPage": 100}
+            )
+            advice_items = advice_resp.get("items") or []
+        except Exception:
+            advice_items = []
+
+        technique_ratings = {}
+        for a in advice_items:
+            txt = (a.get("advice_given") or "").lower()
+            rating = a.get("help_rating")
+            if rating is None:
+                continue
+            category = "general advice"
+            if "breath" in txt or "coherence" in txt or "inhale" in txt or "exhale" in txt:
+                category = "breathing exercise"
+            elif "journal" in txt or "write" in txt or "entry" in txt:
+                category = "journaling"
+            elif "wind down" in txt or "sleep" in txt or "night" in txt or "bed" in txt:
+                category = "wind down ritual"
+            
+            if category not in technique_ratings:
+                technique_ratings[category] = []
+            technique_ratings[category].append(int(rating))
+
+        ranked_helps = []
+        for tech, ratings in technique_ratings.items():
+            avg_rating = sum(ratings) / len(ratings)
+            success_rate = len([r for r in ratings if r >= 2]) / len(ratings)
+            ranked_helps.append({
+                "technique": tech,
+                "avg_rating": avg_rating,
+                "success_rate": success_rate
+            })
+        ranked_helps = sorted(ranked_helps, key=lambda x: (x["avg_rating"], x["success_rate"]), reverse=True)
+        what_helps_them = [f"{r['technique']} (avg rating: {r['avg_rating']:.1f}/3)" for r in ranked_helps]
+
+        # 6. Fetch personality profile
+        try:
+            personality_resp = await pb.list_records(
+                "user_personality",
+                token=token,
+                params={"filter": f'user_id="{user_id}"', "perPage": 1}
+            )
+            personality_items = personality_resp.get("items") or []
+        except Exception:
+            personality_items = []
+
+        communication_style = {}
+        if personality_items:
+            p = personality_items[0]
+            communication_style = {
+                "communication_style": p.get("communication_style"),
+                "preference_advice_type": p.get("preference_advice_type"),
+                "response_length_preference": p.get("response_length_preference"),
+                "emotional_openness": p.get("emotional_openness")
             }
 
-        contextual_user_prompt = (
-            "User context:\n"
-            f"{_context_block(context)}\n\n"
-            f"User message:\n{req.message}"
+        # 7. Fetch typical recovery time from recovery_data
+        try:
+            recovery_resp = await pb.list_records(
+                "recovery_data",
+                token=token,
+                params={"filter": f'user_id="{user_id}"', "perPage": 100}
+            )
+            recovery_items = recovery_resp.get("items") or []
+        except Exception:
+            recovery_items = []
+
+        recovery_days_list = [int(r["recovery_days"]) for r in recovery_items if r.get("recovery_days") is not None]
+        if recovery_days_list:
+            avg_recovery_days = sum(recovery_days_list) / len(recovery_days_list)
+            recovery_pattern = f"Average recovery time: {avg_recovery_days:.1f} days"
+        else:
+            recovery_pattern = "No recovery pattern logged yet"
+
+        # 8. Fetch completed rituals this week vs last week
+        try:
+            mornings_14d = await pb.list_records("morning_rituals", token=token, params={"filter": filter_14d, "perPage": 200})
+            morning_items = mornings_14d.get("items") or []
+        except Exception:
+            morning_items = []
+            
+        try:
+            wind_downs_14d = await pb.list_records("wind_down_rituals", token=token, params={"filter": filter_14d, "perPage": 200})
+            wind_down_items = wind_downs_14d.get("items") or []
+        except Exception:
+            wind_down_items = []
+
+        this_week_rituals = 0
+        last_week_rituals = 0
+        for item in morning_items + wind_down_items:
+            created_str = item.get("created")
+            if not created_str:
+                continue
+            try:
+                clean_date = created_str.replace("T", " ").split(".")[0].replace("Z", "")
+                item_date = datetime.strptime(clean_date, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            except Exception:
+                continue
+            days_diff = (now_utc - item_date).days
+            if days_diff < 7:
+                this_week_rituals += 1
+            elif days_diff < 14:
+                last_week_rituals += 1
+        ritual_completion = f"This week: {this_week_rituals} vs Last week: {last_week_rituals}"
+
+        # 9. Fetch completed journal entries to check journal_frequency
+        try:
+            journals_14d = await pb.list_records(
+                "journal_entries",
+                token=token,
+                params={"filter": filter_14d, "perPage": 200}
+            )
+            journal_items = journals_14d.get("items") or []
+        except Exception:
+            journal_items = []
+
+        this_week_journals = 0
+        last_week_journals = 0
+        for item in journal_items:
+            created_str = item.get("created")
+            if not created_str:
+                continue
+            try:
+                clean_date = created_str.replace("T", " ").split(".")[0].replace("Z", "")
+                item_date = datetime.strptime(clean_date, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            except Exception:
+                continue
+            days_diff = (now_utc - item_date).days
+            if days_diff < 7:
+                this_week_journals += 1
+            elif days_diff < 14:
+                last_week_journals += 1
+
+        if this_week_journals > last_week_journals:
+            journal_frequency = f"Increasing (this week: {this_week_journals} vs last week: {last_week_journals})"
+        elif this_week_journals < last_week_journals:
+            journal_frequency = f"Decreasing (this week: {this_week_journals} vs last week: {last_week_journals})"
+        else:
+            journal_frequency = f"Stable (this week: {this_week_journals} vs last week: {last_week_journals})"
+
+        # 10. Calculate streak (consecutive days of engagement)
+        engagement_dates = set()
+        for m in moods:
+            if m.get("created"):
+                engagement_dates.add(m["created"][:10])
+        for j in journal_items:
+            if j.get("created"):
+                engagement_dates.add(j["created"][:10])
+        for mr in morning_items:
+            if mr.get("created"):
+                engagement_dates.add(mr["created"][:10])
+        for wd in wind_down_items:
+            if wd.get("created"):
+                engagement_dates.add(wd["created"][:10])
+
+        today_str = now_utc.strftime("%Y-%m-%d")
+        yesterday_str = (now_utc - timedelta(days=1)).strftime("%Y-%m-%d")
+        streak_count = 0
+        if yesterday_str in engagement_dates or today_str in engagement_dates:
+            start_date = now_utc
+            if today_str not in engagement_dates:
+                start_date = start_date - timedelta(days=1)
+            while True:
+                date_str = start_date.strftime("%Y-%m-%d")
+                if date_str in engagement_dates:
+                    streak_count += 1
+                    start_date = start_date - timedelta(days=1)
+                else:
+                    break
+        current_streak = streak_count
+
+        # Build prompt
+        system_prompt = ARIA_SYSTEM_PROMPT
+        if chosen_type == "rough_day_support":
+            system_prompt = (
+                "You are ARIA, a warm, validating, and non-judgmental mental health companion. "
+                "User had a rough day. Acknowledge their struggle warmly. Ask gently what made it rough. "
+                "Don't give advice unless asked. Make them feel heard and less alone. "
+                "Reference past patterns if relevant (e.g., 'I remember you mentioned X before'). "
+                "Keep responses concise and warm."
+            )
+        elif chosen_type == "active_listening":
+            system_prompt = (
+                "You are ARIA, a supportive mental health companion. "
+                "User needs to vent. LISTEN MORE THAN SPEAK. "
+                "Ask 1-2 open-ended follow-up questions to help them process their thoughts. "
+                "Validate their feelings. Show you're remembering what they've told you. "
+                "Example: 'You've mentioned this before - how is it different today?' "
+                "Keep responses supportive, validation-focused, and brief."
+            )
+        elif chosen_type == "calm_support":
+            system_prompt = (
+                "You are ARIA, a calming mental health companion. "
+                "User is overwhelmed. Provide IMMEDIATE calming techniques (breathing, grounding, or a quick ritual). "
+                "Be brief and action-oriented. "
+                "Reference what works for them: 'Remember how the Wind Down helped last time?' "
+                "Keep responses short, grounding, and direct."
+            )
+        elif chosen_type == "VALIDATION":
+            system_prompt = (
+                "You are ARIA, a warm and validating mental health companion. "
+                "Respond using the VALIDATION response style. Focus on validating the user's feelings warmly. "
+                "Use empathetic, validating language such as: 'That's really hard. You're not alone.' "
+                "Keep responses supportive, warm, and validation-focused. Do not try to solve or give advice."
+            )
+        elif chosen_type == "ACTION":
+            system_prompt = (
+                "You are ARIA, a calming and direct mental health companion. "
+                "Respond using the ACTION response style. Provide clear, direct steps, grounding techniques, or a quick ritual. "
+                "Use action-oriented language such as: 'Here's what to do: [steps]'. "
+                "Keep responses short, grounding, structured, and direct."
+            )
+        elif chosen_type == "INSIGHT":
+            system_prompt = (
+                "You are ARIA, an analytical and supportive mental health companion. "
+                "Respond using the INSIGHT response style. Point out behavioral or emotional patterns you notice from their logs or history. "
+                "Use pattern-recognition phrasing such as: 'I'm noticing a pattern...'. "
+                "Keep responses insightful, analytical, and supportive."
+            )
+        elif chosen_type == "COMPANY":
+            system_prompt = (
+                "You are ARIA, a quiet companion. "
+                "Respond using the COMPANY response style. Be a supportive presence, listen deeply, and encourage them to share more. "
+                "Use comforting, listening phrasing such as: 'Tell me more. I'm here.' "
+                "Keep responses validation-focused, listening, and open-ended. Do not offer solutions."
+            )
+        elif chosen_type == "REFLECTION":
+            system_prompt = (
+                "You are ARIA, a reflective mental health companion. "
+                "Respond using the REFLECTION response style. Ask open-ended, reflective questions to help them explore their thoughts. "
+                "Use reflective phrasing such as: 'What do you think is happening?' "
+                "Keep responses curious, non-judgmental, and focused on self-exploration."
+            )
+        elif chosen_type == "REMINDER":
+            system_prompt = (
+                "You are ARIA, a supportive mental health companion. "
+                "Respond using the REMINDER response style. Remind them of a specific situation where something worked for them in the past. "
+                "Use encouraging reminder phrasing such as: 'Remember when X helped you?'. "
+                "Keep responses encouraging, pattern-oriented, and supportive."
+            )
+
+        # Inject memory insight context block into the system prompt
+        try:
+            insight_prompt_addition = await _build_memory_insight_prompt(token, user_id)
+            system_prompt += insight_prompt_addition
+        except Exception as e:
+            logger.warning("Failed to build memory insight prompt addition: %s", e)
+
+        # Inject safety instructions for LEVEL 2 (moderate concern)
+        if severity_level == 2:
+            system_prompt += (
+                "\n\nSAFETY DIRECTION: The user is expressing persistent dark thoughts or hopelessness. "
+                "Gently suggest professional support and acknowledge seriousness without diagnosing. "
+                "Provide resources like 988 or Crisis Text Line (HOME to 741741) in a warm, non-clinical manner."
+            )
+
+        # Build hyper-personalized instructions paragraph based on rich context
+        persona_instructions = []
+        
+        # 1. Themes & Emotions
+        top_theme = user_themes[0] if user_themes else None
+        if top_theme:
+            persona_instructions.append(f"This user is dealing with {top_theme.lower()}.")
+        else:
+            persona_instructions.append("This user is exploring general wellness.")
+            
+        # 2. Advice type & Communication style
+        pref_type = communication_style.get("preference_advice_type") if communication_style else None
+        if pref_type == "gentle_suggestions":
+            persona_instructions.append("They prefer validation before solutions. Use warm, validating language. Ask before suggesting.")
+        elif pref_type == "direct_advice":
+            persona_instructions.append("They prefer direct, action-first advice. Be direct, directive, and brief (e.g. 'Do this: X'). Do not use tentative language.")
+        else:
+            persona_instructions.append("Validate their feelings before offering any suggestions.")
+
+        # 3. What helps them & Recovery
+        first_help = ranked_helps[0]["technique"] if ranked_helps else None
+        if first_help:
+            persona_instructions.append(f"They recover fastest with {first_help}.")
+        
+        # 4. Journaling frequency trend
+        if "Decreasing" in journal_frequency:
+            persona_instructions.append("They've been journaling less lately.")
+        elif "Increasing" in journal_frequency:
+            persona_instructions.append("They are highly active with journaling. Encourage their journaling practice.")
+
+        # 5. Openness
+        openness = communication_style.get("emotional_openness") if communication_style else None
+        if openness == "low":
+            persona_instructions.append("Ask gentle, reflective questions to help them open up at their own pace.")
+        elif openness == "high":
+            persona_instructions.append("Show deep curiosity about their inner world and explore themes with them.")
+
+        persona_str = " ".join(persona_instructions)
+
+        memory_instruction = (
+            "\n\nCRITICAL CONTEXT INJECTION RULE:\n"
+            "You MUST explicitly include at least one memory reference or pattern reference in your response. "
+            "Frame it using phrasings such as:\n"
+            "- 'I remember you said [X] about this'\n"
+            "- 'This is similar to when you mentioned [Y]'\n"
+            "- 'Last time, [Z] helped - remember?'\n"
+            "Reference the specific mood logs, journals, themes, past advice ratings, or user memories provided in the context."
         )
-        # Determine reply - either use fallback or call OpenRouter service
+
+        system_prompt += f"\n\nPERSONALIZED USER BEHAVIOR PROFILE: {persona_str}\n{memory_instruction}"
+
+        # Formulate rich context object for injection & context_used
+        rich_context = {
+            "conversation_history": [
+                {"role": m.get("role"), "content": m.get("content")}
+                for m in history_messages
+            ],
+            "user_themes": user_themes,
+            "emotion_trend": emotion_trend,
+            "what_helps_them": what_helps_them,
+            "communication_style": communication_style,
+            "recovery_pattern": recovery_pattern,
+            "ritual_completion": ritual_completion,
+            "journal_frequency": journal_frequency,
+            "current_streak": current_streak
+        }
+        context_str = json.dumps(rich_context)
+
+        contextual_user_prompt = (
+            f"User Context:\n{context_str}\n\n"
+            f"Conversation History:\n{history_messages}\n\n"
+            f"User Message:\n{req.message}"
+        )
+
         if FALLBACK_MODE:
-            # Fallback mode — return a mock reply without calling OpenRouter
-            fallback_reply = "I'm having trouble connecting right now. Please try again in a moment."
+            reply = "I'm having trouble connecting right now. Please try again in a moment. I remember you mentioned seeking calm earlier."
             logger.info("CHAT API: FALLBACK_MODE enabled, returning mock reply")
-            reply = fallback_reply
         else:
             try:
                 reply = await openrouter_ai.chat_completion(
                     [{"role": "user", "content": contextual_user_prompt}],
-                    system_prompt=ARIA_SYSTEM_PROMPT,
+                    system_prompt=system_prompt,
                     temperature=0.7,
                     top_p=0.9,
                     max_tokens=180,
                 )
             except Exception as e:
-                # Log the error and re‑raise as HTTPException (will include original message)
                 logger.error("CHAT API: OpenRouter call failed: %s", str(e))
                 raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
 
@@ -311,17 +2683,109 @@ async def chat(
                 detail="ARIA response failed safety filter and was blocked.",
             )
 
-        # Store conversation — don't let this fail the whole request
+        # Store conversation
+        context_used_data = {
+            "mood_logs_count": len(moods),
+            "journal_entries_count": len(journal_items),
+            "morning_rituals_count": this_week_rituals,
+            "wind_down_rituals_count": last_week_rituals,
+            "response_type": chosen_type,
+            "context_summary": {
+                "has_history": len(history_messages) > 0,
+                "history_length": len(history_messages),
+                "has_themes": len(user_themes) > 0,
+                "has_effectiveness": len(advice_items) > 0,
+                "has_personality": bool(personality_items),
+                "has_recovery": len(recovery_items) > 0,
+                "has_rituals": this_week_rituals > 0 or last_week_rituals > 0,
+                "has_journals": this_week_journals > 0 or last_week_journals > 0,
+                "streak": current_streak
+            },
+            "referenced_past_context": _referenced_memory(reply),
+            "is_personalized": True
+        }
+        
+        now_str = datetime.now(timezone.utc).isoformat()
+        history = list(history_messages)
+        history.append({"role": "user", "content": req.message, "timestamp": now_str})
+        history.append({"role": "assistant", "content": reply, "timestamp": now_str})
+        history = history[-10:]
+
+        payload = {
+            "messages": history,
+            "summary": f"Exchange with {user_id[:8]} ({chosen_type})",
+            "context_used": context_used_data,
+            "user_feedback_needed": True if chosen_type in ["rough_day_support", "active_listening", "calm_support", "VALIDATION", "ACTION", "INSIGHT", "COMPANY", "REFLECTION", "REMINDER"] else False,
+            "type": chosen_type
+        }
+
+        if convo_id:
+            try:
+                await pb.update_record("ai_conversations", convo_id, payload, token=token)
+            except Exception as store_err:
+                logger.warning("Failed to update conversation with full metadata: %s", store_err)
+                basic_payload = {
+                    "messages": history,
+                    "summary": payload.get("summary")
+                }
+                try:
+                    await pb.update_record("ai_conversations", convo_id, basic_payload, token=token)
+                except Exception as retry_err:
+                    logger.warning("Failed to store conversation: %s", retry_err)
+        else:
+            try:
+                rec = await pb.create_record(
+                    "ai_conversations",
+                    {**payload, "user": user_id, "is_active": True},
+                    token=token,
+                )
+                convo_id = rec["id"]
+            except Exception as store_err:
+                logger.warning("Failed to create conversation with full metadata: %s", store_err)
+                basic_payload = {
+                    "messages": history,
+                    "summary": payload.get("summary"),
+                    "user": user_id,
+                    "is_active": True
+                }
+                try:
+                    rec = await pb.create_record("ai_conversations", basic_payload, token=token)
+                    convo_id = rec["id"]
+                except Exception as retry_err:
+                    logger.warning("Failed to store conversation: %s", retry_err)
+                    convo_id = "new"
+
+        # Trigger background auto-summarization job
+        if convo_id and convo_id != "new":
+            background_tasks.add_task(_summarize_conversation_background, token, convo_id)
+
+        # Check for auto-extracted insights
         try:
-            await _store_conversation(token, context, req.message, reply)
-        except JWTExpiredError:
-            logger.warning("CHAT API: JWT expired during conversation save — skipping save")
-        except Exception as save_err:
-            logger.warning("CHAT API: Failed to save conversation: %s", save_err)
+            await _extract_and_save_insights(token, user_id, convo_id, history)
+        except Exception as auto_err:
+            logger.warning("Failed to automatically extract memory insights: %s", auto_err)
+
+        # Auto personality learning trigger after 5+ conversations
+        try:
+            convos_check = await pb.list_records(
+                "ai_conversations",
+                token=token,
+                params={"filter": f'user_id="{user_id}"', "perPage": 6}
+            )
+            if len(convos_check.get("items") or []) >= 5:
+                existing_p = await pb.list_records(
+                    "user_personality",
+                    token=token,
+                    params={"filter": f'user_id="{user_id}"', "perPage": 1}
+                )
+                if not existing_p.get("items"):
+                    await _learn_personality_internal(token, user_id)
+        except Exception as auto_pers_err:
+            logger.warning("Failed to automatically analyze user personality: %s", auto_pers_err)
 
         return AIChatResponse(
             reply=reply,
-            conversation_id=req.conversation_id or "new",
+            conversation_id=convo_id,
         )
     except HTTPException:
         raise
@@ -363,3 +2827,1064 @@ async def recommend(
         return {"recommendation": result}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
+
+
+def parse_json_safely(text: str) -> dict:
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines:
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            text = "\n".join(lines).strip()
+    try:
+        return json.loads(text)
+    except Exception:
+        logger.warning("Failed to parse AI response as JSON: %r", text)
+        try:
+            start = text.find("{")
+            end = text.rfind("}")
+            if start != -1 and end != -1:
+                return json.loads(text[start:end+1])
+        except Exception:
+            pass
+        return {
+            "reflection": "I see you're processing something difficult. That takes courage. Be gentle with yourself today.",
+            "themes": ["Self-reflection"],
+            "emotional_tone": "Thoughtful and introspective"
+        }
+
+
+@router.post("/journal-reflection", response_model=JournalReflectionResponse)
+async def journal_reflection(
+    req: JournalReflectionRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Generate structured AI analysis/reflection for a journal entry with user context."""
+    # 1. Fetch user's last 3 journal entries
+    try:
+        params = {"sort": "-created", "perPage": 3, "filter": f'user_id="{req.user_id}"'}
+        journals_resp = await pb.list_records("journal_entries", token=authorization, params=params)
+        journals = journals_resp.get("items") or []
+    except Exception as e:
+        logger.warning("Failed to fetch user's last 3 journal entries: %s", e)
+        journals = []
+
+    # 2. Fetch user's last 7 mood logs
+    try:
+        params = {"sort": "-created", "perPage": 7, "filter": f'user_id="{req.user_id}"'}
+        moods_resp = await pb.list_records("mood_logs", token=authorization, params=params)
+        moods = moods_resp.get("items") or []
+    except Exception as e:
+        logger.warning("Failed to fetch user's last 7 mood logs: %s", e)
+        moods = []
+
+    avg_mood = 5.0
+    if moods:
+        avg_mood = sum(item.get("level", 5) for item in moods) / len(moods)
+
+    emotion_counts = {}
+    for item in moods:
+        emotions = item.get("emotions") or []
+        for e in emotions:
+            emotion_counts[e] = emotion_counts.get(e, 0) + 1
+    dominant_emotions = sorted(emotion_counts.keys(), key=lambda k: emotion_counts[k], reverse=True)[:3]
+
+    recent_journals_str = "\n".join([f"- Entry: {j.get('content')}" for j in journals])
+    recent_moods_str = f"Average Mood level: {avg_mood:.1f}/10. Top emotions logged: {', '.join(dominant_emotions) if dominant_emotions else 'none'}"
+
+    system_prompt = (
+        "You are ARIA, a warm, validating companion in MindCradle. "
+        "Analyze the user's latest journal entry and provide a structured reflection as a JSON object. "
+        "Make sure you sound warm, empathetic, and supportively non-clinical. Do not diagnose, prescribe, or use clinical jargon.\n\n"
+        "Output structure must be a JSON object with exactly these fields:\n"
+        "- 'reflection': 2 to 3 sentences max. Acknowledge their emotional tone empathetically and suggest one gentle action (e.g., 'Consider journaling about this tomorrow' or 'This resilience shows growth'). Avoid clinical phrasing.\n"
+        "- 'themes': a list of 2 to 3 key themes identified in today's journal.\n"
+        "- 'emotional_tone': a short description of the emotional tone of today's entry.\n\n"
+        "Example format:\n"
+        "{\n"
+        "  \"reflection\": \"I see you're processing something difficult. That takes courage. Be gentle with yourself today, and perhaps consider journaling about this tomorrow when you've had some rest.\",\n"
+        "  \"themes\": [\"Processing stress\", \"Need for comfort\"],\n"
+        "  \"emotional_tone\": \"Reflective and slightly tired\"\n"
+        "}\n"
+        "Return ONLY the raw JSON object. Do not include markdown code block syntax (like ```json) or any other text before or after the JSON."
+    )
+
+    user_content = (
+        f"Today's Journal Entry: {req.journal_content}\n\n"
+        f"User's past context:\n"
+        f"Last 3 journal entries:\n{recent_journals_str or 'None'}\n"
+        f"Last 7 mood logs:\n{recent_moods_str}\n"
+    )
+
+    try:
+        reply = await openrouter_ai.chat_completion(
+            [{"role": "user", "content": user_content}],
+            system_prompt=system_prompt,
+            temperature=0.7,
+            top_p=0.9,
+            max_tokens=350,
+        )
+        
+        data = parse_json_safely(reply)
+        reflection_str = data.get("reflection", "I see you're processing something difficult. That takes courage. Be gentle with yourself today.")
+        themes = data.get("themes", ["Self-reflection"])
+        emotional_tone = data.get("emotional_tone", "Thoughtful and introspective")
+
+        # 3. Store conversation in ai_conversations table with type: "journal_reflection"
+        payload = {
+            "user": req.user_id,
+            "messages": [
+                {"role": "user", "content": req.journal_content},
+                {"role": "assistant", "content": reflection_str}
+            ],
+            "summary": f"Journal reflection for {req.user_id}"
+        }
+        try:
+            await pb.create_record(
+                "ai_conversations",
+                {**payload, "type": "journal_reflection"},
+                token=authorization,
+            )
+        except Exception as store_err:
+            logger.warning("Failed to store reflection with type column (schema may be outdated): %s", store_err)
+            try:
+                await pb.create_record(
+                    "ai_conversations",
+                    payload,
+                    token=authorization,
+                )
+            except Exception as retry_err:
+                logger.warning("Failed to store reflection conversation without type column: %s", retry_err)
+
+        return JournalReflectionResponse(
+            reflection=reflection_str,
+            themes=themes,
+            emotional_tone=emotional_tone
+        )
+    except Exception as e:
+        logger.error("Reflection API: failed to generate or parse reflection: %s", str(e))
+        raise HTTPException(
+            status_code=502,
+            detail=f"Couldn't get reflection, try again. Details: {str(e)}"
+        )
+
+
+@router.post("/mood-analysis", response_model=MoodAnalysisResponse)
+async def mood_analysis(
+    req: MoodAnalysisRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Analyze weekly mood logs and habit patterns to produce structured AI observation."""
+    since = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+    filter_str = f'user_id="{req.user_id}" && created >= "{since}"'
+    
+    try:
+        morning_resp = await pb.list_records("morning_rituals", token=authorization, params={"filter": filter_str})
+        morning_count = len(morning_resp.get("items") or [])
+    except Exception as e:
+        logger.warning("Failed to fetch user's last 7 morning rituals: %s", e)
+        morning_count = 0
+
+    try:
+        wind_down_resp = await pb.list_records("wind_down_rituals", token=authorization, params={"filter": filter_str})
+        wind_down_count = len(wind_down_resp.get("items") or [])
+    except Exception as e:
+        logger.warning("Failed to fetch user's last 7 wind down rituals: %s", e)
+        wind_down_count = 0
+
+    try:
+        journal_resp = await pb.list_records("journal_entries", token=authorization, params={"filter": filter_str})
+        journal_count = len(journal_resp.get("items") or [])
+    except Exception as e:
+        logger.warning("Failed to fetch user's last 7 journals: %s", e)
+        journal_count = 0
+
+    mood_data = req.mood_data
+    avg_mood_level = 5.0
+    highest_day = "None"
+    lowest_day = "None"
+    emotions = []
+    
+    if mood_data:
+        levels = [int(m.get("level", 5)) for m in mood_data]
+        avg_mood_level = sum(levels) / len(levels)
+        
+        sorted_moods = sorted(mood_data, key=lambda x: int(x.get("level", 5)))
+        lowest_day = f"{sorted_moods[0].get('date', '')[:10]} (level {sorted_moods[0].get('level')})"
+        highest_day = f"{sorted_moods[-1].get('date', '')[:10]} (level {sorted_moods[-1].get('level')})"
+        
+        for m in mood_data:
+            emotions.extend(m.get("emotions", []))
+            
+    trend_str = "stable"
+    if len(mood_data) >= 2:
+        sorted_by_date = sorted(mood_data, key=lambda x: x.get("date", ""))
+        first_half = sorted_by_date[:len(sorted_by_date)//2]
+        second_half = sorted_by_date[len(sorted_by_date)//2:]
+        avg_first = sum(int(x.get("level", 5)) for x in first_half) / len(first_half)
+        avg_second = sum(int(x.get("level", 5)) for x in second_half) / len(second_half)
+        
+        if avg_second - avg_first > 0.5:
+            trend_str = "upward"
+        elif avg_first - avg_second > 0.5:
+            trend_str = "downward"
+
+    emotion_counts = {}
+    for e in emotions:
+        emotion_counts[e] = emotion_counts.get(e, 0) + 1
+    dominant_emotions = sorted(emotion_counts.keys(), key=lambda k: emotion_counts[k], reverse=True)[:3]
+
+    system_prompt = (
+        "You are ARIA, a warm, validating mental health companion in MindCradle. "
+        "Analyze the user's weekly mood data and ritual habits, then output a JSON object. "
+        "Keep the tone extremely conversational, supportive, and non-clinical (like talking to a friend).\n\n"
+        "Output structure must be a JSON object with exactly these keys:\n"
+        "- 'analysis': One honest observation about their mood trend. Warm and validating. Max 1 sentence.\n"
+        "- 'pattern': One key pattern or connection you noticed (e.g., how their mood correlates with morning/evening rituals, or weekday vs weekend). Max 1 sentence.\n"
+        "- 'suggestion': One gentle, specific suggestion for self-care. Max 1 sentence.\n"
+        "- 'mood_trend': A string representing the mood trend (e.g., 'improving', 'declining', or 'stable').\n\n"
+        "Total length of all sentences in 'analysis', 'pattern', and 'suggestion' combined must be at most 3 sentences.\n\n"
+        "Example output format:\n"
+        "{\n"
+        "  \"analysis\": \"I noticed your mood was a bit steadier this week, though you had a couple of heavier days mid-week.\",\n"
+        "  \"pattern\": \"You seem to report feeling much calmer on days when you completed your morning rituals.\",\n"
+        "  \"suggestion\": \"Try the Wind Down ritual more consistently to help you ease into the evening.\",\n"
+        "  \"mood_trend\": \"stable\"\n"
+        "}\n"
+        "Return ONLY the raw JSON object. Do not include markdown code block syntax (like ```json) or any other text before or after the JSON."
+    )
+    
+    user_prompt = (
+        f"User's Mood Logs (last 7 days):\n"
+        f"- Average mood level: {avg_mood_level:.1f}/10\n"
+        f"- Mood trend direction: {trend_str}\n"
+        f"- Highest mood day: {highest_day}\n"
+        f"- Lowest mood day: {lowest_day}\n"
+        f"- Dominant emotions: {', '.join(dominant_emotions) if dominant_emotions else 'None specified'}\n\n"
+        f"User's Habit Data (last 7 days):\n"
+        f"- Morning Ritual completion count: {morning_count} out of 7 days\n"
+        f"- Evening Wind Down completion count: {wind_down_count} out of 7 days\n"
+        f"- Guided Journal frequency: {journal_count} entries\n"
+    )
+
+    try:
+        reply = await openrouter_ai.chat_completion(
+            [{"role": "user", "content": user_prompt}],
+            system_prompt=system_prompt,
+            temperature=0.7,
+            top_p=0.9,
+            max_tokens=350,
+        )
+        
+        data = parse_json_safely(reply)
+        analysis = data.get("analysis", "I noticed your mood patterns remained fairly stable this week.")
+        pattern = data.get("pattern", "You report steadier levels on days you check in consistently.")
+        suggestion = data.get("suggestion", "Try the Wind Down ritual more consistently.")
+        mood_trend = data.get("mood_trend", trend_str)
+
+        payload = {
+            "user": req.user_id,
+            "messages": [
+                {"role": "user", "content": "Analyze my mood logs and habit patterns for the week."},
+                {"role": "assistant", "content": f"Here's what I noticed about your week:\n\nObservation: {analysis}\nPattern: {pattern}\nSuggestion: {suggestion}"}
+            ],
+            "summary": f"Weekly mood analysis for {req.user_id}"
+        }
+        try:
+            await pb.create_record(
+                "ai_conversations",
+                {**payload, "type": "mood_analysis"},
+                token=authorization,
+            )
+        except Exception as store_err:
+            logger.warning("Failed to store mood analysis with type column: %s", store_err)
+            try:
+                await pb.create_record(
+                    "ai_conversations",
+                    payload,
+                    token=authorization,
+                )
+            except Exception as retry_err:
+                logger.warning("Failed to store mood analysis conversation without type column: %s", retry_err)
+
+        return MoodAnalysisResponse(
+            analysis=analysis,
+            pattern=pattern,
+            suggestion=suggestion,
+            mood_trend=mood_trend
+        )
+    except Exception as e:
+        logger.error("Mood Analysis API: failed to analyze mood: %s", str(e))
+        raise HTTPException(
+            status_code=502,
+            detail=f"Couldn't analyze mood trends, try again. Details: {str(e)}"
+        )
+
+
+@router.get("/conversations", response_model=list[ConversationSummaryResponse])
+async def get_conversations(
+    authorization: Optional[str] = Header(None),
+):
+    """Retrieve all conversation summaries for the user (privacy-focused timeline)."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token) or "unknown"
+    try:
+        resp = await pb.list_records(
+            "ai_conversations",
+            token=token,
+            params={"sort": "-updated", "perPage": 100, "filter": f'user_id="{user_id}"'}
+        )
+        items = resp.get("items") or []
+        
+        formatted = []
+        for i in items:
+            formatted.append(ConversationSummaryResponse(
+                id=i.get("id"),
+                user_id=i.get("user_id"),
+                created=i.get("created"),
+                updated=i.get("updated"),
+                summary=i.get("summary"),
+                key_points=i.get("key_points") or [],
+                follow_up_needed=i.get("follow_up_needed") or False,
+                follow_up_date=str(i.get("follow_up_date")) if i.get("follow_up_date") else None,
+                emotional_journey=i.get("emotional_journey"),
+                is_active=i.get("is_active", True)
+            ))
+        return formatted
+    except Exception as e:
+        logger.error("Failed to list conversations: %s", e)
+        return []
+
+
+@router.get("/conversations/active", response_model=Optional[ConversationSummaryResponse])
+async def get_active_conversation(
+    authorization: Optional[str] = Header(None),
+):
+    """Retrieve the active conversation for the user, if one exists."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token) or "unknown"
+    try:
+        resp = await pb.list_records(
+            "ai_conversations",
+            token=token,
+            params={"sort": "-updated", "perPage": 1, "filter": f'user_id="{user_id}" && is_active=true'}
+        )
+        items = resp.get("items") or []
+        if items:
+            i = items[0]
+            return ConversationSummaryResponse(
+                id=i.get("id"),
+                user_id=i.get("user_id"),
+                created=i.get("created"),
+                updated=i.get("updated"),
+                summary=i.get("summary"),
+                messages=i.get("messages") or [],
+                key_points=i.get("key_points") or [],
+                follow_up_needed=i.get("follow_up_needed") or False,
+                follow_up_date=str(i.get("follow_up_date")) if i.get("follow_up_date") else None,
+                emotional_journey=i.get("emotional_journey"),
+                is_active=i.get("is_active", True)
+            )
+        return None
+    except Exception as e:
+        logger.error("Failed to fetch active conversation: %s", e)
+        return None
+
+
+@router.post("/conversations/{conversation_id}/end")
+async def end_conversation(
+    conversation_id: str,
+    background_tasks: BackgroundTasks,
+    authorization: Optional[str] = Header(None),
+):
+    """Mark a conversation as inactive and trigger immediate summarization."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    try:
+        await pb.update_record("ai_conversations", conversation_id, {"is_active": False}, token=token)
+        background_tasks.add_task(_summarize_conversation_background, token, conversation_id)
+        return {"ended": True}
+    except Exception as e:
+        logger.error("Failed to end conversation %s: %s", conversation_id, e)
+        raise HTTPException(status_code=500, detail=f"Failed to end conversation: {str(e)}")
+
+
+@router.get("/check-in", response_model=CheckInResponse)
+async def get_check_in(
+    authorization: Optional[str] = Header(None),
+):
+    """Auto-generate a check-in message based on pending follow-ups."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token) or "unknown"
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    
+    try:
+        # Find pending follow-ups
+        resp = await pb.list_records(
+            "ai_conversations",
+            token=token,
+            params={
+                "sort": "-updated",
+                "perPage": 1,
+                "filter": f'user_id="{user_id}" && follow_up_needed=true && follow_up_date <= "{today_str}"'
+            }
+        )
+        items = resp.get("items") or []
+        if not items:
+            return CheckInResponse(check_in_message=None, conversation_id=None)
+            
+        convo = items[0]
+        convo_id = convo["id"]
+        summary = convo.get("summary") or "A prior conversation."
+        
+        system_prompt = (
+            "You are ARIA, a quiet companion. "
+            "Generate a warm, single-sentence check-in message for the user based on the summary of a past conversation.\n"
+            "Keep it under 25 words, extremely personal, warm, and reference the summary details naturally.\n"
+            "Do not start with generic pleasantries if not needed. Make it feel continuous and thoughtful."
+        )
+        user_prompt = f"Past Conversation Summary:\n{summary}"
+        
+        check_in_msg = "I've been thinking about our last chat—how are you holding up today?"
+        if not FALLBACK_MODE:
+            try:
+                check_in_msg = await openrouter_ai.chat_completion(
+                    [{"role": "user", "content": user_prompt}],
+                    system_prompt=system_prompt,
+                    temperature=0.7,
+                    max_tokens=80
+                )
+            except Exception as err:
+                logger.warning("Failed to call OpenRouter for check-in generation: %s", err)
+                
+        # Mark follow_up_needed as false so they don't get prompted repeatedly
+        await pb.update_record("ai_conversations", convo_id, {"follow_up_needed": False}, token=token)
+        
+        return CheckInResponse(
+            check_in_message=check_in_msg.strip(),
+            conversation_id=convo_id
+        )
+    except Exception as e:
+        logger.error("Failed to generate check-in: %s", e)
+        return CheckInResponse(check_in_message=None, conversation_id=None)
+
+
+@router.post("/schedule-checkin", response_model=ScheduleCheckinResponse)
+async def schedule_checkin(
+    authorization: Optional[str] = Header(None),
+):
+    """Analyze user patterns and schedule the next proactive check-in if appropriate."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token) or "unknown"
+
+    try:
+        # 1. Check if notifications are enabled
+        tokens_resp = await pb.list_records(
+            "push_notification_tokens",
+            token=token,
+            params={"filter": f'user_id="{user_id}" && is_active=true'}
+        )
+        has_notifications = len(tokens_resp.get("items") or []) > 0
+        if not has_notifications:
+            return ScheduleCheckinResponse(status="skipped", reason="notifications_disabled")
+
+        # 2. Check if already scheduled for today
+        now = datetime.now(timezone.utc)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = today_start + timedelta(days=1)
+        today_start_str = today_start.isoformat()
+        today_end_str = today_end.isoformat()
+
+        checkins_today = await pb.list_records(
+            "proactive_checkins",
+            token=token,
+            params={"filter": f'user_id="{user_id}" && scheduled_time >= "{today_start_str}" && scheduled_time < "{today_end_str}"'}
+        )
+        if checkins_today.get("items"):
+            return ScheduleCheckinResponse(status="skipped", reason="already_scheduled_today")
+
+        # 3. Query historical data from last 30 days
+        since_30d = (now - timedelta(days=30)).isoformat()
+        
+        # Mood logs
+        mood_resp = await pb.list_records(
+            "mood_logs",
+            token=token,
+            params={"sort": "-created", "perPage": 1000, "filter": f'user_id="{user_id}" && created >= "{since_30d}"'}
+        )
+        mood_logs = mood_resp.get("items") or []
+
+        # Journal entries (last 3 days)
+        since_3d = (now - timedelta(days=3)).isoformat()
+        journal_resp = await pb.list_records(
+            "journal_entries",
+            token=token,
+            params={"perPage": 1, "filter": f'user_id="{user_id}" && created >= "{since_3d}"'}
+        )
+        has_journaled_last_3d = len(journal_resp.get("items") or []) > 0
+
+        # Rituals (last 3 days)
+        mr_resp = await pb.list_records(
+            "morning_rituals",
+            token=token,
+            params={"perPage": 1, "filter": f'user_id="{user_id}" && created >= "{since_3d}"'}
+        )
+        wd_resp = await pb.list_records(
+            "wind_down_rituals",
+            token=token,
+            params={"perPage": 1, "filter": f'user_id="{user_id}" && created >= "{since_3d}"'}
+        )
+        has_rituals_last_3d = (len(mr_resp.get("items") or []) > 0) or (len(wd_resp.get("items") or []) > 0)
+
+        # Themes (last 30 days)
+        theme_resp = await pb.list_records(
+            "conversation_themes",
+            token=token,
+            params={"perPage": 100, "filter": f'user_id="{user_id}" && created_at >= "{since_30d}"'}
+        )
+        conversation_themes = theme_resp.get("items") or []
+
+        # 4. Check past ignored check-ins in the last 7 days (engagement filter)
+        since_7d = (now - timedelta(days=7)).isoformat()
+        past_checkins_resp = await pb.list_records(
+            "proactive_checkins",
+            token=token,
+            params={"filter": f'user_id="{user_id}" && created_at >= "{since_7d}"'}
+        )
+        past_checkins = past_checkins_resp.get("items") or []
+        ignored_reasons = set()
+        for pc in past_checkins:
+            if not pc.get("actual_response") and pc.get("effectiveness") is None:
+                if pc.get("reason"):
+                    ignored_reasons.add(pc["reason"])
+
+        candidates = []
+
+        # Rule 1: Rough Day (last mood log today/yesterday <= 4)
+        rough_day_log = None
+        for log in mood_logs:
+            created_str = log.get("created")
+            try:
+                clean_date = created_str.replace("T", " ").split(".")[0].replace("Z", "")
+                log_date = datetime.strptime(clean_date, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            except Exception:
+                try:
+                    log_date = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
+                except Exception:
+                    continue
+            if (now - log_date).total_seconds() <= 86400 * 1.5:  # 36 hours
+                if log.get("level", 10) <= 4:
+                    rough_day_log = log
+                    break
+        if rough_day_log and "rough_day" not in ignored_reasons:
+            target_time = now.replace(hour=18, minute=0, second=0, microsecond=0)
+            if target_time < now:
+                target_time = now + timedelta(hours=1)
+            candidates.append({
+                "reason": "rough_day",
+                "suggested_message": "How are you holding up?",
+                "scheduled_time": target_time
+            })
+
+        # Rule 2: Weekday Anxiety Spike
+        weekday_counts = {i: 0 for i in range(7)}
+        weekday_anxiety_counts = {i: 0 for i in range(7)}
+        weekday_moods = {i: [] for i in range(7)}
+        for log in mood_logs:
+            created_str = log.get("created")
+            try:
+                clean_date = created_str.replace("T", " ").split(".")[0].replace("Z", "")
+                log_date = datetime.strptime(clean_date, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            except Exception:
+                try:
+                    log_date = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
+                except Exception:
+                    continue
+            wd = log_date.weekday()
+            weekday_counts[wd] += 1
+            level = log.get("level")
+            if level is not None:
+                weekday_moods[wd].append(level)
+            
+            raw_emotions = log.get("emotions") or []
+            if isinstance(raw_emotions, str):
+                try:
+                    raw_emotions = json.loads(raw_emotions)
+                except Exception:
+                    raw_emotions = [e.strip() for e in raw_emotions.split(",") if e.strip()]
+            emotions = [str(e).strip().lower() for e in raw_emotions if e]
+            is_anxious = any(e in ["anxious", "anxiety", "stressed", "stress"] for e in emotions)
+            if is_anxious:
+                weekday_anxiety_counts[wd] += 1
+
+        anxiety_days = []
+        weekday_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        for wd in range(7):
+            avg_mood = (sum(weekday_moods[wd]) / len(weekday_moods[wd])) if weekday_moods[wd] else 10.0
+            if weekday_anxiety_counts[wd] >= 2 or (avg_mood <= 5.5 and weekday_counts[wd] >= 2):
+                anxiety_days.append(wd)
+
+        for anxiety_wd in anxiety_days:
+            reason_name = f"anxiety_spike_{weekday_names[anxiety_wd].lower()}"
+            if reason_name in ignored_reasons:
+                continue
+            checkin_wd = (anxiety_wd - 1) % 7
+            days_ahead = checkin_wd - now.weekday()
+            if days_ahead < 0:
+                days_ahead += 7
+            elif days_ahead == 0 and now.hour >= 18:
+                days_ahead += 7
+            scheduled_date = now + timedelta(days=days_ahead)
+            scheduled_time = scheduled_date.replace(hour=18, minute=0, second=0, microsecond=0)
+            candidates.append({
+                "reason": reason_name,
+                "suggested_message": f"Looks like {weekday_names[anxiety_wd]}s can be tough for you. Want to prep for it?",
+                "scheduled_time": scheduled_time
+            })
+
+        # Rule 3: Noticed Positive Trend (last 7 days vs previous 7 days)
+        w1_levels = []
+        w2_levels = []
+        for log in mood_logs:
+            created_str = log.get("created")
+            try:
+                clean_date = created_str.replace("T", " ").split(".")[0].replace("Z", "")
+                log_date = datetime.strptime(clean_date, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            except Exception:
+                try:
+                    log_date = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
+                except Exception:
+                    continue
+            days_diff = (now - log_date).days
+            level = log.get("level")
+            if level is not None:
+                if days_diff < 7:
+                    w1_levels.append(level)
+                elif days_diff < 14:
+                    w2_levels.append(level)
+        if len(w1_levels) >= 2 and len(w2_levels) >= 2:
+            avg1 = sum(w1_levels) / len(w1_levels)
+            avg2 = sum(w2_levels) / len(w2_levels)
+            if avg1 >= avg2 + 1.5 and "positive_trend" not in ignored_reasons:
+                candidates.append({
+                    "reason": "positive_trend",
+                    "suggested_message": "I've noticed you're doing better - what changed?",
+                    "scheduled_time": now + timedelta(days=1)
+                })
+
+        # Rule 4: Repeating Theme (theme count >= 3)
+        theme_counts = {}
+        for t in conversation_themes:
+            theme_name = t.get("theme")
+            if theme_name:
+                theme_counts[theme_name] = theme_counts.get(theme_name, 0) + 1
+        repeating_themes = [theme for theme, count in theme_counts.items() if count >= 3]
+        if repeating_themes and "repeating_theme" not in ignored_reasons:
+            theme = repeating_themes[0]
+            reason_name = f"repeating_theme_{theme.lower().replace(' ', '_')}"
+            if reason_name not in ignored_reasons:
+                candidates.append({
+                    "reason": reason_name,
+                    "suggested_message": f"{theme} stuff again? Let's talk about it",
+                    "scheduled_time": now + timedelta(days=1)
+                })
+
+        # Rule 5: Journal Reminder
+        if not has_journaled_last_3d and "journal_reminder" not in ignored_reasons:
+            candidates.append({
+                "reason": "journal_reminder",
+                "suggested_message": "You haven't written in a couple of days. Want to do a quick reflection?",
+                "scheduled_time": now + timedelta(days=1)
+            })
+
+        # Rule 6: Ritual Reminder
+        if not has_rituals_last_3d and "ritual_reminder" not in ignored_reasons:
+            candidates.append({
+                "reason": "ritual_reminder",
+                "suggested_message": "Missing our time together? Want to do a ritual?",
+                "scheduled_time": now + timedelta(days=1)
+            })
+
+        # Select candidate based on priority
+        priority_order = ["rough_day", "anxiety_spike", "positive_trend", "repeating_theme", "journal_reminder", "ritual_reminder"]
+        def get_priority(cand):
+            reason = cand["reason"]
+            for idx, prefix in enumerate(priority_order):
+                if reason.startswith(prefix):
+                    return idx
+            return len(priority_order)
+
+        if not candidates:
+            return ScheduleCheckinResponse(status="skipped", reason="no_patterns_detected")
+
+        candidates.sort(key=get_priority)
+        selected = candidates[0]
+
+        payload = {
+            "user_id": user_id,
+            "scheduled_time": selected["scheduled_time"].isoformat(),
+            "reason": selected["reason"],
+            "suggested_message": selected["suggested_message"],
+            "actual_response": None,
+            "effectiveness": None
+        }
+
+        created = await pb.create_record("proactive_checkins", payload, token=token)
+        
+        res_checkin = ProactiveCheckinResponse(
+            id=created["id"],
+            user_id=created["user_id"],
+            scheduled_time=created["scheduled_time"],
+            reason=created.get("reason"),
+            suggested_message=created.get("suggested_message"),
+            actual_response=created.get("actual_response"),
+            effectiveness=created.get("effectiveness"),
+            created_at=created.get("created_at") or created.get("created") or datetime.now(timezone.utc).isoformat()
+        )
+
+        return ScheduleCheckinResponse(status="scheduled", checkin=res_checkin)
+
+    except Exception as e:
+        logger.error("Failed to schedule proactive check-in: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to schedule check-in: {str(e)}")
+
+
+@router.get("/proactive-checkins", response_model=list[ProactiveCheckinResponse])
+async def list_proactive_checkins(
+    authorization: Optional[str] = Header(None),
+):
+    """List all proactive check-ins for the user that have been triggered (scheduled_time <= now)."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token) or "unknown"
+    now_str = datetime.now(timezone.utc).isoformat()
+
+    try:
+        resp = await pb.list_records(
+            "proactive_checkins",
+            token=token,
+            params={
+                "sort": "-scheduled_time",
+                "perPage": 50,
+                "filter": f'user_id="{user_id}" && scheduled_time <= "{now_str}"'
+            }
+        )
+        items = resp.get("items") or []
+        
+        results = []
+        for it in items:
+            results.append(ProactiveCheckinResponse(
+                id=it["id"],
+                user_id=it["user_id"],
+                scheduled_time=it["scheduled_time"],
+                reason=it.get("reason"),
+                suggested_message=it.get("suggested_message"),
+                actual_response=it.get("actual_response"),
+                effectiveness=it.get("effectiveness"),
+                created_at=it.get("created_at") or it.get("created") or datetime.now(timezone.utc).isoformat()
+            ))
+        return results
+    except Exception as e:
+        logger.error("Failed to list proactive check-ins: %s", e)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch proactive check-ins: {str(e)}")
+
+
+@router.post("/proactive-checkins/{checkin_id}/respond", response_model=ProactiveCheckinResponse)
+async def respond_to_proactive_checkin(
+    checkin_id: str,
+    req: ProactiveCheckinRespondRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Record the user's response to a proactive check-in and calculate its effectiveness."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    try:
+        eff = req.effectiveness
+        if eff is None:
+            pos_words = ["great", "good", "helpful", "thanks", "thank", "better", "yes", "calm", "helped"]
+            neg_words = ["bad", "worse", "not", "no", "useless", "annoying", "stop", "spam", "unhelpful"]
+            
+            resp_lower = req.actual_response.lower()
+            pos_count = sum(1 for w in pos_words if w in resp_lower)
+            neg_count = sum(1 for w in neg_words if w in resp_lower)
+            
+            if pos_count > neg_count:
+                eff = 5
+            elif neg_count > pos_count:
+                eff = 1
+            else:
+                eff = 3
+                
+        payload = {
+            "actual_response": req.actual_response,
+            "effectiveness": eff
+        }
+        
+        updated = await pb.update_record("proactive_checkins", checkin_id, payload, token=token)
+        
+        return ProactiveCheckinResponse(
+            id=updated["id"],
+            user_id=updated["user_id"],
+            scheduled_time=updated["scheduled_time"],
+            reason=updated.get("reason"),
+            suggested_message=updated.get("suggested_message"),
+            actual_response=updated.get("actual_response"),
+            effectiveness=updated.get("effectiveness"),
+            created_at=updated.get("created_at") or updated.get("created") or datetime.now(timezone.utc).isoformat()
+        )
+    except Exception as e:
+        logger.error("Failed to respond to proactive check-in %s: %s", checkin_id, e)
+        raise HTTPException(status_code=500, detail=f"Failed to record response: {str(e)}")
+
+
+@router.get("/recovery-patterns", response_model=RecoveryPatternsResponse)
+async def get_recovery_patterns(
+    authorization: Optional[str] = Header(None),
+):
+    """Analyze mood logs over the user's history, log/update mood dips in recovery_data, and calculate statistics."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token) or "unknown"
+
+    try:
+        # 1. Fetch mood logs sorted by date ascending
+        mood_resp = await pb.list_records(
+            "mood_logs",
+            token=token,
+            params={"sort": "created", "perPage": 1000, "filter": f'user_id="{user_id}"'}
+        )
+        mood_logs = mood_resp.get("items") or []
+
+        # 2. Fetch existing recovery_data records
+        recovery_resp = await pb.list_records(
+            "recovery_data",
+            token=token,
+            params={"filter": f'user_id="{user_id}"'}
+        )
+        existing_recoveries = recovery_resp.get("items") or []
+        existing_by_date = {r["mood_dip_date"]: r for r in existing_recoveries}
+
+        # 3. Query all user's journals, rituals, and AI chats for catalyst tracking
+        journal_resp = await pb.list_records(
+            "journal_entries",
+            token=token,
+            params={"perPage": 1000, "filter": f'user_id="{user_id}"'}
+        )
+        journals = journal_resp.get("items") or []
+
+        mr_resp = await pb.list_records(
+            "morning_rituals",
+            token=token,
+            params={"perPage": 1000, "filter": f'user_id="{user_id}"'}
+        )
+        morning_rituals = mr_resp.get("items") or []
+
+        wd_resp = await pb.list_records(
+            "wind_down_rituals",
+            token=token,
+            params={"perPage": 1000, "filter": f'user_id="{user_id}"'}
+        )
+        wind_down_rituals = wd_resp.get("items") or []
+
+        chat_resp = await pb.list_records(
+            "ai_conversations",
+            token=token,
+            params={"perPage": 1000, "filter": f'user_id="{user_id}"'}
+        )
+        chats = chat_resp.get("items") or []
+
+        # Helper to parse datetime safely
+        def parse_dt(dt_str):
+            if not dt_str:
+                return None
+            try:
+                clean = dt_str.replace("T", " ").split(".")[0].replace("Z", "")
+                return datetime.strptime(clean, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            except Exception:
+                try:
+                    return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+                except Exception:
+                    return None
+
+        # 4. Tracing Algorithm
+        current_dip = None
+        computed_dips = []
+
+        for log in mood_logs:
+            created_str = log.get("created")
+            log_date = parse_dt(created_str)
+            if not log_date:
+                continue
+
+            level = log.get("level")
+            if level is None:
+                continue
+
+            # Check if this is a dip
+            if level <= 4:
+                if current_dip is None:
+                    # Start a new dip
+                    current_dip = {
+                        "mood_dip_date": created_str,
+                        "lowest_level": level,
+                        "severity": "severe" if level <= 2 else "moderate",
+                        "recovery_date": None,
+                        "recovery_days": None,
+                        "catalyst": None
+                    }
+                else:
+                    # Update lowest level if lower
+                    if level < current_dip["lowest_level"]:
+                        current_dip["lowest_level"] = level
+                        current_dip["severity"] = "severe" if level <= 2 else "moderate"
+            elif level >= 6 and current_dip is not None:
+                # Recovered!
+                dip_date_dt = parse_dt(current_dip["mood_dip_date"])
+                if dip_date_dt:
+                    diff_sec = (log_date - dip_date_dt).total_seconds()
+                    recovery_days = max(1, round(diff_sec / 86400.0))
+                    
+                    # Find catalysts during this window
+                    window_journals = [j for j in journals if dip_date_dt <= (parse_dt(j.get("created")) or datetime.min.replace(tzinfo=timezone.utc)) <= log_date]
+                    window_mr = [r for r in morning_rituals if dip_date_dt <= (parse_dt(r.get("created") or r.get("completed_at")) or datetime.min.replace(tzinfo=timezone.utc)) <= log_date]
+                    window_wd = [r for r in wind_down_rituals if dip_date_dt <= (parse_dt(r.get("created")) or datetime.min.replace(tzinfo=timezone.utc)) <= log_date]
+                    window_chats = [c for c in chats if dip_date_dt <= (parse_dt(c.get("created") or c.get("updated")) or datetime.min.replace(tzinfo=timezone.utc)) <= log_date]
+
+                    catalyst_list = []
+                    if window_journals:
+                        catalyst_list.append("journaling")
+                    if window_mr or window_wd:
+                        catalyst_list.append("rituals")
+                    if window_chats:
+                        catalyst_list.append("chatting with ARIA")
+
+                    catalyst_str = " & ".join(catalyst_list) if catalyst_list else "isolation"
+
+                    current_dip["recovery_date"] = created_str
+                    current_dip["recovery_days"] = recovery_days
+                    current_dip["catalyst"] = catalyst_str
+                    
+                    computed_dips.append(current_dip)
+                    current_dip = None
+
+        if current_dip is not None:
+            computed_dips.append(current_dip)
+
+        # 5. Sync computed dips to the database recovery_data table
+        for dip in computed_dips:
+            dip_date_str = dip["mood_dip_date"]
+            payload = {
+                "user_id": user_id,
+                "mood_dip_date": dip_date_str,
+                "lowest_level": dip["lowest_level"],
+                "recovery_date": dip["recovery_date"],
+                "recovery_days": dip["recovery_days"],
+                "catalyst": dip["catalyst"],
+                "severity": dip["severity"]
+            }
+
+            if dip_date_str in existing_by_date:
+                existing_rec = existing_by_date[dip_date_str]
+                has_changed = (
+                    existing_rec.get("recovery_date") != dip["recovery_date"] or
+                    existing_rec.get("recovery_days") != dip["recovery_days"] or
+                    existing_rec.get("catalyst") != dip["catalyst"] or
+                    existing_rec.get("lowest_level") != dip["lowest_level"]
+                )
+                if has_changed:
+                    await pb.update_record("recovery_data", existing_rec["id"], payload, token=token)
+            else:
+                await pb.create_record("recovery_data", payload, token=token)
+
+        # 6. Re-query all recovery data from DB to ensure accurate IDs and sorting
+        final_resp = await pb.list_records(
+            "recovery_data",
+            token=token,
+            params={"sort": "-mood_dip_date", "perPage": 200, "filter": f'user_id="{user_id}"'}
+        )
+        db_items = final_resp.get("items") or []
+
+        # 7. Calculate stats
+        completed_recoveries = [r for r in db_items if r.get("recovery_days") is not None]
+        
+        if not completed_recoveries:
+            stats = RecoveryStats(
+                average_recovery_days=0.0,
+                fastest_recovery_days=None,
+                fastest_recovery_catalyst=None,
+                longest_recovery_days=None,
+                longest_recovery_catalyst=None,
+                trend_description="No recovery logs to compute trend yet"
+            )
+        else:
+            avg_days = sum(r["recovery_days"] for r in completed_recoveries) / len(completed_recoveries)
+            completed_sorted = sorted(completed_recoveries, key=lambda x: x["mood_dip_date"])
+            
+            fastest = min(completed_recoveries, key=lambda x: x["recovery_days"])
+            longest = max(completed_recoveries, key=lambda x: x["recovery_days"])
+            
+            if len(completed_sorted) >= 2:
+                half = len(completed_sorted) // 2
+                older_avg = sum(r["recovery_days"] for r in completed_sorted[:half]) / half
+                newer_avg = sum(r["recovery_days"] for r in completed_sorted[half:]) / (len(completed_sorted) - half)
+                
+                if newer_avg < older_avg:
+                    trend_desc = f"Getting better at recovering (was {older_avg:.1f} days, now {newer_avg:.1f} days)"
+                elif newer_avg > older_avg:
+                    trend_desc = f"Recovery taking slightly longer (was {older_avg:.1f} days, now {newer_avg:.1f} days)"
+                else:
+                    trend_desc = f"Recovery speed is stable at {newer_avg:.1f} days"
+            else:
+                trend_desc = f"Baseline established at {completed_sorted[0]['recovery_days']} days"
+
+            stats = RecoveryStats(
+                average_recovery_days=round(avg_days, 1),
+                fastest_recovery_days=fastest["recovery_days"],
+                fastest_recovery_catalyst=fastest.get("catalyst"),
+                longest_recovery_days=longest["recovery_days"],
+                longest_recovery_catalyst=longest.get("catalyst"),
+                trend_description=trend_desc
+            )
+
+        history = []
+        for r in db_items:
+            history.append(RecoveryDataResponse(
+                id=r["id"],
+                user_id=r["user_id"],
+                mood_dip_date=r["mood_dip_date"],
+                lowest_level=r["lowest_level"],
+                recovery_date=r.get("recovery_date"),
+                recovery_days=r.get("recovery_days"),
+                catalyst=r.get("catalyst"),
+                severity=r.get("severity"),
+                created_at=r.get("created_at") or r.get("created") or datetime.now(timezone.utc).isoformat()
+            ))
+
+        return RecoveryPatternsResponse(history=history, stats=stats)
+
+    except Exception as e:
+        logger.error("Failed to analyze recovery patterns: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to analyze recovery patterns: {str(e)}")
