@@ -305,3 +305,158 @@ def test_chat_route_memory_injection(monkeypatch):
     assert "Felt overwhelmed about work" in captured_system_prompt
     assert "Struggles with occasional rough days" in captured_system_prompt
 
+
+def test_chat_route_wellness_guardrail(monkeypatch):
+    monkeypatch.setattr("app.routers.ai.extract_user_id", lambda token: "user_123")
+
+    async def fake_chat_completion(messages, system_prompt=None, temperature=0.7, top_p=0.9, max_tokens=180):
+        return "Standard response"
+
+    monkeypatch.setattr("app.routers.ai.openrouter_ai.chat_completion", fake_chat_completion)
+
+    async def fake_list_records(collection, token=None, params=None):
+        return {"items": [], "totalItems": 0}
+
+    async def fake_create_record(collection, data, token=None):
+        return {"id": "mock_convo_123"}
+
+    async def fake_update_record(collection, record_id, data, token=None):
+        return {"id": record_id}
+
+    monkeypatch.setattr("app.routers.ai.pb.list_records", fake_list_records)
+    monkeypatch.setattr("app.routers.ai.pb.create_record", fake_create_record)
+    monkeypatch.setattr("app.routers.ai.pb.update_record", fake_update_record)
+
+    headers = {"Authorization": "Bearer fake_token"}
+
+    # 1. ✅ "I'm feeling anxious" -> Allow
+    response = client.post("/api/ai/chat", json={"message": "I'm feeling anxious"}, headers=headers)
+    assert response.status_code == 200
+    assert response.json()["reply"] == "Standard response"
+    assert "type" not in response.json() or response.json()["type"] != "rejected"
+
+    # 2. ✅ "Help me sleep better" -> Allow
+    response = client.post("/api/ai/chat", json={"message": "Help me sleep better"}, headers=headers)
+    assert response.status_code == 200
+    assert response.json()["reply"] == "Standard response"
+
+    # 3. ❌ "How do I write Python?" -> Reject
+    response = client.post("/api/ai/chat", json={"message": "How do I write Python?"}, headers=headers)
+    assert response.status_code == 200
+    res_data = response.json()
+    assert "support your mental wellness" in res_data["reply"]
+    assert res_data["type"] == "rejected"
+    assert res_data["reason"] == "off_topic"
+
+    # 4. ❌ "What's the capital of France?" -> Reject
+    response = client.post("/api/ai/chat", json={"message": "What's the capital of France?"}, headers=headers)
+    assert response.status_code == 200
+    res_data = response.json()
+    assert res_data["type"] == "rejected"
+    assert res_data["reason"] == "off_topic"
+
+    # 5. ❌ "How do I build an app?" -> Reject and Trigger Rate Limit (3rd consecutive off-topic)
+    response = client.post("/api/ai/chat", json={"message": "How do I build an app?"}, headers=headers)
+    assert response.status_code == 200
+    res_data = response.json()
+    assert "paused" in res_data["reply"]
+    assert res_data["type"] == "rate_limited"
+    assert res_data["reason"] == "consecutive_off_topic"
+
+    # 6. ❌ "I feel overwhelmed about work" -> Blocked because rate limit is active
+    response = client.post("/api/ai/chat", json={"message": "I feel overwhelmed about work"}, headers=headers)
+    assert response.status_code == 200
+    assert response.json()["type"] == "rate_limited"
+    assert response.json()["reason"] == "consecutive_off_topic"
+
+    # 7. Clear rate limit, then verify "I feel overwhelmed about work" is allowed
+    from app.routers.ai import OFF_TOPIC_LIMITS
+    OFF_TOPIC_LIMITS.clear()
+    
+    response = client.post("/api/ai/chat", json={"message": "I feel overwhelmed about work"}, headers=headers)
+    assert response.status_code == 200
+    assert response.json()["reply"] == "Standard response"
+
+
+def test_verify_age_endpoint_success(monkeypatch):
+    headers = {"Authorization": "Bearer fake_token"}
+    monkeypatch.setattr("app.routers.ai.extract_user_id", lambda token: "user_123")
+
+    async def fake_list_records(collection, token=None, params=None):
+        assert collection == "user_age_verification"
+        return {"items": []}
+
+    created_payload = None
+    async def fake_create_record(collection, data, token=None):
+        nonlocal created_payload
+        assert collection == "user_age_verification"
+        created_payload = data
+        return {"id": "record_123", **data}
+
+    monkeypatch.setattr("app.routers.ai.pb.list_records", fake_list_records)
+    monkeypatch.setattr("app.routers.ai.pb.create_record", fake_create_record)
+
+    response = client.post("/api/aria/verify-age", json={"age_verified": True}, headers=headers)
+    assert response.status_code == 200
+    assert response.json() == {"status": "success", "age_verified": True}
+    assert created_payload is not None
+    assert created_payload["age_verified"] is True
+    assert "verified_at" in created_payload
+
+
+def test_age_verification_gate_checks(monkeypatch):
+    from app.routers.ai import check_aria_age_verified
+    app.dependency_overrides.pop(check_aria_age_verified, None)
+
+    headers = {"Authorization": "Bearer fake_token"}
+    monkeypatch.setattr("app.routers.ai.extract_user_id", lambda token: "user_123")
+
+    mock_profile_items = []
+    async def fake_list_records(collection, token=None, params=None):
+        if collection == "user_age_verification":
+            return {"items": mock_profile_items, "totalItems": len(mock_profile_items)}
+        return {"items": [], "totalItems": 0}
+
+    monkeypatch.setattr("app.routers.ai.pb.list_records", fake_list_records)
+
+    async def fake_chat_completion(messages, system_prompt=None, temperature=0.7, top_p=0.9, max_tokens=180):
+        return "Standard response"
+    monkeypatch.setattr("app.routers.ai.openrouter_ai.chat_completion", fake_chat_completion)
+
+    # 1. No profile -> 403 Age verification required
+    mock_profile_items = []
+    response = client.post("/api/ai/chat", json={"message": "hello"}, headers=headers)
+    assert response.status_code == 403
+    assert response.json()["error"] == "Age verification required"
+    assert response.json()["code"] == "not_verified"
+
+    # 2. Profile exists but not verified -> 403 Age verification required
+    mock_profile_items = [{"age_verified": False, "verified_at": None}]
+    response = client.post("/api/ai/chat", json={"message": "hello"}, headers=headers)
+    assert response.status_code == 403
+    assert response.json()["error"] == "ARIA not available for users under 18"
+    assert response.json()["code"] == "age_restricted"
+
+    # 3. Profile verified but older than 30 days -> 403 Age verification expired
+    from datetime import datetime, timedelta, timezone
+    expired_time = (datetime.now(timezone.utc) - timedelta(days=31)).isoformat()
+    mock_profile_items = [{"age_verified": True, "verified_at": expired_time}]
+    response = client.post("/api/ai/chat", json={"message": "hello"}, headers=headers)
+    assert response.status_code == 403
+    assert response.json()["error"] == "Age verification expired"
+    assert response.json()["code"] == "expired"
+
+    # 4. Profile verified and recent -> 200 OK
+    recent_time = (datetime.now(timezone.utc) - timedelta(days=5)).isoformat()
+    mock_profile_items = [{"age_verified": True, "verified_at": recent_time}]
+    
+    async def fake_create_record(collection, data, token=None):
+        return {"id": "convo_123"}
+    monkeypatch.setattr("app.routers.ai.pb.create_record", fake_create_record)
+
+    response = client.post("/api/ai/chat", json={"message": "hello"}, headers=headers)
+    assert response.status_code == 200
+    assert response.json()["reply"] == "Standard response"
+
+
+

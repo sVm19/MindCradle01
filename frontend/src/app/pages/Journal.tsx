@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Play, Pause, Loader2, BookOpen, Music } from 'lucide-react';
+import { Play, Pause, Loader2, BookOpen, Music, Lock } from 'lucide-react';
 import { journal as journalApi, ai as aiApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import GuestGate from '@/app/components/GuestGate';
 
 const TODAY_PROMPT = "What felt lighter today than it did a week ago?";
 
@@ -80,11 +81,20 @@ export default function Journal() {
       setReflecting(false);
     }
   };
-
   const handleClearReflection = () => {
     setReflectionData(null);
     setReflectError('');
   };
+
+  if (!user) {
+    return (
+      <GuestGate
+        title="Guided Journal"
+        description="Release your thoughts. Save daily entries, play calming ambient loops, and ask ARIA for insightful reflections."
+        icon={<BookOpen className="w-8 h-8 text-accent animate-pulse" />}
+      />
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fadeIn">

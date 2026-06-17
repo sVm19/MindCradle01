@@ -18,6 +18,10 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string, passwordConfirm: string) => Promise<void>;
   logout: () => void;
+  authModalOpen: boolean;
+  setAuthModalOpen: (open: boolean) => void;
+  verifyModalOpen: boolean;
+  setVerifyModalOpen: (open: boolean) => void;
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -42,6 +46,8 @@ function toUser(res: AuthResponse): User {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [verifyModalOpen, setVerifyModalOpen] = useState(false);
 
   // Rehydrate from localStorage on mount
   useEffect(() => {
@@ -82,6 +88,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_REFRESH_KEY, refreshToken);
     localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(u));
     setUser(u);
+
+    // Sync privacy acceptance to database now that we have a user token
+    const localAccepted = localStorage.getItem('privacy_accepted') === 'true';
+    if (localAccepted) {
+      authApi.acceptPrivacy(true, true).catch((err) => {
+        console.error('Failed to sync privacy acceptance to database:', err);
+      });
+    }
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -98,7 +112,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, signup, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        login,
+        signup,
+        logout,
+        authModalOpen,
+        setAuthModalOpen,
+        verifyModalOpen,
+        setVerifyModalOpen,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -121,3 +147,6 @@ export function getInitials(name: string): string {
     .map((w) => w[0].toUpperCase())
     .join('');
 }
+
+export const isAgeVerified = () => localStorage.getItem('age_verified') === 'true';
+

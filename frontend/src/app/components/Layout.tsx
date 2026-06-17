@@ -1,9 +1,12 @@
 import { Link, useLocation } from 'react-router';
 import { useEffect, useState } from 'react';
 import { useAuth, getInitials } from '@/lib/auth';
-import { mood as moodApi, ai as aiApi } from '@/lib/api';
-import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, Flame } from 'lucide-react';
+import { mood as moodApi, resources as resourcesApi, ai as aiApi } from '@/lib/api';
+import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, Flame, AlertTriangle, X, User } from 'lucide-react';
 import Logo from './Logo';
+import AuthCardModal from './AuthCardModal';
+import AgeVerificationModal from './AgeVerificationModal';
+import PrivacyPolicyModal from './PrivacyPolicyModal';
 
 function formatDate(d: Date): string {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -11,16 +14,55 @@ function formatDate(d: Date): string {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, authModalOpen, setAuthModalOpen, verifyModalOpen, setVerifyModalOpen } = useAuth();
   const [streak, setStreak] = useState(0);
+  const [hasCriticalCrisis, setHasCriticalCrisis] = useState(false);
+  const [showCrisisModal, setShowCrisisModal] = useState(false);
+
+  // Open auth modal if redirected with state
+  useEffect(() => {
+    if (location.state?.openAuth) {
+      setAuthModalOpen(true);
+      // Clear location state to prevent reopening on navigation
+      window.history.replaceState({}, document.title);
+    }
+  }, [location, setAuthModalOpen]);
 
   // Fetch streak from mood history — count unique dates in last 7 days
   useEffect(() => {
+    if (!user) {
+      setStreak(0);
+      return;
+    }
     moodApi.history('7d').then((res) => {
       const uniqueDates = new Set(res.items.map((item) => item.created.slice(0, 10)));
       setStreak(uniqueDates.size);
     }).catch(() => {/* silently ignore if API is unavailable */});
-  }, []);
+  }, [user]);
+
+  // Fetch crisis status
+  useEffect(() => {
+    if (user) {
+      aiApi.getCrisisStatus()
+        .then((res) => {
+          setHasCriticalCrisis(res.has_critical_crisis);
+        })
+        .catch(() => {});
+    } else {
+      setHasCriticalCrisis(false);
+    }
+  }, [user, location.pathname]);
+
+  const handleResolveCrisis = () => {
+    aiApi.resolveCrisis()
+      .then(() => {
+        setHasCriticalCrisis(false);
+        setShowCrisisModal(false);
+      })
+      .catch((err) => {
+        console.error('Failed to resolve crisis flags:', err);
+      });
+  };
 
   // Proactive check-ins (Notification Center)
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -55,6 +97,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           setNotifications(list);
         }).catch(() => {});
       });
+    } else {
+      setNotifications([]);
     }
   }, [user]);
 
@@ -77,6 +121,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <div className="fixed w-[400px] h-[400px] rounded-full blur-[80px] bg-teal/6 bottom-[100px] -left-[100px] pointer-events-none z-0" />
       <div className="fixed w-[300px] h-[300px] rounded-full blur-[80px] bg-rose/5 top-1/2 left-[40%] pointer-events-none z-0" />
 
+      {hasCriticalCrisis && (
+        <div
+          onClick={() => setShowCrisisModal(true)}
+          className="w-full bg-rose/20 backdrop-blur-md border-b border-rose/30 py-2.5 px-4 text-center text-rose text-xs font-semibold tracking-wider hover:bg-rose/30 transition-all cursor-pointer flex items-center justify-center gap-2 relative z-50 animate-slideDown"
+        >
+          <AlertTriangle size={14} className="animate-pulse text-rose" />
+          <span>Crisis support is available. Click here for help.</span>
+        </div>
+      )}
+
       <div className="flex flex-col min-h-screen relative z-[1]">
         {/* Main Top Header */}
         <header className="w-full bg-transparent relative z-20">
@@ -94,7 +148,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 {formatDate(new Date())}
               </div>
               <div className="font-[family-name:var(--font-serif)] text-xs sm:text-base md:text-lg font-light text-text italic leading-tight truncate">
-                Good {greeting}, <span className="not-italic text-accent">{user?.name?.split(' ')[0] || 'there'}</span> ✦
+                Good {greeting}, <span className="not-italic text-accent">{user?.name?.split(' ')[0] || 'guest'}</span> ✦
               </div>
             </div>
 
@@ -120,12 +174,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         ✦ Aria's Reached Out
                       </div>
                       <div className="text-[10px] text-text3 uppercase tracking-wider">
-                        {notifications.filter((n) => !n.actual_response).length} pending
+                        {user ? `${notifications.filter((n) => !n.actual_response).length} pending` : 'guest'}
                       </div>
                     </div>
 
                     <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
-                      {notifications.length === 0 ? (
+                      {!user ? (
+                        <div className="text-center py-6 space-y-3">
+                          <div className="text-xs text-text3 italic">Sign in to view notifications.</div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowNotifications(false);
+                              setAuthModalOpen(true);
+                            }}
+                            className="px-4 py-1.5 bg-accent hover:bg-accent/80 text-white text-[11px] font-medium rounded-md transition-all cursor-pointer mx-auto block"
+                          >
+                            Sign In
+                          </button>
+                        </div>
+                      ) : notifications.length === 0 ? (
                         <div className="text-center py-6 text-xs text-text3 italic">
                           No recent notifications.
                         </div>
@@ -169,9 +237,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   />
                                   <div className="flex justify-between items-center">
                                     <Link
-                                      to={`/aria?checkin=${n.id}`}
-                                      onClick={() => setShowNotifications(false)}
-                                      className="text-[11px] text-accent hover:underline"
+                                      to={localStorage.getItem('age_verified') === 'false' ? '#' : `/aria?checkin=${n.id}`}
+                                      onClick={(e) => {
+                                        setShowNotifications(false);
+                                        if (localStorage.getItem('age_verified') === 'false') {
+                                          e.preventDefault();
+                                          alert("This feature is for users 18+. Please contact a crisis counselor instead.");
+                                        }
+                                      }}
+                                      className={`text-[11px] hover:underline ${
+                                        localStorage.getItem('age_verified') === 'false'
+                                          ? 'text-text3 cursor-not-allowed opacity-50'
+                                          : 'text-accent'
+                                      }`}
                                     >
                                       Chat in ARIA →
                                     </Link>
@@ -201,14 +279,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 )}
               </div>
 
-              {/* Profile Icon Link */}
-              <Link
-                to="/settings"
-                className="w-11 h-11 rounded-lg bg-gradient-to-br from-accent2 to-teal flex items-center justify-center text-[13px] font-medium text-white cursor-pointer hover:opacity-90 transition-opacity flex-shrink-0"
-                title="Settings / Profile"
-              >
-                {initials}
-              </Link>
+              {/* Profile Icon Link / Button */}
+              {user ? (
+                <Link
+                  to="/settings"
+                  className="w-11 h-11 rounded-lg bg-gradient-to-br from-accent2 to-teal flex items-center justify-center text-[13px] font-medium text-white cursor-pointer hover:opacity-90 transition-opacity flex-shrink-0"
+                  title="Settings / Profile"
+                >
+                  {initials}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAuthModalOpen(true)}
+                  className="w-11 h-11 rounded-lg bg-bg2/50 border border-border flex items-center justify-center text-text2 hover:text-text hover:border-border2 hover:bg-white/5 cursor-pointer transition-all flex-shrink-0"
+                  title="Sign In / Create Account"
+                >
+                  <User size={18} />
+                </button>
+              )}
             </div>
           </div>
         </header>
@@ -218,12 +307,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-1.5 sm:gap-2 px-6 md:px-10 py-2 overflow-x-auto scrollbar-none max-w-[900px] w-full mx-auto">
             {navItems.map((item) => {
               const isActive = location.pathname === item.path;
+              const isBlocked = item.path === '/aria' && localStorage.getItem('age_verified') === 'false';
               return (
                 <Link
                   key={item.path}
-                  to={item.path}
+                  to={isBlocked ? '#' : item.path}
+                  onClick={(e) => {
+                    if (isBlocked) {
+                      e.preventDefault();
+                      alert("This feature is for users 18+. Please contact a crisis counselor instead.");
+                    }
+                  }}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap ${
-                    isActive
+                    isBlocked
+                      ? 'opacity-40 cursor-not-allowed text-text3 hover:bg-transparent'
+                      : isActive
                       ? 'bg-accent-glow text-accent border border-accent/20'
                       : 'text-text2 hover:bg-white/5 hover:text-text'
                   }`}
@@ -245,7 +343,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
               {/* Settings button */}
               <Link
-                to="/settings"
+                to={user ? "/settings" : "#"}
+                onClick={(e) => {
+                  if (!user) {
+                    e.preventDefault();
+                    setAuthModalOpen(true);
+                  }
+                }}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap ${
                   location.pathname === '/settings'
                     ? 'bg-accent-glow text-accent border border-accent/20'
@@ -264,6 +368,103 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+
+      {showCrisisModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-bg2 border border-border w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slideIn">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-bg3">
+              <h2 className="text-sm font-semibold text-rose uppercase tracking-wider flex items-center gap-2">
+                <AlertTriangle size={16} /> Crisis Support & Resources
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowCrisisModal(false)}
+                className="text-text3 hover:text-text text-sm transition-all"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4 text-left">
+              <p className="text-sm text-text leading-relaxed font-light">
+                We're concerned about your safety. You don't have to face this alone. Please reach out to one of the following 24/7 resources:
+              </p>
+              
+              <div className="space-y-3">
+                <div className="bg-bg3 border border-border rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div>
+                    <div className="text-sm text-text font-medium">National Suicide Prevention Lifeline</div>
+                    <div className="text-xs text-text3 mt-0.5">Call 988 or text HOME to 741741</div>
+                  </div>
+                  <a
+                    href="tel:988"
+                    className="px-4 py-2 bg-rose/10 hover:bg-rose/25 border border-rose/30 text-rose rounded-lg text-xs font-semibold transition-all whitespace-nowrap"
+                  >
+                    Call 988
+                  </a>
+                </div>
+
+                <div className="bg-bg3 border border-border rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div>
+                    <div className="text-sm text-text font-medium">Crisis Text Line</div>
+                    <div className="text-xs text-text3 mt-0.5">Text HOME to 741741</div>
+                  </div>
+                  <a
+                    href="sms:741741?&body=HOME"
+                    className="px-4 py-2 bg-rose/10 hover:bg-rose/25 border border-rose/30 text-rose rounded-lg text-xs font-semibold transition-all whitespace-nowrap"
+                  >
+                    Text HOME
+                  </a>
+                </div>
+
+                <div className="bg-bg3 border border-border rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div>
+                    <div className="text-sm text-text font-medium">International Resources</div>
+                    <div className="text-xs text-text3 mt-0.5">Global support centers outside the US</div>
+                  </div>
+                  <a
+                    href="https://www.iasp.info/resources/Crisis_Centres"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-4 py-2 bg-accent/10 hover:bg-accent/25 border border-accent/30 text-accent2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap"
+                  >
+                    Find Center
+                  </a>
+                </div>
+              </div>
+
+              <div className="pt-2 text-[10px] text-text3 leading-relaxed border-t border-border">
+                If you are in immediate physical danger, please call 911 or go to the nearest emergency room.
+              </div>
+
+              <div className="flex gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={handleResolveCrisis}
+                  className="flex-1 px-4 py-2.5 bg-teal text-white rounded-lg text-xs font-semibold hover:bg-teal/80 transition-all cursor-pointer"
+                >
+                  I am safe now / Clear this banner
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCrisisModal(false)}
+                  className="px-4 py-2.5 bg-bg3 border border-border text-text2 hover:text-text rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Auth Modals */}
+      <AuthCardModal />
+      <AgeVerificationModal
+        isOpen={verifyModalOpen}
+        onVerified={() => setVerifyModalOpen(false)}
+        onDeclined={() => setVerifyModalOpen(false)}
+      />
+      <PrivacyPolicyModal />
     </>
   );
 }

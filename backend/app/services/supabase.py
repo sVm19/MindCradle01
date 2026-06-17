@@ -45,6 +45,23 @@ def _extract_user_id(token: Optional[str]) -> Optional[str]:
 def extract_user_id(token: Optional[str]) -> Optional[str]:
     return _extract_user_id(token)
 
+
+def extract_user_email(token: Optional[str]) -> Optional[str]:
+    if not token:
+        return None
+    try:
+        clean_token = token.removeprefix("Bearer ").strip()
+        parts = clean_token.split(".")
+        if len(parts) < 2:
+            return None
+        payload_part = parts[1]
+        padded = payload_part + "=" * (-len(payload_part) % 4)
+        decoded = base64.urlsafe_b64decode(padded)
+        data_dict = json.loads(decoded)
+        return data_dict.get("email")
+    except Exception:
+        return None
+
 def _apply_filter(query, filter_str: str):
     if not filter_str:
         return query
@@ -257,6 +274,28 @@ class SupabaseService:
                 ins_res = client.table("user_profiles").insert(profile_data).execute()
                 return ins_res.data[0]
                 
+        return await asyncio.to_thread(_call)
+
+    async def delete_user_account(self, token: str) -> None:
+        def _call():
+            client = _get_client(token)
+            client.rpc("delete_user").execute()
+        return await asyncio.to_thread(_call)
+
+    async def get_user_email(self, token: str) -> str:
+        # Try extracting from JWT first
+        email = extract_user_email(token)
+        if email:
+            return email
+            
+        # Fallback to Supabase auth API
+        def _call():
+            clean_token = token.removeprefix("Bearer ").strip()
+            client = _get_client(clean_token)
+            res = client.auth.get_user(clean_token)
+            if res and res.user:
+                return res.user.email
+            raise Exception("Failed to retrieve user email from Supabase Auth")
         return await asyncio.to_thread(_call)
 
 pb = SupabaseService()

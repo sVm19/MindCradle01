@@ -3,6 +3,12 @@ export interface Message {
   content: string;
   thinkingMessage?: string;
   thinkingIcon?: 'brain' | 'lock' | 'heart' | 'target' | 'lightbulb' | 'sparkle';
+  type?: string;
+  crisis_detected?: boolean;
+  crisis_severity?: string | number;
+  resources?: any[];
+  encourage?: string;
+  contact_emergency?: string;
 }
 
 export interface StoredConversation {

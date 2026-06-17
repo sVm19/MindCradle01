@@ -4,12 +4,13 @@ import { useAuth } from '@/lib/auth';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi, profile as profileApi } from '@/lib/api';
 import type { ResourceItem } from '@/lib/api';
 import { Lock, Award, Sprout, BarChart3, Settings, Moon, Wind, PenTool } from 'lucide-react';
+import GuestGate from '@/app/components/GuestGate';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const SHORT_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, setAuthModalOpen } = useAuth();
 
   // Mood data
   const [moodItems, setMoodItems] = useState<{ created: string; level: number }[]>([]);
@@ -48,6 +49,7 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    if (!user) return;
     // Fetch mood history
     moodApi.history('7d').then((res) => {
       const items = res.items;
@@ -110,12 +112,77 @@ export default function Dashboard() {
     aiApi.getEngagementStats().then((res) => {
       setEngagementStats(res);
     }).catch(() => {});
-  }, []);
+  }, [user]);
+
+  if (!user) {
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        {/* Welcome & Discovery Hero Card */}
+        <section className="animate-fadeIn">
+          <div className="bg-bg2 border border-border rounded-[20px] p-6 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+            {/* Ambient Glow */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,124,248,0.1),transparent_60%)] pointer-events-none" />
+            
+            <div className="relative z-10 flex-1 space-y-3 text-left">
+              <h1 className="font-[family-name:var(--font-serif)] text-2xl sm:text-3xl font-light text-text leading-tight">
+                What will you discover today?
+              </h1>
+              <p className="text-sm text-text3 leading-relaxed max-w-2xl">
+                Your <span className="text-rose font-medium">mood</span> tells a story. Your <span className="text-amber font-medium">rituals</span> create patterns. Your <span className="text-teal font-medium">journal</span> holds wisdom. <span className="text-text font-semibold">ARIA</span> connects the dots.
+              </p>
+            </div>
+
+            <div className="relative z-10 flex-shrink-0 self-start md:self-center">
+              <button
+                type="button"
+                onClick={() => setAuthModalOpen(true)}
+                className="inline-flex items-center justify-center px-6 py-3 bg-accent hover:opacity-90 rounded-full text-xs font-semibold tracking-wider transition-all cursor-pointer"
+              >
+                Start here →
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <GuestGate
+          title="Your Wellness Dashboard"
+          description="Create a secure account or sign in to track your rituals, monitor your calm index, and see AI-guided wellness recommendations."
+          icon={<Lock size={28} />}
+        />
+      </div>
+    );
+  }
 
   const dashDots = (226 * calmScore) / 100;
 
   return (
     <div className="space-y-8 animate-fadeIn">
+      {/* Welcome & Discovery Hero Card */}
+      <section className="animate-fadeIn">
+        <div className="bg-bg2 border border-border rounded-[20px] p-6 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+          {/* Ambient Glow */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,124,248,0.1),transparent_60%)] pointer-events-none" />
+          
+          <div className="relative z-10 flex-1 space-y-3">
+            <h1 className="font-[family-name:var(--font-serif)] text-2xl sm:text-3xl font-light text-text leading-tight">
+              What will you discover today?
+            </h1>
+            <p className="text-sm text-text3 leading-relaxed max-w-2xl">
+              Your <span className="text-rose font-medium">mood</span> tells a story. Your <span className="text-amber font-medium">rituals</span> create patterns. Your <span className="text-teal font-medium">journal</span> holds wisdom. <span className="text-text font-semibold">ARIA</span> connects the dots.
+            </p>
+          </div>
+
+          <div className="relative z-10 flex-shrink-0 self-start md:self-center">
+            <Link
+              to="/mood"
+              className="inline-flex items-center justify-center px-6 py-3 bg-accent hover:opacity-90 rounded-full text-xs font-semibold tracking-wider transition-all"
+            >
+              Start here →
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Today's Rituals */}
       <section>
         <div className="text-[10.5px] tracking-[0.14em] uppercase text-accent font-medium mb-4">
@@ -448,17 +515,17 @@ export default function Dashboard() {
           ].map((badge, i) => (
             <div
               key={i}
-              className={`bg-bg2 border border-border rounded-[14px] px-4 py-4 text-center transition-all ${badge.unlocked ? 'opacity-100' : 'opacity-40'}`}
+              className={`bg-bg2 border border-border rounded-[14px] px-4 py-4 text-center transition-all ${badge.unlocked ? 'opacity-100' : 'opacity-70'}`}
             >
-              <div className="w-10 h-10 rounded-full bg-bg4 mx-auto mb-2.5 flex items-center justify-center text-base text-text3">
+              <div className="w-10 h-10 rounded-full bg-bg4 mx-auto mb-2.5 flex items-center justify-center text-base text-text2">
                 {badge.unlocked ? (
                   <Award size={18} className="text-amber animate-pulse" />
                 ) : (
-                  <Lock size={18} className="text-text3" />
+                  <Lock size={18} className="text-text2" />
                 )}
               </div>
-              <div className="text-[12.5px] text-text mb-0.5">{badge.name}</div>
-              <div className="text-[11px] text-text3">{badge.unlocked ? 'Earned' : 'Locked'}</div>
+              <div className="text-[13px] font-medium text-text mb-0.5">{badge.name}</div>
+              <div className="text-[11px] text-text2">{badge.unlocked ? 'Earned' : 'Locked'}</div>
             </div>
           ))}
         </div>

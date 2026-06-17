@@ -49,6 +49,7 @@ async def get_profile(
                 unlocked_badges=i.get("unlocked_badges"),
                 badge_history=i.get("badge_history"),
                 emergency_contact=i.get("emergency_contact"),
+                notify_on_crisis=i.get("notify_on_crisis", False),
                 created=i.get("created") or i.get("created_at") or ""
             )
         # Create a new profile if it doesn't exist
@@ -59,6 +60,7 @@ async def get_profile(
             unlocked_badges=new_prof.get("unlocked_badges") or [],
             badge_history=new_prof.get("badge_history") or [],
             emergency_contact=new_prof.get("emergency_contact"),
+            notify_on_crisis=new_prof.get("notify_on_crisis", False),
             created=new_prof.get("created") or new_prof.get("created_at") or ""
         )
     except Exception as e:
@@ -87,6 +89,8 @@ async def patch_profile(
         payload = {}
         if req.emergency_contact is not None:
             payload["emergency_contact"] = req.emergency_contact
+        if req.notify_on_crisis is not None:
+            payload["notify_on_crisis"] = req.notify_on_crisis
             
         if items:
             profile_id = items[0]["id"]
@@ -101,6 +105,7 @@ async def patch_profile(
             unlocked_badges=updated.get("unlocked_badges"),
             badge_history=updated.get("badge_history"),
             emergency_contact=updated.get("emergency_contact"),
+            notify_on_crisis=updated.get("notify_on_crisis", False),
             created=updated.get("created") or updated.get("created_at") or ""
         )
     except Exception as e:

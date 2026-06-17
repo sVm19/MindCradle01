@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Loader2, Frown, Meh, Smile, Laugh, Compass, Activity, BatteryWarning, AlertCircle, Heart, Flame, HelpCircle, Ghost, Sparkles, ThumbsDown } from 'lucide-react';
+import { Loader2, Frown, Meh, Smile, Laugh, Compass, Activity, BatteryWarning, AlertCircle, Heart, Flame, HelpCircle, Ghost, Sparkles, ThumbsDown, Lock } from 'lucide-react';
 import { mood as moodApi, ai as aiApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import GuestGate from '@/app/components/GuestGate';
 
 const MOOD_ICONS: Record<number, React.ReactNode> = {
   1: <Frown className="w-6 h-6 text-rose-400" />,
@@ -119,6 +120,16 @@ export default function Mood() {
     }
   };
 
+  if (!user) {
+    return (
+      <GuestGate
+        title="Mood Tracker"
+        description="Acknowledge how you feel. Log your emotions, save personal notes, and ask ARIA to analyze wellness patterns over time."
+        icon={<Smile className="w-8 h-8 text-accent animate-pulse" />}
+      />
+    );
+  }
+
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Header */}
@@ -147,7 +158,7 @@ export default function Mood() {
             <button
               key={mood}
               onClick={() => setSelectedMood(mood)}
-              className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all ${
+              className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all smooth-hover-btn ${
                 selectedMood === mood
                   ? 'bg-accent/20 border-2 border-accent scale-110'
                   : 'bg-bg3 border border-border hover:bg-bg4'
@@ -170,7 +181,7 @@ export default function Mood() {
             <button
               key={feeling.label}
               onClick={() => toggleFeeling(feeling.label)}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-sm transition-all flex items-center gap-1.5 smooth-hover-btn ${
                 feelings.includes(feeling.label)
                   ? 'bg-accent/20 border border-accent text-accent'
                   : 'bg-bg3 border border-border text-text2 hover:bg-bg4'
@@ -200,7 +211,7 @@ export default function Mood() {
       {/* AI Insight */}
       <section className="space-y-3">
         <div className="text-xs text-accent tracking-[0.1em] uppercase">AI COMPANION</div>
-        <div className="bg-bg2 border border-border rounded-[20px] px-6 py-5">
+        <div className="bg-bg2 border border-border rounded-[20px] px-6 py-5 smooth-hover-card">
           <h3 className="text-base font-medium text-text mb-3">AI Insight</h3>
           
           {analyzing && (
@@ -268,13 +279,13 @@ export default function Mood() {
         <button
           onClick={handleSave}
           disabled={saving || selectedMood === null}
-          className="px-6 py-3 bg-accent text-white rounded-lg font-medium text-sm hover:bg-accent2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-6 py-3 bg-accent text-white rounded-lg font-medium text-sm hover:bg-accent2 transition-all disabled:opacity-40 disabled:cursor-not-allowed smooth-hover-btn"
         >
           {saving ? 'Saving…' : 'Save Check-In'}
         </button>
         <button
           onClick={() => { setSelectedMood(null); setFeelings([]); setNotes(''); setError(''); }}
-          className="px-6 py-3 bg-bg3 border border-border text-text2 rounded-lg font-medium text-sm hover:bg-bg4 transition-all"
+          className="px-6 py-3 bg-bg3 border border-border text-text2 rounded-lg font-medium text-sm hover:bg-bg4 transition-all smooth-hover-btn"
         >
           Cancel
         </button>

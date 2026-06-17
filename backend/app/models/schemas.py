@@ -111,11 +111,25 @@ class AIChatRequest(BaseModel):
     context_data: Optional[dict] = None
 
 
+class CrisisResource(BaseModel):
+    name: str
+    phone: Optional[str] = None
+    text: Optional[str] = None
+    website: str
+
+
 class AIChatResponse(BaseModel):
-    reply: str
-    conversation_id: str
+    reply: Optional[str] = None
+    conversation_id: Optional[str] = None
     crisis_detected: Optional[bool] = None
     crisis_severity: Optional[int] = None
+    severity: Optional[str] = None
+    message: Optional[str] = None
+    type: Optional[str] = None
+    reason: Optional[str] = None
+    resources: Optional[list[CrisisResource]] = None
+    encourage: Optional[str] = None
+    contact_emergency: Optional[str] = None
 
 
 class JournalReflectionRequest(BaseModel):
@@ -214,6 +228,18 @@ class SelectResponseTypeRequest(BaseModel):
 class SelectResponseTypeResponse(BaseModel):
     response_type: str
     reason: str
+
+
+class AriaAgeVerifyRequest(BaseModel):
+    age_verified: bool
+
+
+class PrivacyAcceptanceRequest(BaseModel):
+    privacy_accepted: bool
+
+
+class WithdrawConsentRequest(BaseModel):
+    password: str
 
 
 class ConversationSummaryResponse(BaseModel):
@@ -339,11 +365,13 @@ class ProfileResponse(BaseModel):
     unlocked_badges: Optional[list[str]] = None
     badge_history: Optional[list[dict]] = None
     emergency_contact: Optional[str] = None
+    notify_on_crisis: Optional[bool] = False
     created: str
 
 
 class ProfileUpdate(BaseModel):
     emergency_contact: Optional[str] = None
+    notify_on_crisis: Optional[bool] = None
 
 
 

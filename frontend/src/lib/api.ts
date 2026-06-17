@@ -186,11 +186,25 @@ export interface JournalListResponse {
   total: number;
 }
 
+export interface CrisisResource {
+  name: string;
+  phone?: string;
+  text?: string;
+  website: string;
+}
+
 export interface AIChatResponse {
   reply: string;
   conversation_id: string;
   crisis_detected?: boolean;
   crisis_severity?: number;
+  severity?: 'CRITICAL' | 'HIGH';
+  message?: string;
+  type?: string;
+  reason?: string;
+  resources?: CrisisResource[];
+  encourage?: string;
+  contact_emergency?: string;
 }
 
 export interface JournalReflectionResponse {
@@ -236,6 +250,30 @@ export const auth = {
       { name, email, password, passwordConfirm },
       false,
     ),
+
+  checkAgeVerified: () =>
+    request<{ age_verified: boolean; verified_at: string | null }>('GET', '/auth/check-age-verified'),
+
+  verifyAge: (verified: boolean) =>
+    request<{ success: boolean; verified: boolean }>('POST', '/auth/verify-age', {
+      age_verified: verified,
+    }),
+
+  acceptPrivacy: (accepted: boolean, requiresAuth = false) =>
+    request<{ success: boolean; accepted: boolean; warning?: string }>('POST', '/auth/privacy-accepted', {
+      privacy_accepted: accepted,
+    }, requiresAuth),
+
+  checkPrivacy: () =>
+    request<{ privacy_accepted: boolean; accepted_at: string | null }>('GET', '/auth/check-privacy'),
+
+  getPrivacyPolicy: () =>
+    request<{ text: string }>('GET', '/auth/privacy-policy', undefined, false),
+
+  withdrawConsent: (password: string) =>
+    request<{ success: boolean; message: string }>('DELETE', '/auth/withdraw-consent', {
+      password,
+    }),
 };
 
 // ─── Mood ─────────────────────────────────────────────────────────────────────
@@ -282,6 +320,11 @@ export const rituals = {
 // ─── AI ───────────────────────────────────────────────────────────────────────
 
 export const ai = {
+  verifyAge: (verified: boolean) =>
+    request<{ status: string; age_verified: boolean }>('POST', '/aria/verify-age', {
+      age_verified: verified,
+    }),
+
   chat: (
     message: string,
     conversationId?: string,
@@ -398,6 +441,12 @@ export const ai = {
       conversation_id: conversationId,
       message,
     }),
+
+  getCrisisStatus: () =>
+    request<{ has_critical_crisis: boolean }>('GET', '/aria/crisis-status'),
+
+  resolveCrisis: () =>
+    request<{ status: string; resolved_count: number }>('POST', '/aria/crisis-resolve'),
 };
 
 // ─── Resources ────────────────────────────────────────────────────────────────
@@ -417,11 +466,12 @@ export interface ProfileResponse {
   unlocked_badges?: string[];
   badge_history?: any[];
   emergency_contact?: string;
+  notify_on_crisis?: boolean;
   created: string;
 }
 
 export const profile = {
   get: () => request<ProfileResponse>('GET', '/profile'),
-  update: (data: { emergency_contact?: string }) => request<ProfileResponse>('PATCH', '/profile', data),
+  update: (data: { emergency_contact?: string; notify_on_crisis?: boolean }) => request<ProfileResponse>('PATCH', '/profile', data),
   patchMilestones: (unlockedBadges: string[]) => request<any>('PATCH', '/profile/milestones', { unlockedBadges }),
 };

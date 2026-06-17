@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Frown, Meh, Smile, Sun, Wind, Activity, PenTool, Footprints, Heart, Moon } from 'lucide-react';
 import { rituals as ritualsApi } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
+import GuestGate from '@/app/components/GuestGate';
 
 const MOOD_LABELS: Record<number, string> = {
   0: 'Heavy', 1: 'Unsettled', 2: 'Neutral', 3: 'Hopeful', 4: 'Bright',
@@ -22,6 +24,7 @@ const ACTIVITIES = [
 ];
 
 export default function Morning() {
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [forecast, setForecast] = useState<number | null>(null);
   const [intention, setIntention] = useState('');
@@ -49,6 +52,16 @@ export default function Morning() {
       setSaving(false);
     }
   };
+
+  if (!user) {
+    return (
+      <GuestGate
+        title="Morning Ritual"
+        description="Start your day with intention. Align your mind, set a gentle focus, and choose a grounding exercise."
+        icon={<Sun className="w-8 h-8 text-accent animate-pulse" />}
+      />
+    );
+  }
 
   if (saved) {
     return (

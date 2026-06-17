@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi.responses import StreamingResponse
 from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Header, HTTPException, BackgroundTasks, Depends
 
 from app.models.schemas import (
     AIChatRequest, AIChatResponse, AIRecommendRequest,
@@ -19,16 +19,167 @@ from app.models.schemas import (
     ProactiveCheckinResponse, ProactiveCheckinRespondRequest, ScheduleCheckinResponse,
     RecoveryPatternsResponse, RecoveryStats, RecoveryDataResponse,
     TrackEngagementRequest, TrackEngagementResponse, EngagementStatsResponse,
-    ConvoTypeEngagement, ABTestResult, DetectCrisisRequest, DetectCrisisResponse
+    ConvoTypeEngagement, ABTestResult, DetectCrisisRequest, DetectCrisisResponse,
+    AriaAgeVerifyRequest
 )
 from app.services import openrouter_ai
 from app.services.supabase import pb, JWTExpiredError, extract_user_id
 import os
 
 
-router = APIRouter()
 logger = logging.getLogger(__name__)
 FALLBACK_MODE = False  # Set to True only for local testing without OpenRouter API
+
+class AgeGateException(Exception):
+    def __init__(self, error: str, code: str, status_code: int = 403):
+        self.error = error
+        self.code = code
+        self.status_code = status_code
+
+OFF_TOPIC_LIMITS = {}
+aria_router = APIRouter()
+
+def _normalize_token(token: Optional[str]) -> str:
+    if not token:
+        return ""
+    return token.removeprefix("Bearer ").strip()
+
+async def check_aria_age_verified(authorization: Optional[str] = Header(None)):
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    
+    user_id = extract_user_id(token) or "unknown"
+    if user_id == "unknown":
+        raise HTTPException(status_code=401, detail="Invalid token")
+        
+    try:
+        profile_resp = await pb.list_records(
+            "user_age_verification",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 1}
+        )
+        items = profile_resp.get("items") or []
+        if not items:
+            raise AgeGateException(error="Age verification required", code="not_verified")
+            
+        profile = items[0]
+        verified = profile.get("age_verified", False)
+        verified_at_str = profile.get("verified_at")
+        
+        if not verified:
+            raise AgeGateException(error="ARIA not available for users under 18", code="age_restricted")
+            
+        if verified_at_str:
+            verified_at = None
+            try:
+                clean_date = verified_at_str.replace("T", " ").split(".")[0].replace("Z", "")
+                verified_at = datetime.strptime(clean_date, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            except Exception as parse_err:
+                logger.warning("Failed to parse verified_at timestamp: %s", parse_err)
+            
+            if verified_at:
+                now = datetime.now(timezone.utc)
+                if (now - verified_at).days >= 30:
+                    raise AgeGateException(error="Age verification expired", code="expired")
+                
+    except AgeGateException:
+        raise
+    except Exception as e:
+        logger.error("Error checking age verification: %s", e)
+        raise HTTPException(status_code=500, detail="Database verification error")
+
+@aria_router.post("/verify-age")
+async def verify_age(
+    req: AriaAgeVerifyRequest,
+    authorization: Optional[str] = Header(None)
+):
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    
+    user_id = extract_user_id(token) or "unknown"
+    if user_id == "unknown":
+        raise HTTPException(status_code=401, detail="Invalid token")
+        
+    now_str = datetime.now(timezone.utc).isoformat()
+    
+    try:
+        # Check if record exists in user_age_verification
+        res = await pb.list_records("user_age_verification", token=token, params={"filter": f'user_id="{user_id}"', "perPage": 1})
+        items = res.get("items") or []
+        
+        payload = {
+            "age_verified": req.age_verified,
+            "verified_at": now_str
+        }
+        
+        if items:
+            record_id = items[0]["id"]
+            await pb.update_record("user_age_verification", record_id, payload, token=token)
+        else:
+            payload["user_id"] = user_id
+            await pb.create_record("user_age_verification", payload, token=token)
+    except Exception as e:
+        logger.error("Failed to update user verification: %s", e)
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        
+    return {"status": "success", "age_verified": req.age_verified}
+
+
+@aria_router.get("/crisis-status")
+async def get_crisis_status(
+    authorization: Optional[str] = Header(None)
+):
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    
+    user_id = extract_user_id(token) or "unknown"
+    if user_id == "unknown":
+        raise HTTPException(status_code=401, detail="Invalid token")
+        
+    try:
+        resp = await pb.list_records(
+            "crisis_flags",
+            token=token,
+            params={"filter": f'user_id="{user_id}" && severity_level=4 && admin_reviewed=false', "perPage": 1}
+        )
+        items = resp.get("items") or []
+        return {"has_critical_crisis": len(items) > 0}
+    except Exception as e:
+        logger.error("Error checking crisis status: %s", e)
+        return {"has_critical_crisis": False}
+
+
+@aria_router.post("/crisis-resolve")
+async def resolve_crisis(
+    authorization: Optional[str] = Header(None)
+):
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    
+    user_id = extract_user_id(token) or "unknown"
+    if user_id == "unknown":
+        raise HTTPException(status_code=401, detail="Invalid token")
+        
+    try:
+        resp = await pb.list_records(
+            "crisis_flags",
+            token=token,
+            params={"filter": f'user_id="{user_id}" && severity_level=4 && admin_reviewed=false', "perPage": 100}
+        )
+        items = resp.get("items") or []
+        for item in items:
+            await pb.update_record("crisis_flags", item["id"], {"admin_reviewed": True}, token=token)
+        return {"status": "success", "resolved_count": len(items)}
+    except Exception as e:
+        logger.error("Error resolving crisis flags: %s", e)
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+router = APIRouter(dependencies=[Depends(check_aria_age_verified)])
 
 
 
@@ -74,11 +225,6 @@ SAFETY_BANNED_TERMS = [
 ]
 
 
-def _normalize_token(token: Optional[str]) -> str:
-    if not token:
-        return ""
-    return token.removeprefix("Bearer ").strip()
-
 
 def _decode_token_claims(token: str) -> dict:
     parts = token.split(".")
@@ -98,6 +244,124 @@ def _decode_token_claims(token: str) -> dict:
 def _is_crisis_text(text: str) -> bool:
     lower = text.lower()
     return any(keyword in lower for keyword in CRISIS_KEYWORDS)
+
+
+CRITICAL_KEYWORDS = [
+    "kill myself", "hurt myself", "end it", "suicide", "want to die",
+    "no point living", "better off dead", "harm myself", "cut myself",
+    "overdose", "hang myself", "jump", "slit", "poison"
+]
+
+HIGH_RISK_KEYWORDS = [
+    "suicidal", "self harm", "self-harm", "can't go on", 
+    "hopeless", "worthless", "give up", "done living"
+]
+
+
+def detect_crisis_keywords(user_message: str) -> dict:
+    message_lower = user_message.lower()
+    
+    # Check CRITICAL first
+    if any(keyword in message_lower for keyword in CRITICAL_KEYWORDS):
+        return { "severity": "CRITICAL", "detected": True }
+    
+    # Check HIGH RISK
+    if any(keyword in message_lower for keyword in HIGH_RISK_KEYWORDS):
+        return { "severity": "HIGH", "detected": True }
+    
+    return { "severity": None, "detected": False }
+
+
+CRISIS_RESOURCES_LIST = [
+    {
+        "name": "National Suicide Prevention Lifeline",
+        "phone": "988",
+        "text": "Text HOME to 741741",
+        "website": "https://suicidepreventionlifeline.org"
+    },
+    {
+        "name": "Crisis Text Line",
+        "phone": "Text HOME to 741741",
+        "website": "https://www.crisistextline.org"
+    },
+    {
+        "name": "International Association for Suicide Prevention",
+        "website": "https://www.iasp.info/resources/Crisis_Centres"
+    }
+]
+
+
+async def _handle_crisis_detection_logging(token: str, user_id: str, message: str, severity: str, conversation_id: Optional[str]) -> str:
+    convo_id = conversation_id or "new"
+    if convo_id == "new":
+        try:
+            convo_payload = {
+                "user": user_id,
+                "is_active": True,
+                "messages": [],
+                "summary": "Safety Incident Conversation"
+            }
+            rec = await pb.create_record("ai_conversations", convo_payload, token=token)
+            convo_id = rec["id"]
+        except Exception as e:
+            logger.warning("Failed to create conversation for crisis: %s", e)
+
+    action_taken = f"Keyword Crisis ({severity}) intercepted."
+    if severity == "CRITICAL":
+        try:
+            profile_resp = await pb.list_records("user_profiles", token=token, params={"filter": f'user_id="{user_id}"', "perPage": 1})
+            items = profile_resp.get("items") or []
+            if items:
+                profile = items[0]
+                if profile.get("emergency_contact") and profile.get("notify_on_crisis"):
+                    contact = profile["emergency_contact"]
+                    logger.warning("CRISIS ALERT [CRITICAL]: Emergency contact notified: %s", contact)
+                    action_taken += f" Emergency contact notified: {contact}."
+        except Exception as contact_err:
+            logger.warning("Failed to check emergency contact settings: %s", contact_err)
+
+    try:
+        severity_level = 4 if severity == "CRITICAL" else 3
+        matched_keywords = [w for w in (CRITICAL_KEYWORDS if severity == "CRITICAL" else HIGH_RISK_KEYWORDS) if w in message.lower()]
+        payload = {
+            "user": user_id,
+            "conversation_id": convo_id,
+            "severity_level": severity_level,
+            "red_flags_detected": matched_keywords,
+            "action_taken": action_taken,
+            "admin_reviewed": False,
+            "message": message,
+            "severity": severity
+        }
+        await pb.create_record("crisis_flags", payload, token=token)
+    except Exception as db_err:
+        logger.error("Failed to log crisis flag: %s", db_err)
+
+    return convo_id
+
+
+def is_wellness_question(user_message: str) -> Optional[bool]:
+    wellness_keywords = [
+        "anxiety", "stress", "mood", "sleep", "sad", "happy", "emotion", "ritual",
+        "calm", "peace", "therapy", "mental", "feeling", "overwhelm", "journal",
+        "breathe", "meditation", "support"
+    ]
+    
+    off_topic_keywords = [
+        "code", "python", "javascript", "sql", "api", "debug", "function", "algorithm",
+        "math", "equation", "recipe", "homework", "sports", "how to build",
+        "how to create app", "how to code", "capital of", "football", "basketball", "soccer",
+        "build an app", "build app", "create app", "how do i build"
+    ]
+    
+    message_lower = user_message.lower()
+    
+    if any(keyword in message_lower for keyword in off_topic_keywords):
+        return False
+    if any(keyword in message_lower for keyword in wellness_keywords):
+        return True
+    
+    return None  # Ambiguous, let ARIA decide
 
 
 def _passes_safety_filter(text: str) -> bool:
@@ -2211,15 +2475,41 @@ async def chat(
     try:
         user_id = extract_user_id(token) or "unknown"
         
-        # Run crisis detection first
-        convo_id_input = req.conversation_id or "new"
-        crisis_res = await _detect_crisis_internal(token, user_id, convo_id_input, req.message)
-        severity_level = crisis_res["severity_level"]
-        convo_id = crisis_res["conversation_id"]
+        # Check user age verification status in database
+        from app.main import app
+        if check_aria_age_verified not in app.dependency_overrides:
+            try:
+                ver_resp = await pb.list_records(
+                    "user_age_verification",
+                    token=token,
+                    params={"filter": f'user_id="{user_id}"', "perPage": 1}
+                )
+                items = ver_resp.get("items") or []
+                if not items:
+                    raise AgeGateException(error="Age verification required", code="not_verified")
+                
+                profile = items[0]
+                if not profile.get("age_verified", False):
+                    raise AgeGateException(error="ARIA not available for users under 18", code="age_restricted")
+            except AgeGateException:
+                raise
+            except Exception as ver_err:
+                logger.error("Failed to query user_age_verification in chat: %s", ver_err)
+                raise AgeGateException(error="Age verification required", code="not_verified")
         
-        if severity_level >= 3:
-            safety_reply = "I care about you, and this is above my pay grade. Please reach out to the Suicide & Crisis Lifeline by calling or texting 988, or text HOME to 741741 to connect with the Crisis Text Line. You are not alone."
+        # Run crisis keyword detection first
+        crisis = detect_crisis_keywords(req.message)
+        if crisis["detected"]:
+            severity_label = crisis["severity"]
+            convo_id = await _handle_crisis_detection_logging(token, user_id, req.message, severity_label, req.conversation_id)
             
+            if severity_label == "CRITICAL":
+                msg_text = "I'm really concerned about what you shared. You don't have to face this alone. Please reach out to someone who can help right now: Call or text 988 or text HOME to 741741."
+                reply_text = msg_text
+            else:
+                msg_text = "I hear that you're going through a really difficult time right now, and I want to validate that your feelings are completely real. You don't have to carry this heavy burden alone. Would you like to talk to a crisis counselor instead? Call or text 988 or text HOME to 741741."
+                reply_text = msg_text
+
             try:
                 convo = await pb.get_record("ai_conversations", convo_id, token=token)
                 history_messages = convo.get("messages") or []
@@ -2229,7 +2519,7 @@ async def chat(
             now_str = datetime.now(timezone.utc).isoformat()
             history = list(history_messages)
             history.append({"role": "user", "content": req.message, "timestamp": now_str})
-            history.append({"role": "assistant", "content": safety_reply, "timestamp": now_str})
+            history.append({"role": "assistant", "content": reply_text, "timestamp": now_str})
             history = history[-10:]
             
             try:
@@ -2238,21 +2528,131 @@ async def chat(
                     convo_id,
                     {
                         "messages": history,
-                        "summary": f"Crisis Handoff ({severity_level})",
+                        "summary": f"Crisis Alert ({severity_label})",
                         "is_active": True,
-                        "type": "crisis_handoff"
+                        "type": "crisis_alert"
                     },
                     token=token
                 )
             except Exception as store_err:
                 logger.warning("Failed to store crisis convo history: %s", store_err)
-                
+
             return AIChatResponse(
-                reply=safety_reply,
+                reply=reply_text,
                 conversation_id=convo_id,
                 crisis_detected=True,
-                crisis_severity=severity_level
+                crisis_severity=4 if severity_label == "CRITICAL" else 3,
+                severity=severity_label,
+                message=msg_text,
+                type="crisis_alert",
+                resources=CRISIS_RESOURCES_LIST,
+                encourage="Please call 988 or text HOME to 741741. Help is available 24/7.",
+                contact_emergency="If you're in immediate danger, call 911 or go to nearest emergency room"
             )
+
+        # Run LLM crisis classification (existing fallback safety model)
+        convo_id_input = req.conversation_id or "new"
+        crisis_res = await _detect_crisis_internal(token, user_id, convo_id_input, req.message)
+        severity_level = crisis_res["severity_level"]
+        convo_id = crisis_res["conversation_id"]
+
+        # Check active rate limit first
+        now = datetime.now(timezone.utc)
+        user_limit = OFF_TOPIC_LIMITS.setdefault(user_id, {"count": 0, "paused_until": None})
+        
+        if user_limit["paused_until"] and now < user_limit["paused_until"]:
+            remaining_mins = int((user_limit["paused_until"] - now).total_seconds() / 60) + 1
+            rejection_reply = f"ARIA is for mental wellness support only. Visit our resources page for general questions. ARIA is paused for another {remaining_mins} minutes."
+            
+            resolved_convo_id = convo_id or "new"
+            return AIChatResponse(
+                reply=rejection_reply,
+                conversation_id=resolved_convo_id,
+                message=rejection_reply,
+                type="rate_limited",
+                reason="consecutive_off_topic"
+            )
+
+        # Run wellness guardrail check
+        is_wellness = is_wellness_question(req.message)
+        if is_wellness is False:
+            user_limit["count"] += 1
+            timestamp_str = datetime.now(timezone.utc).isoformat()
+            
+            if user_limit["count"] >= 3:
+                user_limit["paused_until"] = now + timedelta(minutes=30)
+                rejection_reply = "ARIA is for mental wellness support only. Visit our resources page for general questions. ARIA is paused for 30 minutes."
+                resp_type = "rate_limited"
+                resp_reason = "consecutive_off_topic"
+                logger.warning("RATE_LIMITED_OFF_TOPIC: user_id=%s, count=%d, paused_until=%s", user_id, user_limit["count"], user_limit["paused_until"].isoformat())
+            else:
+                rejection_reply = (
+                    "I'm here specifically to support your mental wellness. "
+                    "I can't help with coding, homework, or general questions. "
+                    "But I'm always here if you want to talk about how you're feeling, "
+                    "your mood, anxiety, sleep, or anything related to your wellbeing. "
+                    "What's on your mind? 💙"
+                )
+                resp_type = "rejected"
+                resp_reason = "off_topic"
+                logger.warning("REJECTED_MESSAGE: user_id=%s, count=%d, rejected_message=%r, timestamp=%s", user_id, user_limit["count"], req.message, timestamp_str)
+            
+            resolved_convo_id = convo_id or "new"
+            if not convo_id:
+                try:
+                    history_list = [
+                        {"role": "user", "content": req.message, "timestamp": timestamp_str},
+                        {"role": "assistant", "content": rejection_reply, "timestamp": timestamp_str}
+                    ]
+                    rec = await pb.create_record(
+                        "ai_conversations",
+                        {
+                            "user": user_id,
+                            "messages": history_list,
+                            "summary": f"Rejected message ({user_id[:8]})",
+                            "is_active": True,
+                            "type": resp_type
+                        },
+                        token=token
+                    )
+                    resolved_convo_id = rec["id"]
+                except Exception as store_err:
+                    logger.warning("Failed to create conversation for rejected message: %s", store_err)
+            else:
+                try:
+                    convo = await pb.get_record("ai_conversations", convo_id, token=token)
+                    history_messages = convo.get("messages") or []
+                except Exception:
+                    history_messages = []
+                
+                history_list = list(history_messages)
+                history_list.append({"role": "user", "content": req.message, "timestamp": timestamp_str})
+                history_list.append({"role": "assistant", "content": rejection_reply, "timestamp": timestamp_str})
+                history_list = history_list[-10:]
+                
+                try:
+                    await pb.update_record(
+                        "ai_conversations",
+                        convo_id,
+                        {
+                            "messages": history_list,
+                            "summary": f"Rejected message ({user_id[:8]})",
+                            "type": resp_type
+                        },
+                        token=token
+                    )
+                except Exception as store_err:
+                    logger.warning("Failed to update conversation for rejected message: %s", store_err)
+            
+            return AIChatResponse(
+                reply=rejection_reply,
+                conversation_id=resolved_convo_id,
+                message=rejection_reply,
+                type=resp_type,
+                reason=resp_reason
+            )
+        else:
+            user_limit["count"] = 0
 
         # Normal flow: resolve conversation details
         existing_convo = None
@@ -2799,6 +3199,58 @@ async def chat_stream(
     authorization: Optional[str] = Header(None),
 ):
     """Send a message to the AI wellness assistant (streaming SSE)."""
+    token = _normalize_token(authorization)
+    user_id = extract_user_id(token) or "unknown" if token else "unknown"
+
+    # Run crisis keyword detection first
+    crisis = detect_crisis_keywords(req.message)
+    if crisis["detected"]:
+        severity_label = crisis["severity"]
+        await _handle_crisis_detection_logging(token, user_id, req.message, severity_label, req.conversation_id)
+        
+        reply_text = (
+            "I'm really concerned about what you shared. Please call 988 or text HOME to 741741 for 24/7 crisis support."
+            if severity_label == "CRITICAL" else
+            "I hear that you're going through a really difficult time right now, and I want to validate that your feelings are completely real. Would you like to talk to a crisis counselor instead?"
+        )
+        async def generate_crisis():
+            yield f"data: {reply_text}\n\n"
+            yield "data: [DONE]\n\n"
+        return StreamingResponse(generate_crisis(), media_type="text/event-stream")
+    
+    now = datetime.now(timezone.utc)
+    user_limit = OFF_TOPIC_LIMITS.setdefault(user_id, {"count": 0, "paused_until": None})
+    
+    if user_limit["paused_until"] and now < user_limit["paused_until"]:
+        remaining_mins = int((user_limit["paused_until"] - now).total_seconds() / 60) + 1
+        rejection_reply = f"ARIA is for mental wellness support only. Visit our resources page for general questions. ARIA is paused for another {remaining_mins} minutes."
+        async def generate_rejection():
+            yield f"data: {rejection_reply}\n\n"
+            yield "data: [DONE]\n\n"
+        return StreamingResponse(generate_rejection(), media_type="text/event-stream")
+
+    is_wellness = is_wellness_question(req.message)
+    if is_wellness is False:
+        user_limit["count"] += 1
+        if user_limit["count"] >= 3:
+            user_limit["paused_until"] = now + timedelta(minutes=30)
+            rejection_reply = "ARIA is for mental wellness support only. Visit our resources page for general questions. ARIA is paused for 30 minutes."
+        else:
+            rejection_reply = (
+                "I'm here specifically to support your mental wellness. "
+                "I can't help with coding, homework, or general questions. "
+                "But I'm always here if you want to talk about how you're feeling, "
+                "your mood, anxiety, sleep, or anything related to your wellbeing. "
+                "What's on your mind? 💙"
+            )
+            
+        async def generate_rejection():
+            yield f"data: {rejection_reply}\n\n"
+            yield "data: [DONE]\n\n"
+        return StreamingResponse(generate_rejection(), media_type="text/event-stream")
+    else:
+        user_limit["count"] = 0
+
     async def generate():
         try:
             async for chunk in openrouter_ai.chat_completion_stream(

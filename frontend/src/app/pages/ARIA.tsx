@@ -1,15 +1,25 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import { ai as aiApi, resources as resourcesApi, mood as moodApi, journal as journalApi } from '@/lib/api';
 import type { ResourceItem, MoodItem, JournalItem } from '@/lib/api';
 import { useAuth, getInitials } from '@/lib/auth';
 import { useARIA } from '@/context/ARIAContext';
 import { Lock, Heart, Brain, Target, Lightbulb, Sparkles, Phone, MessageSquare, ThumbsUp, ThumbsDown, Meh, Wind, PhoneCall, X, Zap, Flower2, AlignLeft, HeartHandshake } from 'lucide-react';
+import AgeVerificationModal from '@/app/components/AgeVerificationModal';
+import { auth as authApi } from '@/lib/api';
+import GuestGate from '@/app/components/GuestGate';
 
 interface Message {
   role: 'user' | 'aria';
   content: string;
   thinkingMessage?: string;
   thinkingIcon?: 'brain' | 'lock' | 'heart' | 'target' | 'lightbulb' | 'sparkle';
+  type?: string;
+  crisis_detected?: boolean;
+  crisis_severity?: string | number;
+  resources?: any[];
+  encourage?: string;
+  contact_emergency?: string;
 }
 
 const renderMessageContent = (content: string) => {
@@ -20,18 +30,18 @@ const renderMessageContent = (content: string) => {
   return parts.map((part, index) => {
     switch (part) {
       case '🔒':
-        return <Lock key={index} size={16} className="inline-block mx-0.5 text-blue-500 align-text-bottom" />;
+        return <Lock key={index} size={15} className="inline-block mx-1 text-teal align-text-bottom filter drop-shadow-[0_0_3px_rgba(78,205,196,0.6)]" />;
       case '💙':
       case '❤️':
-        return <Heart key={index} size={16} className="inline-block mx-0.5 text-red-500 align-text-bottom" />;
+        return <Heart key={index} size={15} className="inline-block mx-1 text-rose fill-rose/20 align-text-bottom filter drop-shadow-[0_0_3px_rgba(240,147,160,0.6)]" />;
       case '🤔':
-        return <Brain key={index} size={16} className="inline-block mx-0.5 text-purple-500 align-text-bottom" />;
+        return <Brain key={index} size={15} className="inline-block mx-1 text-indigo-400 align-text-bottom filter drop-shadow-[0_0_3px_rgba(129,140,248,0.6)]" />;
       case '🎯':
-        return <Target key={index} size={16} className="inline-block mx-0.5 text-orange-500 align-text-bottom" />;
+        return <Target key={index} size={15} className="inline-block mx-1 text-amber align-text-bottom filter drop-shadow-[0_0_3px_rgba(249,202,116,0.6)]" />;
       case '📍':
-        return <Lightbulb key={index} size={16} className="inline-block mx-0.5 text-yellow-500 align-text-bottom" />;
+        return <Lightbulb key={index} size={15} className="inline-block mx-1 text-yellow-400 align-text-bottom filter drop-shadow-[0_0_3px_rgba(250,204,21,0.6)]" />;
       case '✨':
-        return <Sparkles key={index} size={16} className="inline-block mx-0.5 text-blue-400 align-text-bottom" />;
+        return <Sparkles key={index} size={15} className="inline-block mx-1 text-accent animate-pulse align-text-bottom filter drop-shadow-[0_0_4px_rgba(255,255,255,0.7)]" />;
       default:
         return part;
     }
@@ -40,6 +50,7 @@ const renderMessageContent = (content: string) => {
 
 export default function ARIA() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const initials = user ? getInitials(user.name || user.email) : '?';
 
   const {
@@ -51,6 +62,9 @@ export default function ARIA() {
     setLoading,
     clearARIAConversation,
   } = useARIA();
+  
+  const [ageVerified, setAgeVerified] = useState<boolean | null>(null);
+
   const [input, setInput] = useState('');
   const [resources, setResources] = useState<ResourceItem[]>([]);
 
@@ -74,7 +88,7 @@ export default function ARIA() {
   const [checkInMessage, setCheckInMessage] = useState<string | null>(null);
   const [checkInConvoId, setCheckInConvoId] = useState<string | null>(null);
   const [crisisDetected, setCrisisDetected] = useState(false);
-  const [crisisSeverity, setCrisisSeverity] = useState<number | null>(null);
+  const [crisisSeverity, setCrisisSeverity] = useState<number | string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -87,56 +101,109 @@ export default function ARIA() {
   const fetchMemoryInsights = () => {
     aiApi.getMemoryInsights().then((res) => {
       setMemoryInsights(res || []);
-    }).catch(() => {});
+    }).catch(handleApiError);
   };
 
-  // Fetch resources, mood logs, journals, and memory insights on mount
-  useEffect(() => {
+  const handleApiError = (err: any) => {
+    const errorMsg = (err as any)?.response?.data?.detail || (err as Error)?.message || "";
+    if (errorMsg.includes("Age verification") || errorMsg.includes("403") || errorMsg.includes("age_restricted")) {
+      setAgeVerified(false);
+    }
+  };
+
+  const loadAriaData = () => {
     resourcesApi.list().then((res) => {
       setResources(res.items.slice(0, 4));
-    }).catch(() => {});
+    }).catch(handleApiError);
 
     moodApi.history('7d').then((res) => {
       setAllMoods(res.items || []);
-    }).catch(() => {});
+    }).catch(handleApiError);
 
     journalApi.list().then((res) => {
       setAllJournals(res.items || []);
-    }).catch(() => {});
+    }).catch(handleApiError);
 
     fetchMemoryInsights();
     fetchPersonality();
 
     aiApi.getConversationThemes().then((res) => {
       setThemeFrequencies(res.frequencies || []);
-    }).catch(() => {});
+    }).catch(handleApiError);
 
     aiApi.getActiveConversation().then((res) => {
       if (res && res.id) {
         setConversationId(res.id);
+        if (res.type === 'crisis_alert') {
+          setCrisisDetected(true);
+          const sev = res.summary?.includes('CRITICAL') ? 'CRITICAL' : 'HIGH';
+          setCrisisSeverity(sev === 'CRITICAL' ? 4 : 3);
+        }
         if (res.messages) {
           const hasContext = res.context_used?.is_personalized;
-          setMessages(res.messages.map((m: any) => ({
-            role: m.role === 'user' ? 'user' : 'aria',
-            content: m.content,
-            thinkingMessage: m.role !== 'user' && hasContext ? "I'm putting this together with what I know about you..." : undefined,
-            thinkingIcon: m.role !== 'user' && hasContext ? 'brain' : undefined
-          })));
+          setMessages(res.messages.map((m: any, idx: number) => {
+            const isLastMessage = idx === res.messages.length - 1;
+            const isCrisis = res.type === 'crisis_alert' && isLastMessage && m.role === 'assistant';
+            return {
+              role: m.role === 'user' ? 'user' : 'aria',
+              content: m.content,
+              thinkingMessage: m.role !== 'user' && hasContext ? "I'm putting this together with what I know about you..." : undefined,
+              thinkingIcon: m.role !== 'user' && hasContext ? 'brain' : undefined,
+              type: isCrisis ? 'crisis_alert' : undefined,
+              crisis_detected: isCrisis ? true : undefined,
+              crisis_severity: isCrisis ? (res.summary?.includes('CRITICAL') ? 'CRITICAL' : 'HIGH') : undefined,
+              resources: isCrisis ? [
+                {
+                  name: "National Suicide Prevention Lifeline",
+                  phone: "988",
+                  text: "Text HOME to 741741",
+                  website: "https://suicidepreventionlifeline.org"
+                },
+                {
+                  name: "Crisis Text Line",
+                  phone: "Text HOME to 741741",
+                  website: "https://www.crisistextline.org"
+                },
+                {
+                  name: "International Association for Suicide Prevention",
+                  website: "https://www.iasp.info/resources/Crisis_Centres"
+                }
+              ] : undefined,
+              encourage: isCrisis ? "Please call 988 or text HOME to 741741. Help is available 24/7." : undefined,
+              contact_emergency: isCrisis ? "If you're in immediate danger, call 911 or go to nearest emergency room" : undefined
+            };
+          }));
         }
       }
-    }).catch(() => {});
+    }).catch(handleApiError);
 
     aiApi.listConversations().then((res) => {
       setHistoryTimeline(res || []);
-    }).catch(() => {});
+    }).catch(handleApiError);
 
     aiApi.getCheckIn().then((res) => {
       if (res && res.check_in_message) {
         setCheckInMessage(res.check_in_message);
         setCheckInConvoId(res.conversation_id);
       }
-    }).catch(() => {});
-  }, []);
+    }).catch(handleApiError);
+  };
+
+
+  // Fetch resources, mood logs, journals, and memory insights on mount
+  useEffect(() => {
+    if (!user) return;
+    authApi.checkAgeVerified()
+      .then((res) => {
+        setAgeVerified(res.age_verified);
+        if (res.age_verified) {
+          loadAriaData();
+        }
+      })
+      .catch(() => {
+        setAgeVerified(false);
+      });
+  }, [user]);
 
   // Auto-scroll on new message
   useEffect(() => {
@@ -165,15 +232,21 @@ export default function ARIA() {
         ...prev,
         {
           role: 'aria',
-          content: res.reply,
+          content: res.reply || '',
           thinkingMessage: responseType ? "I'm putting this together with what I know about you..." : undefined,
-          thinkingIcon: responseType ? 'brain' : undefined
+          thinkingIcon: responseType ? 'brain' : undefined,
+          type: res.type,
+          crisis_detected: res.crisis_detected,
+          crisis_severity: res.severity || res.crisis_severity,
+          resources: res.resources,
+          encourage: res.encourage,
+          contact_emergency: res.contact_emergency
         }
       ]);
 
       if (res.crisis_detected) {
         setCrisisDetected(true);
-        setCrisisSeverity(res.crisis_severity || 3);
+        setCrisisSeverity(res.severity || res.crisis_severity || 3);
       }
 
       // Extract themes and update frequencies
@@ -188,6 +261,13 @@ export default function ARIA() {
       }
     } catch (err) {
       const errorMsg = (err as any)?.response?.data?.detail || (err as Error)?.message || "I'm having trouble connecting right now. Please try again in a moment.";
+      if (errorMsg.includes("Age verification") || errorMsg.includes("403")) {
+        if (errorMsg.includes("expired")) {
+          setAgeVerificationStatus('reverify');
+        } else {
+          setAgeVerificationStatus('pending');
+        }
+      }
       setMessages((prev) => [...prev, { role: 'aria', content: errorMsg }]);
     } finally {
       setLoading(false);
@@ -384,6 +464,7 @@ export default function ARIA() {
       clearARIAConversation();
       setCrisisDetected(false);
       setCrisisSeverity(null);
+      await aiApi.resolveCrisis().catch(() => {});
       setToastMessage('Conversation ended and summarized.');
       setTimeout(() => setToastMessage(null), 3000);
       
@@ -451,8 +532,62 @@ export default function ARIA() {
     return Array.from(topics);
   };
 
+  if (!user) {
+    return (
+      <GuestGate
+        title="ARIA Companion"
+        description="Your supportive AI guide. Safe, compassionate, and ready to walk through your thoughts and emotions."
+        icon={<Brain className="w-8 h-8 text-accent animate-pulse" />}
+      />
+    );
+  }
+
+  if (ageVerified === null) {
+    return (
+      <div className="min-h-[400px] flex flex-col items-center justify-center animate-fadeIn gap-3">
+        <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+        <p className="text-sm text-text3">Checking access...</p>
+      </div>
+    );
+  }
+
+  if (ageVerified === false) {
+    return (
+      <div style={{ textAlign: 'center', padding: '2rem' }} className="max-w-[600px] mx-auto mt-12 p-8 bg-bg2/40 backdrop-blur-md border border-rose/30 rounded-[24px] text-center space-y-6 animate-fadeIn">
+        <h1>ARIA is not available for you</h1>
+        <p>ARIA is designed for users 18 and older.</p>
+        <p>If you need support, please reach out:</p>
+        
+        <div className="bg-bg3/50 border border-border rounded-xl p-4 space-y-3 text-left max-w-md mx-auto my-4">
+          <a
+            href="tel:988"
+            className="flex items-center gap-3 px-3 py-2 bg-rose/15 border border-rose/30 rounded-lg text-rose text-sm w-full"
+          >
+            <Phone size={16} />
+            <div>
+              <div className="font-semibold text-xs text-text">988 Suicide & Crisis Lifeline</div>
+              <div className="text-[10px] opacity-85">Call or Text 988 (Free, Confidential, 24/7)</div>
+            </div>
+          </a>
+          <a
+            href="sms:741741?&body=HOME"
+            className="flex items-center gap-3 px-3 py-2 bg-indigo/15 border border-indigo/30 rounded-lg text-indigo-400 text-sm w-full"
+          >
+            <MessageSquare size={16} />
+            <div>
+              <div className="font-semibold text-xs text-text">Crisis Text Line</div>
+              <div className="text-[10px] opacity-85">Text HOME to 741741 (Free, 24/7)</div>
+            </div>
+          </a>
+        </div>
+
+        <button onClick={() => navigate('/dashboard')} className="px-6 py-2.5 bg-bg3 hover:bg-bg4 border border-border text-text hover:text-white rounded-xl text-xs font-semibold transition-all cursor-pointer">Back to Dashboard</button>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-8 animate-fadeIn">
+    <div className="space-y-8 animate-fadeIn relative">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -472,7 +607,7 @@ export default function ARIA() {
             <button
               type="button"
               onClick={handleEndConversation}
-              className="px-4 py-2 bg-rose/10 hover:bg-rose/20 border border-rose/30 text-rose rounded-xl text-xs font-medium transition-all flex items-center gap-2"
+              className="px-4 py-2 bg-rose/10 hover:bg-rose/20 border border-rose/30 text-rose rounded-xl text-xs font-medium transition-all flex items-center gap-2 smooth-hover-btn"
             >
               <Lock size={14} className="text-rose" /> End & Summarize Chat
             </button>
@@ -480,7 +615,7 @@ export default function ARIA() {
           <button
             type="button"
             onClick={handleOpenSettings}
-            className="px-4 py-2 bg-bg2 hover:bg-bg3 border border-border text-text2 hover:text-text rounded-xl text-xs font-medium transition-all flex items-center gap-2"
+            className="px-4 py-2 bg-bg2 hover:bg-bg3 border border-border text-text2 hover:text-text rounded-xl text-xs font-medium transition-all flex items-center gap-2 smooth-hover-btn"
           >
             <Brain size={14} className="text-purple-500" /> Manage ARIA's Memory
           </button>
@@ -514,7 +649,14 @@ export default function ARIA() {
               <MessageSquare size={14} /> Text HOME to 741741 (Crisis Text Line)
             </a>
             <button
-              onClick={() => {
+              onClick={async () => {
+                if (crisisSeverity === 4 || crisisSeverity === 'CRITICAL') {
+                  try {
+                    await aiApi.resolveCrisis();
+                  } catch (err) {
+                    console.error('Failed to resolve crisis on dismiss:', err);
+                  }
+                }
                 setCrisisDetected(false);
                 setCrisisSeverity(null);
               }}
@@ -572,21 +714,21 @@ export default function ARIA() {
             <button
               onClick={() => handleQuickResponseClick('rough_day')}
               disabled={loading}
-              className="px-5 py-2.5 bg-bg3 border border-border text-text2 rounded-full text-sm hover:bg-bg4 hover:border-border2 transition-all disabled:opacity-40"
+              className="px-5 py-2.5 bg-bg3 border border-border text-text2 rounded-full text-sm hover:bg-bg4 hover:border-border2 transition-all disabled:opacity-40 smooth-hover-btn"
             >
               I had a rough day
             </button>
             <button
               onClick={() => handleQuickResponseClick('vent')}
               disabled={loading}
-              className="px-5 py-2.5 bg-bg3 border border-border text-text2 rounded-full text-sm hover:bg-bg4 hover:border-border2 transition-all disabled:opacity-40"
+              className="px-5 py-2.5 bg-bg3 border border-border text-text2 rounded-full text-sm hover:bg-bg4 hover:border-border2 transition-all disabled:opacity-40 smooth-hover-btn"
             >
               I need to vent
             </button>
             <button
               onClick={() => handleQuickResponseClick('calm')}
               disabled={loading}
-              className="px-5 py-2.5 bg-bg3 border border-border text-text2 rounded-full text-sm hover:bg-bg4 hover:border-border2 transition-all disabled:opacity-40"
+              className="px-5 py-2.5 bg-bg3 border border-border text-text2 rounded-full text-sm hover:bg-bg4 hover:border-border2 transition-all disabled:opacity-40 smooth-hover-btn"
             >
               Help me calm down
             </button>
@@ -701,15 +843,69 @@ export default function ARIA() {
                       <span>{message.thinkingMessage}</span>
                     </div>
                   )}
-                  <div
-                    className={`aria-message px-4 py-3 rounded-[14px] w-full ${
-                      message.role === 'user'
-                        ? 'bg-accent text-white'
-                        : 'bg-bg3 border border-border text-text'
-                    }`}
-                  >
-                    <p className="text-sm leading-relaxed">{renderMessageContent(message.content)}</p>
-                  </div>
+                  {message.role === 'aria' && message.type === 'crisis_alert' ? (
+                    <div className="bg-rose/15 border border-rose/30 rounded-2xl p-5 text-left space-y-4 animate-slideIn">
+                      <div className="flex items-start gap-3.5">
+                        <Heart size={24} className="text-red-500 mt-0.5 flex-shrink-0" />
+                        <div className="space-y-1">
+                          <div className="text-xs text-rose font-bold uppercase tracking-wider">You deserve support right now</div>
+                          <p className="text-sm text-text leading-relaxed">
+                            {message.content}
+                          </p>
+                          {message.encourage && (
+                            <p className="text-xs text-text2 italic">
+                              {message.encourage}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-3">
+                        {message.resources && message.resources.map((res: any, rIdx: number) => (
+                          <div key={rIdx} className="bg-bg3 border border-border rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <div className="text-left">
+                              <div className="text-sm text-text font-medium">{res.name}</div>
+                              {res.phone && <div className="text-xs text-text3 mt-0.5">{res.phone} {res.text ? `or ${res.text}` : ''}</div>}
+                            </div>
+                            <div className="flex gap-2">
+                              {res.phone && (
+                                <a
+                                  href={`tel:${res.phone.replace(/\D/g, '')}`}
+                                  className="px-4 py-2 bg-rose/10 hover:bg-rose/25 border border-rose/30 text-rose rounded-lg text-xs font-semibold transition-all whitespace-nowrap"
+                                >
+                                  Call
+                                </a>
+                              )}
+                              {res.website && (
+                                <a
+                                  href={res.website}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-4 py-2 bg-accent/10 hover:bg-accent/25 border border-accent/30 text-accent2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap"
+                                >
+                                  Visit Website
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {message.contact_emergency && (
+                        <div className="pt-2 text-[10px] text-text3 leading-relaxed border-t border-border">
+                          {message.contact_emergency}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      className={`aria-message px-4 py-3 rounded-[14px] w-full ${
+                        message.role === 'user'
+                          ? 'bg-accent text-white'
+                          : 'bg-bg3 border border-border text-text'
+                      }`}
+                    >
+                      <p className="text-sm leading-relaxed">{renderMessageContent(message.content)}</p>
+                    </div>
+                  )}
                   {message.role === 'aria' && (
                     <div className="mt-1 ml-2 flex flex-col gap-1.5">
                       <span className="text-[10px] text-text3 flex items-center gap-1">
@@ -812,40 +1008,53 @@ export default function ARIA() {
           )}
 
           {/* Input */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSend();
-            }}
-            className="flex gap-3"
-          >
-            <label htmlFor="aria-input" className="sr-only">
-              Send a message to ARIA
-            </label>
-            <div className="flex-1 flex flex-col gap-1.5">
-              <input
-                id="aria-input"
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Type your message..."
-                disabled={loading}
-                className="w-full bg-bg2 border border-border rounded-[14px] px-4 py-3 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent/30 disabled:opacity-60"
-                aria-label="Message to ARIA"
-                title="ARIA will remember this conversation"
-              />
-              <span className="text-[10px] text-text3 ml-2 flex items-center gap-1">
-                <Lock size={12} className="text-blue-500 inline mr-1" /> ARIA will remember this conversation
-              </span>
+          {crisisDetected && (crisisSeverity === 4 || crisisSeverity === 'CRITICAL') ? (
+            <div className="bg-rose/10 border border-rose/30 rounded-[14px] p-4 text-center text-rose text-xs font-semibold">
+              🔒 Chat input is locked. Please reach out to emergency resources or a crisis counselor using the links above.
             </div>
-            <button
-              type="submit"
-              disabled={!input.trim() || loading}
-              className="px-6 py-3 bg-accent text-white rounded-lg font-medium text-sm hover:bg-accent2 transition-all disabled:opacity-40 disabled:cursor-not-allowed h-fit"
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSend();
+              }}
+              className="flex gap-3"
             >
-              Send
-            </button>
-          </form>
+              <label htmlFor="aria-input" className="sr-only">
+                Send a message to ARIA
+              </label>
+              <div className="flex-1 flex flex-col gap-1.5">
+                <input
+                  id="aria-input"
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={
+                    crisisDetected && (crisisSeverity === 3 || crisisSeverity === 'HIGH')
+                      ? "Counselor support is recommended, but you may continue typing..."
+                      : "Type your message..."
+                  }
+                  disabled={loading}
+                  className="w-full bg-bg2 border border-border rounded-[14px] px-4 py-3 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent/30 disabled:opacity-60"
+                  aria-label="Message to ARIA"
+                  title="ARIA will remember this conversation"
+                />
+                <span className="text-[10px] text-text3 ml-2 flex items-center gap-1">
+                  <Lock size={12} className="text-blue-500 inline mr-1" /> 
+                  {crisisDetected && (crisisSeverity === 3 || crisisSeverity === 'HIGH')
+                    ? "Chat is active. Counselor support is recommended."
+                    : "ARIA will remember this conversation"}
+                </span>
+              </div>
+              <button
+                type="submit"
+                disabled={!input.trim() || loading}
+                className="px-6 py-3 bg-accent text-white rounded-lg font-medium text-sm hover:bg-accent2 transition-all disabled:opacity-40 disabled:cursor-not-allowed h-fit smooth-hover-btn"
+              >
+                Send
+              </button>
+            </form>
+          )}
         </section>
       )}
 
@@ -857,7 +1066,7 @@ export default function ARIA() {
             resources.map((r) => (
               <div
                 key={r.id}
-                className="bg-bg2 border border-border rounded-[14px] px-5 py-4 hover:border-border2 transition-all cursor-pointer"
+                className="bg-bg2 border border-border rounded-[14px] px-5 py-4 hover:border-border2 transition-all cursor-pointer smooth-hover-card"
                 onClick={() => r.url && window.open(r.url, '_blank')}
               >
                 <div className="text-lg mb-2">{r.icon || '✦'}</div>
@@ -867,12 +1076,12 @@ export default function ARIA() {
             ))
           ) : (
             <>
-              <div className="bg-bg2 border border-border rounded-[14px] px-5 py-4 hover:border-border2 transition-all cursor-pointer">
+              <div className="bg-bg2 border border-border rounded-[14px] px-5 py-4 hover:border-border2 transition-all cursor-pointer smooth-hover-card">
                 <div className="text-lg mb-2 text-accent"><Wind size={20} /></div>
                 <div className="text-sm text-text mb-1">Breathing Exercises</div>
                 <div className="text-xs text-text3">Quick calm techniques</div>
               </div>
-              <div className="bg-bg2 border border-border rounded-[14px] px-5 py-4 hover:border-border2 transition-all cursor-pointer">
+              <div className="bg-bg2 border border-border rounded-[14px] px-5 py-4 hover:border-border2 transition-all cursor-pointer smooth-hover-card">
                 <div className="text-lg mb-2 text-accent"><PhoneCall size={20} /></div>
                 <div className="text-sm text-text mb-1">Crisis Hotline</div>
                 <div className="text-xs text-text3">24/7 support — call 988</div>

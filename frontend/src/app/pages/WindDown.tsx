@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { Check, Moon, Leaf, HandHelping, Lightbulb, Book, Sparkles, CloudRain } from 'lucide-react';
 import { rituals as ritualsApi } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
+import GuestGate from '@/app/components/GuestGate';
 
 export default function WindDown() {
+  const { user } = useAuth();
   // Checklist
   const [release, setRelease] = useState('');
   const [gratitudes, setGratitudes] = useState(['', '', '']);
@@ -58,6 +61,16 @@ export default function WindDown() {
           Start over
         </button>
       </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <GuestGate
+        title="Evening Wind Down"
+        description="Close the day gently. Reflect on your gratitudes, release what no longer serves you, and listen to calming soundscapes."
+        icon={<Moon className="w-8 h-8 text-accent animate-pulse" />}
+      />
     );
   }
 
