@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { auth as authApi, setTokenExpiredCallback } from '@/lib/api';
+import { auth as authApi, setTokenExpiredCallback, setAccessToken } from '@/lib/api';
 import type { AuthResponse } from '@/lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -28,8 +28,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const STORAGE_KEY = 'mc_token';
-const STORAGE_REFRESH_KEY = 'mc_refresh_token';
 const STORAGE_USER_KEY = 'mc_user';
 
 function toUser(res: AuthResponse): User {
@@ -49,30 +47,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
 
-  // Rehydrate from localStorage on mount
+  // Restore session on mount using the HTTP-only refresh cookie
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_USER_KEY);
-      const token = localStorage.getItem(STORAGE_KEY);
-      if (stored && token) {
-        const parsed = JSON.parse(stored) as User;
-        setUser(parsed);
+    async function restoreSession() {
+      try {
+        const res = await authApi.refresh();
+        setAccessToken(res.token);
+        const u = toUser(res);
+        localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(u));
+        setUser(u);
+      } catch {
+        // Clear session if restore fails
+        setAccessToken(null);
+        localStorage.removeItem(STORAGE_USER_KEY);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
       }
-    } catch {
-      // Corrupted data — clear it
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(STORAGE_REFRESH_KEY);
-      localStorage.removeItem(STORAGE_USER_KEY);
-    } finally {
-      setIsLoading(false);
     }
+    restoreSession();
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(STORAGE_REFRESH_KEY);
+    setAccessToken(null);
     localStorage.removeItem(STORAGE_USER_KEY);
     setUser(null);
+    authApi.logout().catch(() => {});
   }, []);
 
   // Register the global token-expired callback so the API layer
@@ -83,9 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [logout]);
 
-  const persist = useCallback((u: User, refreshToken: string) => {
-    localStorage.setItem(STORAGE_KEY, u.token);
-    localStorage.setItem(STORAGE_REFRESH_KEY, refreshToken);
+  const persist = useCallback((u: User) => {
+    setAccessToken(u.token);
     localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(u));
     setUser(u);
 
@@ -93,23 +92,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const localAccepted = localStorage.getItem('privacy_accepted') === 'true';
     if (localAccepted) {
       authApi.acceptPrivacy(true, true).catch((err) => {
-        console.error('Failed to sync privacy acceptance to database:', err);
+        if (import.meta.env.DEV) {
+          console.error('Failed to sync privacy acceptance to database:', err);
+        }
       });
     }
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await authApi.login(email, password);
-    persist(toUser(res), res.refresh_token);
+    persist(toUser(res));
   }, [persist]);
 
   const signup = useCallback(
     async (name: string, email: string, password: string, passwordConfirm: string) => {
       const res = await authApi.signup(name, email, password, passwordConfirm);
-      persist(toUser(res), res.refresh_token);
+      persist(toUser(res));
     },
     [persist],
   );
+
 
   return (
     <AuthContext.Provider

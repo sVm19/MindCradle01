@@ -1,19 +1,37 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import Optional
 from enum import Enum
+from app.utils.sanitizer import sanitize
 
 
 # --- Auth ---
 class LoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 
 class SignupRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
     password_confirm: str = Field(alias="passwordConfirm")
     name: str
+    age_verified: Optional[bool] = None
+
+    @field_validator('name', mode='before')
+    @classmethod
+    def sanitize_name(cls, v):
+        if isinstance(v, str):
+            return sanitize(v)
+        return v
+
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v):
+        from app.utils.security import validate_password as val_pwd
+        err = val_pwd(v)
+        if err:
+            raise ValueError(err)
+        return v
 
 
 class AuthResponse(BaseModel):
@@ -26,6 +44,13 @@ class AuthResponse(BaseModel):
 
 class RefreshRequest(BaseModel):
     refresh_token: str
+
+
+# --- Change Password ---
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(alias="currentPassword")
+    new_password: str = Field(alias="newPassword")
+
 
 
 # --- Resources ---
@@ -56,6 +81,53 @@ class MoodCreate(BaseModel):
     emotions: list[str] = []
     note: str = ""
 
+    @field_validator('note', mode='before')
+    @classmethod
+    def sanitize_note(cls, v):
+        if isinstance(v, str):
+            return sanitize(v)
+        return v
+
+    @field_validator('level')
+    @classmethod
+    def validate_level(cls, v):
+        if not (1 <= v <= 10):
+            raise ValueError('Mood must be 1-10')
+        return v
+
+    @field_validator('note')
+    @classmethod
+    def validate_note(cls, v):
+        if len(v) > 5000:
+            raise ValueError('Notes too long')
+        return v
+
+
+class MoodLogRequest(BaseModel):
+    level: int
+    notes: str
+
+    @field_validator('level')
+    @classmethod
+    def validate_level(cls, v):
+        if not (1 <= v <= 10):
+            raise ValueError('Mood must be 1-10')
+        return v
+
+    @field_validator('notes', mode='before')
+    @classmethod
+    def sanitize_notes(cls, v):
+        if isinstance(v, str):
+            return sanitize(v)
+        return v
+
+    @field_validator('notes')
+    @classmethod
+    def validate_notes(cls, v):
+        if len(v) > 5000:
+            raise ValueError('Notes too long')
+        return v
+
 
 class MoodOut(BaseModel):
     id: str
@@ -70,6 +142,22 @@ class JournalCreate(BaseModel):
     prompt: str
     content: str
     ai_reflection: Optional[str] = None
+
+    @field_validator('prompt', 'content', 'ai_reflection', mode='before')
+    @classmethod
+    def sanitize_strings(cls, v):
+        if isinstance(v, str):
+            return sanitize(v)
+        return v
+
+    @field_validator('content')
+    @classmethod
+    def validate_content(cls, v):
+        if len(v) == 0:
+            raise ValueError('Journal content cannot be empty')
+        if len(v) > 5000:
+            raise ValueError('Journal content too long')
+        return v
 
 
 class JournalOut(BaseModel):
@@ -87,12 +175,33 @@ class MorningRitualCreate(BaseModel):
     activity_type: str = Field(alias="activityType")
     completed_at: str = Field(alias="completedAt")
 
+    @field_validator('forecast', 'intention', 'activity_type', 'completed_at', mode='before')
+    @classmethod
+    def sanitize_strings(cls, v):
+        if isinstance(v, str):
+            return sanitize(v)
+        return v
+
 
 class WindDownRitualCreate(BaseModel):
     release_item: str = Field(alias="releaseItem")
     gratitudes: list[str]
     audio_choice: str = Field(alias="audioChoice")
     timer: str
+
+    @field_validator('release_item', 'audio_choice', 'timer', mode='before')
+    @classmethod
+    def sanitize_strings(cls, v):
+        if isinstance(v, str):
+            return sanitize(v)
+        return v
+
+    @field_validator('gratitudes', mode='before')
+    @classmethod
+    def sanitize_gratitudes(cls, v):
+        if isinstance(v, list):
+            return [sanitize(item) if isinstance(item, str) else item for item in v]
+        return v
 
 
 class ProfileMilestonesUpdate(BaseModel):
@@ -109,6 +218,22 @@ class AIChatRequest(BaseModel):
     conversation_id: Optional[str] = None
     response_type: Optional[str] = None
     context_data: Optional[dict] = None
+
+    @field_validator('message', 'conversation_id', 'response_type', mode='before')
+    @classmethod
+    def sanitize_strings(cls, v):
+        if isinstance(v, str):
+            return sanitize(v)
+        return v
+
+    @field_validator('message')
+    @classmethod
+    def validate_message(cls, v):
+        if len(v) == 0:
+            raise ValueError('Message cannot be empty')
+        if len(v) > 5000:
+            raise ValueError('Message too long')
+        return v
 
 
 class CrisisResource(BaseModel):
@@ -372,6 +497,13 @@ class ProfileResponse(BaseModel):
 class ProfileUpdate(BaseModel):
     emergency_contact: Optional[str] = None
     notify_on_crisis: Optional[bool] = None
+
+    @field_validator('emergency_contact', mode='before')
+    @classmethod
+    def sanitize_strings(cls, v):
+        if isinstance(v, str):
+            return sanitize(v)
+        return v
 
 
 

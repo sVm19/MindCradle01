@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '@/lib/auth';
+import { sanitizeForInput, sanitizeForDisplay } from '@/lib/sanitize';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi, profile as profileApi } from '@/lib/api';
 import type { ResourceItem } from '@/lib/api';
 import { Lock, Award, Sprout, BarChart3, Settings, Moon, Wind, PenTool } from 'lucide-react';
@@ -41,7 +42,9 @@ export default function Dashboard() {
         alert('Emergency contact saved.');
       })
       .catch((err) => {
-        console.error('Failed to update emergency contact:', err);
+        if (import.meta.env.DEV) {
+          console.error('Failed to update emergency contact:', err);
+        }
       })
       .finally(() => {
         setSavingContact(false);
@@ -473,7 +476,7 @@ export default function Dashboard() {
                                     Dip to {log.lowest_level}/10 on {dipDate}
                                   </div>
                                   <div className="text-[10.5px] text-text3 mt-0.5">
-                                    Catalyst: {log.catalyst || 'unknown'}
+                                    Catalyst: {sanitizeForDisplay(log.catalyst || 'unknown')}
                                   </div>
                                 </div>
                               </div>
@@ -655,7 +658,7 @@ export default function Dashboard() {
               className="flex-1 bg-bg3 border border-border rounded-xl px-4 py-2 text-xs text-text placeholder-text3 focus:outline-none focus:border-accent"
               placeholder="e.g. Spouse, parent, or therapist (+1-555-0199)"
               value={emergencyContact}
-              onChange={(e) => setEmergencyContact(e.target.value)}
+              onChange={(e) => setEmergencyContact(sanitizeForInput(e.target.value))}
             />
             <button
               onClick={handleSaveContact}

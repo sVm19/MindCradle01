@@ -1,7 +1,8 @@
 import logging
 
-from fastapi import APIRouter, Header, Query
+from fastapi import APIRouter, Header, Query, Request, Depends
 from typing import Optional
+from fastapi_csrf_protect import CsrfProtect
 from app.models.schemas import MoodCreate, MoodOut
 from app.services.supabase import pb, extract_user_id
 
@@ -12,9 +13,12 @@ logger = logging.getLogger(__name__)
 @router.post("")
 async def log_mood(
     req: MoodCreate,
+    request: Request,
     authorization: Optional[str] = Header(None),
+    csrf_protect: CsrfProtect = Depends(),
 ):
     """Save a mood entry for the authenticated user."""
+    await csrf_protect.validate_csrf(request)
     logger.info(
         "Mood log request received: level=%s emotions=%s note_length=%s auth_present=%s",
         req.level,
@@ -23,10 +27,13 @@ async def log_mood(
         authorization is not None,
     )
 
+    from app.utils.sanitize import sanitize_mood_notes
+    
+    sanitized_note = sanitize_mood_notes(req.note) if req.note else ""
     data = {
         "level": req.level,
         "emotions": req.emotions,
-        "note": req.note,
+        "note": sanitized_note,
     }
     user_id = extract_user_id(authorization)
     logger.info("Extracted user_id=%s from authorization header", user_id)

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { sanitizeForInput } from '@/lib/sanitize';
 import { Loader2, Frown, Meh, Smile, Laugh, Compass, Activity, BatteryWarning, AlertCircle, Heart, Flame, HelpCircle, Ghost, Sparkles, ThumbsDown, Lock } from 'lucide-react';
 import { mood as moodApi, ai as aiApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import GuestGate from '@/app/components/GuestGate';
+import { validateMood } from '@/lib/validation';
 
 const MOOD_ICONS: Record<number, React.ReactNode> = {
   1: <Frown className="w-6 h-6 text-rose-400" />,
@@ -22,10 +24,12 @@ export default function Mood() {
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
   const [feelings, setFeelings] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
+  const [notesError, setNotesError] = useState('');
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+
 
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
@@ -100,10 +104,19 @@ export default function Mood() {
       setError('Please select a mood level.');
       return;
     }
+    const moodLevel = MOOD_TO_LEVEL[selectedMood];
+    if (!validateMood(moodLevel)) {
+      setError('Invalid mood level selection.');
+      return;
+    }
+    if (notes.length > 5000) {
+      setError('Notes cannot exceed 5000 characters.');
+      return;
+    }
     setError('');
     setSaving(true);
     try {
-      await moodApi.log(MOOD_TO_LEVEL[selectedMood], feelings, notes);
+      await moodApi.log(moodLevel, feelings, notes);
       setSaved(true);
       // Reset after 2s
       setTimeout(() => {
@@ -111,14 +124,18 @@ export default function Mood() {
         setSelectedMood(null);
         setFeelings([]);
         setNotes('');
+        setNotesError('');
       }, 2000);
     } catch (err) {
-      console.error('Mood save failed', err);
+      if (import.meta.env.DEV) {
+        console.error('Mood save failed', err);
+      }
       setError(err instanceof Error ? err.message : 'Failed to save check-in');
     } finally {
       setSaving(false);
     }
   };
+
 
   if (!user) {
     return (
@@ -199,14 +216,33 @@ export default function Mood() {
         <h2 className="text-base font-medium text-text">Any notes?</h2>
         <textarea
           value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          onChange={(e) => {
+            const val = sanitizeForInput(e.target.value);
+            setNotes(val);
+            if (val.length > 5000) {
+              setNotesError('Notes cannot exceed 5000 characters');
+            } else {
+              setNotesError('');
+            }
+          }}
+          onBlur={() => {
+            if (notes.length > 5000) {
+              setNotesError('Notes cannot exceed 5000 characters');
+            } else {
+              setNotesError('');
+            }
+          }}
           placeholder="What's going on your mind..."
-          className="w-full bg-bg2 border border-border rounded-[14px] px-4 py-3 text-sm text-text placeholder:text-text3 resize-none focus:outline-none focus:border-border2 min-h-32"
+          className={`w-full bg-bg2 border rounded-[14px] px-4 py-3 text-sm text-text placeholder:text-text3 resize-none focus:outline-none min-h-32 transition-colors ${
+            notesError ? 'border-rose focus:border-rose' : 'border-border focus:border-border2'
+          }`}
         />
+        {notesError && <span className="text-xs text-rose mt-1 block">{notesError}</span>}
         <div className="text-xs text-text3">
           {notes.length} characters · {notes.split(/\s+/).filter(Boolean).length} words
         </div>
       </section>
+
 
       {/* AI Insight */}
       <section className="space-y-3">
@@ -278,7 +314,7 @@ export default function Mood() {
       <div className="flex gap-3">
         <button
           onClick={handleSave}
-          disabled={saving || selectedMood === null}
+          disabled={saving || selectedMood === null || notesError !== ''}
           className="px-6 py-3 bg-accent text-white rounded-lg font-medium text-sm hover:bg-accent2 transition-all disabled:opacity-40 disabled:cursor-not-allowed smooth-hover-btn"
         >
           {saving ? 'Saving…' : 'Save Check-In'}

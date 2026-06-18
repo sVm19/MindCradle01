@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { Play, Pause, Loader2, BookOpen, Music, Lock } from 'lucide-react';
+import { sanitizeForInput } from '@/lib/sanitize';
 import { journal as journalApi, ai as aiApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import GuestGate from '@/app/components/GuestGate';
+import { validateJournal } from '@/lib/validation';
 
 const TODAY_PROMPT = "What felt lighter today than it did a week ago?";
 
 export default function Journal() {
   const { user } = useAuth();
   const [journalText, setJournalText] = useState('');
+  const [journalError, setJournalError] = useState('');
   const [activeTrack, setActiveTrack] = useState<number | null>(null);
 
   const [saving, setSaving] = useState(false);
@@ -22,6 +25,7 @@ export default function Journal() {
     emotional_tone: string;
   } | null>(null);
   const [reflectError, setReflectError] = useState('');
+
 
   const ambientTracks = [
     { name: 'Rain on Glass', duration: '15:30' },
@@ -37,12 +41,16 @@ export default function Journal() {
   const charCount = journalText.length;
 
   const handleSave = async () => {
-    if (!journalText.trim()) return;
+    if (!validateJournal(journalText)) {
+      setSaveError('Journal entry must be between 1 and 5000 characters.');
+      return;
+    }
     setSaving(true);
     setSaveError('');
     try {
       await journalApi.save(TODAY_PROMPT, journalText);
       setSaved(true);
+      setJournalError('');
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save entry');
@@ -52,13 +60,17 @@ export default function Journal() {
   };
 
   const handleSaveWithReflection = async () => {
-    if (!journalText.trim() || !reflectionData) return;
+    if (!validateJournal(journalText) || !reflectionData) {
+      setSaveError('Journal entry must be between 1 and 5000 characters.');
+      return;
+    }
     setSaving(true);
     setSaveError('');
     try {
       const formattedReflection = `Reflection: ${reflectionData.reflection}\nKey Themes: ${reflectionData.themes.join(', ')}\nEmotional Tone: ${reflectionData.emotional_tone}`;
       await journalApi.save(TODAY_PROMPT, journalText, formattedReflection);
       setSaved(true);
+      setJournalError('');
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save entry');
@@ -69,6 +81,10 @@ export default function Journal() {
 
   const handleReflect = async () => {
     if (wordCount <= 10) return;
+    if (journalText.length > 5000) {
+      setReflectError('Journal entry cannot exceed 5000 characters.');
+      return;
+    }
     setReflecting(true);
     setReflectError('');
     setReflectionData(null);
@@ -154,10 +170,30 @@ export default function Journal() {
         <div className="text-sm text-text2 italic">Let your thoughts flow freely...</div>
         <textarea
           value={journalText}
-          onChange={(e) => setJournalText(e.target.value)}
+          onChange={(e) => {
+            const val = sanitizeForInput(e.target.value);
+            setJournalText(val);
+            if (val.length > 5000) {
+              setJournalError('Journal entry cannot exceed 5000 characters');
+            } else {
+              setJournalError('');
+            }
+          }}
+          onBlur={() => {
+            if (journalText.length > 5000) {
+              setJournalError('Journal entry cannot exceed 5000 characters');
+            } else if (journalText.trim().length === 0) {
+              setJournalError('Journal entry cannot be empty');
+            } else {
+              setJournalError('');
+            }
+          }}
           placeholder="Start writing..."
-          className="w-full bg-bg2 border border-border rounded-[20px] px-5 py-4 text-sm text-text placeholder:text-text3 resize-none focus:outline-none focus:border-accent/30 min-h-64"
+          className={`w-full bg-bg2 border rounded-[20px] px-5 py-4 text-sm text-text placeholder:text-text3 resize-none focus:outline-none min-h-64 transition-colors ${
+            journalError ? 'border-rose focus:border-rose' : 'border-border focus:border-accent/30'
+          }`}
         />
+        {journalError && <span className="text-xs text-rose mt-1 block">{journalError}</span>}
         <div className="flex items-center justify-between text-xs text-text3">
           <div>{charCount} characters · {wordCount} words</div>
           {saved && <div className="text-green">✓ Entry saved</div>}
@@ -231,7 +267,7 @@ export default function Journal() {
             <div className="mt-4">
               <button
                 onClick={handleReflect}
-                disabled={wordCount <= 10 || reflecting}
+                disabled={wordCount <= 10 || reflecting || journalError !== ''}
                 className="px-5 py-2.5 bg-accent-glow border border-accent/25 text-accent rounded-full text-sm font-medium hover:bg-accent/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Get Reflection
@@ -249,7 +285,7 @@ export default function Journal() {
         {reflectionData ? (
           <button
             onClick={handleSaveWithReflection}
-            disabled={saving || !journalText.trim()}
+            disabled={saving || !journalText.trim() || journalError !== ''}
             className="px-6 py-3 bg-gradient-to-r from-accent2 to-teal text-white rounded-lg font-medium text-sm hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {saving ? 'Saving…' : 'Save Entry with Reflection'}
@@ -257,7 +293,7 @@ export default function Journal() {
         ) : null}
         <button
           onClick={handleSave}
-          disabled={saving || !journalText.trim()}
+          disabled={saving || !journalText.trim() || journalError !== ''}
           className={`px-6 py-3 rounded-lg font-medium text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
             reflectionData
               ? 'bg-bg3 border border-border text-text2 hover:bg-bg4'
@@ -272,6 +308,7 @@ export default function Journal() {
             setReflectionData(null);
             setSaveError('');
             setReflectError('');
+            setJournalError('');
           }}
           className="px-6 py-3 bg-bg3 border border-border text-text2 rounded-lg font-medium text-sm hover:bg-bg4 transition-all"
         >

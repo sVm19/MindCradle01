@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# Check for environment variables in commits
+if git diff --cached | grep -E 'VITE_FIREBASE_API_KEY|JWT_SECRET|DATABASE_URL'; then
+    echo "ERROR: Detected potential secrets in commit!"
+    echo "DO NOT commit .env files or credentials"
+    exit 1
+fi
+
+# Run linting (optional)
+# npm run lint --fix

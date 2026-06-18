@@ -23,12 +23,16 @@ try {
     app = initializeApp(firebaseConfig);
     messaging = getMessaging(app);
   } else {
-    console.warn(
-      'Firebase config env variables are missing. Firebase messaging won\'t initialize.'
-    );
+    if (import.meta.env.DEV) {
+      console.warn(
+        'Firebase config env variables are missing. Firebase messaging won\'t initialize.'
+      );
+    }
   }
 } catch (error) {
-  console.error('Failed to initialize Firebase Messaging:', error);
+  if (import.meta.env.DEV) {
+    console.error('Failed to initialize Firebase Messaging:', error);
+  }
 }
 
 /**
@@ -40,12 +44,16 @@ export async function registerFCMToken(): Promise<string | null> {
     // 1. Request notification permission from user
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
-      console.warn('Notification permission not granted by user.');
+      if (import.meta.env.DEV) {
+        console.warn('Notification permission not granted by user.');
+      }
       return null;
     }
 
     if (!messaging) {
-      console.warn('Firebase Messaging not initialized.');
+      if (import.meta.env.DEV) {
+        console.warn('Firebase Messaging not initialized.');
+      }
       return null;
     }
 
@@ -55,7 +63,9 @@ export async function registerFCMToken(): Promise<string | null> {
     const token = await getToken(messaging, vapidKey ? { vapidKey } : undefined);
 
     if (!token) {
-      console.warn('No FCM token obtained.');
+      if (import.meta.env.DEV) {
+        console.warn('No FCM token obtained.');
+      }
       return null;
     }
 
@@ -94,18 +104,20 @@ export async function registerFCMToken(): Promise<string | null> {
     });
 
     if (!response.ok) {
-      console.error(
-        'Failed to register FCM token with the backend:',
-        response.statusText
-      );
-    } else {
-      console.log('Successfully registered FCM token with backend.');
+      if (import.meta.env.DEV) {
+        console.error(
+          'Failed to register FCM token with the backend:',
+          response.statusText
+        );
+      }
     }
 
     // 5. Return token
     return token;
   } catch (error) {
-    console.error('Error during FCM token registration:', error);
+    if (import.meta.env.DEV) {
+      console.error('Error during FCM token registration:', error);
+    }
     return null;
   }
 }
@@ -115,12 +127,13 @@ export async function registerFCMToken(): Promise<string | null> {
  */
 export function listenForMessages(): void {
   if (!messaging) {
-    console.warn('Firebase Messaging not initialized.');
+    if (import.meta.env.DEV) {
+      console.warn('Firebase Messaging not initialized.');
+    }
     return;
   }
 
   onMessage(messaging, (payload) => {
-    console.log('FCM Message received in foreground:', payload);
 
     // Show browser notification when message arrives
     if (Notification.permission === 'granted') {

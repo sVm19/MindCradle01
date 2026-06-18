@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ARIAProvider } from '@/context/ARIAContext';
 import { registerFCMToken, listenForMessages } from '@/lib/firebase';
+import { useCSRF } from '@/lib/csrf';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Morning from './pages/Morning';
@@ -15,13 +16,16 @@ import Signup from './pages/Signup';
 
 function AppRoutes() {
   const { user, isLoading } = useAuth();
+  useCSRF();
 
   // Listen for push messages once at app startup
   useEffect(() => {
     try {
       listenForMessages();
     } catch (error) {
-      console.error('Failed to start listening for FCM messages:', error);
+      if (import.meta.env.DEV) {
+        console.error('Failed to start listening for FCM messages:', error);
+      }
     }
   }, []);
 
@@ -30,10 +34,14 @@ function AppRoutes() {
     if (user) {
       try {
         registerFCMToken().catch((error) => {
-          console.error('Failed to register FCM token:', error);
+          if (import.meta.env.DEV) {
+            console.error('Failed to register FCM token:', error);
+          }
         });
       } catch (error) {
-        console.error('Error calling registerFCMToken:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error calling registerFCMToken:', error);
+        }
       }
     }
   }, [user]);

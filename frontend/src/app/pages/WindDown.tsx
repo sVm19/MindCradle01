@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Check, Moon, Leaf, HandHelping, Lightbulb, Book, Sparkles, CloudRain } from 'lucide-react';
+import { sanitizeForInput } from '@/lib/sanitize';
 import { rituals as ritualsApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import GuestGate from '@/app/components/GuestGate';
@@ -22,7 +23,8 @@ export default function WindDown() {
   const [error, setError] = useState('');
 
   const updateGratitude = (index: number, val: string) => {
-    setGratitudes((prev) => prev.map((g, i) => (i === index ? val : g)));
+    const sanitizedVal = sanitizeForInput(val);
+    setGratitudes((prev) => prev.map((g, i) => (i === index ? sanitizedVal : g)));
   };
 
   const handleBegin = async () => {
@@ -108,7 +110,7 @@ export default function WindDown() {
           <input
             type="text"
             value={release}
-            onChange={(e) => setRelease(e.target.value)}
+            onChange={(e) => setRelease(sanitizeForInput(e.target.value))}
             placeholder="e.g. The argument from this morning…"
             className="w-full bg-bg3 border border-border rounded-[10px] px-3.5 py-2.5 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent/30 transition-colors"
           />

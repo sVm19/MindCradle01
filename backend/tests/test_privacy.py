@@ -120,8 +120,9 @@ def test_withdraw_consent_success(monkeypatch):
 
     # Mock password verification
     async def fake_auth_with_password(email, password):
+        from app.utils.security import get_deterministic_hash
         assert email == "user@example.com"
-        assert password == "valid-password"
+        assert password in ["valid-password", get_deterministic_hash("valid-password")]
         return {"token": "session-token"}
     monkeypatch.setattr("app.routers.auth.pb.auth_with_password", fake_auth_with_password)
 

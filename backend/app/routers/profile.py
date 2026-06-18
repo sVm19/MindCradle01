@@ -86,9 +86,10 @@ async def patch_profile(
         res = await pb.list_records("user_profiles", token=token, params={"filter": f'user_id="{user_id}"', "perPage": 1})
         items = res.get("items") or []
         
+        from app.utils.sanitize import sanitize_text
         payload = {}
         if req.emergency_contact is not None:
-            payload["emergency_contact"] = req.emergency_contact
+            payload["emergency_contact"] = sanitize_text(req.emergency_contact)
         if req.notify_on_crisis is not None:
             payload["notify_on_crisis"] = req.notify_on_crisis
             

@@ -60,7 +60,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         setShowCrisisModal(false);
       })
       .catch((err) => {
-        console.error('Failed to resolve crisis flags:', err);
+        if (import.meta.env.DEV) {
+          console.error('Failed to resolve crisis flags:', err);
+        }
       });
   };
 
@@ -83,7 +85,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         setReplyText((prev) => ({ ...prev, [checkinId]: '' }));
       })
       .catch((err) => {
-        console.error('Failed to respond to proactive check-in:', err);
+        if (import.meta.env.DEV) {
+          console.error('Failed to respond to proactive check-in:', err);
+        }
       })
       .finally(() => {
         setSendingReply((prev) => ({ ...prev, [checkinId]: false }));

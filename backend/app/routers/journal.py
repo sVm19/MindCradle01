@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, Request, Depends
 from typing import Optional
+from fastapi_csrf_protect import CsrfProtect
 from app.models.schemas import JournalCreate
 from app.services.supabase import pb, extract_user_id
 
@@ -9,13 +10,22 @@ router = APIRouter()
 @router.post("")
 async def create_entry(
     req: JournalCreate,
+    request: Request,
     authorization: Optional[str] = Header(None),
+    csrf_protect: CsrfProtect = Depends(),
 ):
     """Save a journal entry for the authenticated user."""
+    await csrf_protect.validate_csrf(request)
+    from app.utils.sanitize import sanitize_journal_entry, sanitize_text
+    
+    sanitized_content = sanitize_journal_entry(req.content)
+    sanitized_prompt = sanitize_text(req.prompt)
+    sanitized_reflection = sanitize_text(req.ai_reflection) if req.ai_reflection else None
+    
     data = {
-        "prompt": req.prompt,
-        "content": req.content,
-        "ai_reflection": req.ai_reflection,
+        "prompt": sanitized_prompt,
+        "content": sanitized_content,
+        "ai_reflection": sanitized_reflection,
     }
     user_id = extract_user_id(authorization)
     if user_id:

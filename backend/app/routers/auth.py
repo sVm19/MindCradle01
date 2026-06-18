@@ -1,71 +1,209 @@
 import logging
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+import jwt
 
-from fastapi import APIRouter, HTTPException, Header
-from app.models.schemas import LoginRequest, SignupRequest, AuthResponse, RefreshRequest, AriaAgeVerifyRequest, PrivacyAcceptanceRequest, WithdrawConsentRequest
+from fastapi import APIRouter, HTTPException, Header, Response, Cookie
+from app.models.schemas import (
+    LoginRequest,
+    SignupRequest,
+    AuthResponse,
+    RefreshRequest,
+    AriaAgeVerifyRequest,
+    PrivacyAcceptanceRequest,
+    WithdrawConsentRequest,
+    ChangePasswordRequest,
+)
+from app.utils.security import (
+    hash_password,
+    verify_password,
+    validate_password,
+    get_deterministic_hash,
+)
 from app.services.supabase import pb, extract_user_id
+from app import config as settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def create_access_token(user_id: str, email: Optional[str] = None):
+    expire = datetime.utcnow() + timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+    payload = {
+        "sub": user_id,
+        "exp": expire,
+        "iat": datetime.utcnow(),
+        "type": "access"
+    }
+    if email:
+        payload["email"] = email
+    return jwt.encode(payload, settings.JWT_SECRET_KEY, "HS256")
+
+
+def create_refresh_token(user_id: str, email: Optional[str] = None, name: Optional[str] = None):
+    expire = datetime.utcnow() + timedelta(
+        days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+    )
+    payload = {
+        "sub": user_id,
+        "exp": expire,
+        "iat": datetime.utcnow(),
+        "type": "refresh"
+    }
+    if email:
+        payload["email"] = email
+    if name:
+        payload["name"] = name
+    return jwt.encode(payload, settings.JWT_REFRESH_SECRET_KEY, "HS256")
+
+
 @router.post("/login", response_model=AuthResponse)
-async def login(req: LoginRequest):
-    """Authenticate user via Supabase."""
+async def login(req: LoginRequest, response: Response):
+    """Authenticate user via Supabase and return custom access token."""
     try:
-        result = await pb.auth_with_password(req.email, req.password)
+        result = await pb.auth_with_password(req.email, get_deterministic_hash(req.password))
         record = result["record"]
+        user_id = record["id"]
+        name = record.get("name", "")
+        email = record["email"]
+
+        # Generate custom tokens
+        access_token = create_access_token(user_id, email=email)
+        refresh_token = create_refresh_token(user_id, email=email, name=name)
+
+        # Set refresh token in HttpOnly cookie
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=(settings.ENVIRONMENT == "production"),
+            samesite="lax",
+            max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            path="/"
+        )
+
         return AuthResponse(
-            token=result["token"],
-            refresh_token=result.get("refresh_token", ""),
-            user_id=record["id"],
-            name=record.get("name", ""),
-            email=record["email"],
+            token=access_token,
+            refresh_token="",  # Do not return refresh token in body to maintain httpOnly flow
+            user_id=user_id,
+            name=name,
+            email=email,
         )
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
 
 @router.post("/signup", response_model=AuthResponse)
-async def signup(req: SignupRequest):
-    """Create a new user in Supabase and return auth token."""
+async def signup(req: SignupRequest, response: Response):
+    """Create a new user in Supabase and return custom auth token."""
+    # Validate password
+    password_error = validate_password(req.password)
+    if password_error:
+        raise HTTPException(status_code=400, detail=password_error)
+        
     try:
         await pb.create_user({
             "email": req.email,
-            "password": req.password,
+            "password": get_deterministic_hash(req.password),
             "name": req.name,
         })
         # Auto-login after signup
-        result = await pb.auth_with_password(req.email, req.password)
+        result = await pb.auth_with_password(req.email, get_deterministic_hash(req.password))
         record = result["record"]
-        return AuthResponse(
-            token=result["token"],
-            refresh_token=result.get("refresh_token", ""),
-            user_id=record["id"],
-            name=record.get("name", ""),
-            email=record["email"],
+        user_id = record["id"]
+        name = record.get("name", "")
+        email = record["email"]
+
+        # Generate custom tokens
+        access_token = create_access_token(user_id, email=email)
+        refresh_token = create_refresh_token(user_id, email=email, name=name)
+
+        # Set refresh token in HttpOnly cookie
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=(settings.ENVIRONMENT == "production"),
+            samesite="lax",
+            max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            path="/"
         )
+
+        # Save password hash in history
+        try:
+            await pb.create_record(
+                "user_password_history",
+                {
+                    "user_id": user_id,
+                    "password_hash": hash_password(req.password)
+                },
+                token=access_token
+            )
+        except Exception as hexc:
+            logger.warning("Failed to save initial password in history: %s", hexc)
+
+        return AuthResponse(
+            token=access_token,
+            refresh_token="",  # Do not return refresh token in body
+            user_id=user_id,
+            name=name,
+            email=email,
+        )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/refresh", response_model=AuthResponse)
-async def refresh_token(req: RefreshRequest):
+async def refresh_token_endpoint(
+    response: Response,
+    refresh_token: Optional[str] = Cookie(None),
+    req: Optional[RefreshRequest] = None,
+):
     """Exchange a refresh token for a new access token."""
+    token_to_verify = refresh_token
+    if not token_to_verify and req:
+        token_to_verify = req.refresh_token
+
+    if not token_to_verify:
+        raise HTTPException(status_code=401, detail="Refresh token missing")
+
     try:
-        result = await pb.refresh_session(req.refresh_token)
-        record = result["record"]
-        return AuthResponse(
-            token=result["token"],
-            refresh_token=result.get("refresh_token", ""),
-            user_id=record["id"],
-            name=record.get("name", ""),
-            email=record["email"],
+        # Verify the refresh token
+        payload = jwt.decode(
+            token_to_verify,
+            settings.JWT_REFRESH_SECRET_KEY,
+            algorithms=["HS256"]
         )
-    except Exception:
-        logger.warning("Token refresh failed — refresh_token may be expired or revoked")
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+
+        user_id = payload["sub"]
+        email = payload.get("email", "")
+        name = payload.get("name", "")
+
+        # Issue new short-lived access token
+        new_access_token = create_access_token(user_id, email=email)
+
+        return AuthResponse(
+            token=new_access_token,
+            refresh_token="",  # DO NOT issue new refresh token (prevent unlimited extension)
+            user_id=user_id,
+            name=name,
+            email=email,
+        )
+    except jwt.ExpiredSignatureError:
+        response.delete_cookie(key="refresh_token", path="/")
+        logger.warning("Refresh token expired")
         raise HTTPException(status_code=401, detail="Session expired. Please log in again.")
+    except jwt.InvalidTokenError:
+        response.delete_cookie(key="refresh_token", path="/")
+        logger.warning("Invalid refresh token signature or payload")
+        raise HTTPException(status_code=401, detail="Session expired. Please log in again.")
+
 
 
 @router.get("/me")
@@ -272,7 +410,7 @@ async def withdraw_consent(
         
     # 2. Verify password by logging in
     try:
-        await pb.auth_with_password(email, req.password)
+        await pb.auth_with_password(email, get_deterministic_hash(req.password))
     except Exception:
         raise HTTPException(status_code=401, detail="Incorrect password. Account deletion aborted.")
         
@@ -283,5 +421,86 @@ async def withdraw_consent(
     except Exception as e:
         logger.error(f"Failed to delete account for user {user_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to delete account: {str(e)}")
+
+
+@router.post("/logout")
+async def logout_endpoint(response: Response):
+    """Log out user by clearing the refresh token cookie."""
+    response.delete_cookie(key="refresh_token", path="/")
+    return {"success": True}
+
+
+@router.post("/change-password")
+async def change_password(
+    req: ChangePasswordRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """Change user password, verifying current credentials and preventing last 5 reuse."""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+        
+    token = authorization.removeprefix("Bearer ").strip()
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+        
+    # Validate password strength requirements
+    password_error = validate_password(req.new_password)
+    if password_error:
+        raise HTTPException(status_code=400, detail=password_error)
+        
+    # 1. Fetch user's email to verify identity
+    try:
+        email = await pb.get_user_email(token)
+    except Exception as e:
+        logger.error("Failed to retrieve email for password change: %s", e)
+        raise HTTPException(status_code=400, detail="Failed to resolve user session.")
+        
+    # 2. Verify current password
+    try:
+        await pb.auth_with_password(email, get_deterministic_hash(req.current_password))
+    except Exception:
+        raise HTTPException(status_code=401, detail="Incorrect current password")
+        
+    # 3. Check password history
+    try:
+        res = await pb.list_records(
+            "user_password_history",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "sort": "-created_at"}
+        )
+        history = res.get("items") or []
+    except Exception as hexc:
+        logger.warning("Failed to fetch password history from database: %s", hexc)
+        history = []
+        
+    # Verify against the last 5 password hashes in history
+    for record in history[:5]:
+        if verify_password(req.new_password, record["password_hash"]):
+            raise HTTPException(status_code=400, detail="Cannot reuse any of your last 5 passwords.")
+            
+    # 4. Update password in Supabase Auth
+    try:
+        await pb.update_user(token, {"password": get_deterministic_hash(req.new_password)})
+    except Exception as uexc:
+        logger.error("Failed to update password in Supabase Auth: %s", uexc)
+        raise HTTPException(status_code=500, detail="Failed to update password.")
+        
+    # 5. Save new password hash to history
+    try:
+        await pb.create_record(
+            "user_password_history",
+            {
+                "user_id": user_id,
+                "password_hash": hash_password(req.new_password)
+            },
+            token=token
+        )
+    except Exception as hexc:
+        logger.warning("Failed to record new password in history: %s", hexc)
+        
+    return {"success": True, "message": "Password changed successfully"}
+
+
 
 

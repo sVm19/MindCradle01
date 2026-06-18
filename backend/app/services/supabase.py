@@ -7,6 +7,11 @@ from typing import Any, Optional, Dict, List
 import httpx
 from supabase import create_client, ClientOptions
 from app.config import SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_JWT_SECRET
+from app.core.security import (
+    extract_user_id_verified,
+    verify_custom_access_token,
+    get_supabase_token_for_user,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +22,17 @@ def _get_client(token: Optional[str] = None):
     headers = {}
     if token:
         clean_token = token.removeprefix("Bearer ").strip()
+        # Intercept and translate custom JWTs to Supabase JWTs on the fly
+        try:
+            custom_payload = verify_custom_access_token(clean_token)
+            if custom_payload:
+                # Extract email from custom token if present
+                email = extract_user_email(clean_token)
+                clean_token = get_supabase_token_for_user(custom_payload.sub, email)
+        except Exception:
+            # Ignore errors and fall back to the original token
+            pass
+            
         headers["Authorization"] = f"Bearer {clean_token}"
     
     options = ClientOptions(
@@ -25,25 +41,19 @@ def _get_client(token: Optional[str] = None):
     )
     return create_client(SUPABASE_URL, SUPABASE_ANON_KEY, options=options)
 
-def _extract_user_id(token: Optional[str]) -> Optional[str]:
-    if not token:
-        return None
-    try:
-        clean_token = token.removeprefix("Bearer ").strip()
-        parts = clean_token.split(".")
-        if len(parts) < 2:
-            return None
-        payload_part = parts[1]
-        padded = payload_part + "=" * (-len(payload_part) % 4)
-        decoded = base64.urlsafe_b64decode(padded)
-        data_dict = json.loads(decoded)
-        return data_dict.get("sub")
-    except Exception:
-        return None
-
 
 def extract_user_id(token: Optional[str]) -> Optional[str]:
-    return _extract_user_id(token)
+    """
+    Verify the Supabase JWT signature and return the user UUID (sub claim).
+
+    Replaces the previous unsafe implementation that only base64-decoded the
+    payload without verifying the signature — which allowed token forgery.
+    Now delegates to app.core.security.extract_user_id_verified which:
+      - Verifies the HS256 signature against SUPABASE_JWT_SECRET
+      - Checks token expiry
+      - Validates the issuer matches the configured Supabase project
+    """
+    return extract_user_id_verified(token)
 
 
 def extract_user_email(token: Optional[str]) -> Optional[str]:
@@ -274,6 +284,15 @@ class SupabaseService:
                 ins_res = client.table("user_profiles").insert(profile_data).execute()
                 return ins_res.data[0]
                 
+        return await asyncio.to_thread(_call)
+
+    async def update_user(self, token: str, data: dict) -> dict:
+        """Update user credentials (e.g. password) in Supabase Auth."""
+        def _call():
+            clean_token = token.removeprefix("Bearer ").strip()
+            client = _get_client(clean_token)
+            res = client.auth.update_user(data)
+            return {"id": res.user.id if res.user else ""}
         return await asyncio.to_thread(_call)
 
     async def delete_user_account(self, token: str) -> None:

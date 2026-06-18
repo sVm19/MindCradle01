@@ -2,29 +2,38 @@
  * MindCradle API Client
  * Central fetch wrapper with auto-auth headers, typed methods,
  * and automatic JWT refresh on 401.
- * The Vite dev proxy rewrites /api → http://localhost:8000.
+ *
+ * Routing:
+ *   Development — Vite proxy rewrites /api → http://localhost:8000
+ *   Production  — Vercel rewrites /api → https://api.mindcradle.com
+ *                 (configured in vercel.json) OR same-origin if collocated.
+ *
+ * All requests use relative /api paths so no VITE_API_URL is needed
+ * in client-side code — the proxy/rewrite handles it transparently.
  */
+
+import { getCsrfToken } from './csrf';
 
 const BASE = '/api';
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
 
+let _accessToken: string | null = null;
+
+export function getAccessToken(): string | null {
+  return _accessToken;
+}
+
+export function setAccessToken(token: string | null) {
+  _accessToken = token;
+}
+
 function getToken(): string | null {
-  return localStorage.getItem('mc_token');
-}
-
-function getRefreshToken(): string | null {
-  return localStorage.getItem('mc_refresh_token');
-}
-
-function setTokens(token: string, refreshToken: string) {
-  localStorage.setItem('mc_token', token);
-  localStorage.setItem('mc_refresh_token', refreshToken);
+  return _accessToken;
 }
 
 function clearTokens() {
-  localStorage.removeItem('mc_token');
-  localStorage.removeItem('mc_refresh_token');
+  _accessToken = null;
   localStorage.removeItem('mc_user');
 }
 
@@ -44,20 +53,17 @@ async function tryRefreshToken(): Promise<boolean> {
   if (_refreshPromise) return _refreshPromise;
 
   _refreshPromise = (async () => {
-    const rt = getRefreshToken();
-    if (!rt) return false;
-
     try {
       const res = await fetch(`${BASE}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: rt }),
+        credentials: 'include',
       });
 
       if (!res.ok) return false;
 
       const data = await res.json();
-      setTokens(data.token, data.refresh_token);
+      setAccessToken(data.token);
 
       // Also update the stored user object with the new token
       const stored = localStorage.getItem('mc_user');
@@ -65,8 +71,20 @@ async function tryRefreshToken(): Promise<boolean> {
         try {
           const user = JSON.parse(stored);
           user.token = data.token;
+          user.name = data.name;
+          user.email = data.email;
+          user.userId = data.user_id;
           localStorage.setItem('mc_user', JSON.stringify(user));
         } catch { /* ignore */ }
+      } else {
+        // Create user object if missing
+        const user = {
+          token: data.token,
+          userId: data.user_id,
+          name: data.name,
+          email: data.email,
+        };
+        localStorage.setItem('mc_user', JSON.stringify(user));
       }
       return true;
     } catch {
@@ -97,10 +115,18 @@ async function request<T>(
     if (token) headers['Authorization'] = `Bearer ${token}`;
   }
 
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method.toUpperCase())) {
+    const csrf = getCsrfToken();
+    if (csrf) {
+      headers['X-CSRF-Token'] = csrf;
+    }
+  }
+
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    credentials: 'include',
   });
 
   // Handle 401 — attempt token refresh, then retry once
@@ -149,6 +175,7 @@ async function request<T>(
 
   return res.json() as Promise<T>;
 }
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -250,6 +277,14 @@ export const auth = {
       { name, email, password, passwordConfirm },
       false,
     ),
+
+  refresh: () =>
+    request<AuthResponse>('POST', '/auth/refresh', undefined, false),
+
+  logout: () =>
+    request<{ success: boolean }>('POST', '/auth/logout', undefined, false),
+
+
 
   checkAgeVerified: () =>
     request<{ age_verified: boolean; verified_at: string | null }>('GET', '/auth/check-age-verified'),

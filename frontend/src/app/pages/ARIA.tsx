@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { sanitizeForInput, sanitizeForDisplay } from '@/lib/sanitize';
 import { ai as aiApi, resources as resourcesApi, mood as moodApi, journal as journalApi } from '@/lib/api';
 import type { ResourceItem, MoodItem, JournalItem } from '@/lib/api';
 import { useAuth, getInitials } from '@/lib/auth';
@@ -354,7 +355,9 @@ export default function ARIA() {
         setToastMessage(null);
       }, 3000);
     } catch (err) {
-      console.error('Failed to explicitly save memory insight', err);
+      if (import.meta.env.DEV) {
+        console.error('Failed to explicitly save memory insight', err);
+      }
       setToastMessage('Context saved to memory.');
       setTimeout(() => {
         setToastMessage(null);
@@ -384,7 +387,9 @@ export default function ARIA() {
       }
       setTimeout(() => setToastMessage(null), 3000);
     } catch (err) {
-      console.error(err);
+      if (import.meta.env.DEV) {
+        console.error(err);
+      }
       setToastMessage('Failed to analyze personality.');
       setTimeout(() => setToastMessage(null), 3000);
     } finally {
@@ -405,7 +410,9 @@ export default function ARIA() {
       setTimeout(() => setToastMessage(null), 3000);
       fetchMemoryInsights();
     } catch (err) {
-      console.error(err);
+      if (import.meta.env.DEV) {
+        console.error(err);
+      }
       setMemoryInsights(prev => prev.filter(item => item.id !== id));
       setToastMessage('Memory forgotten.');
       setTimeout(() => setToastMessage(null), 3000);
@@ -430,7 +437,9 @@ export default function ARIA() {
       setTimeout(() => setToastMessage(null), 3000);
       fetchMemoryInsights();
     } catch (err) {
-      console.error(err);
+      if (import.meta.env.DEV) {
+        console.error(err);
+      }
       setMemoryInsights(prev => prev.map(item => item.id === id ? { ...item, ...editFields } : item));
       setEditingInsightId(null);
       setToastMessage('Memory updated.');
@@ -452,7 +461,9 @@ export default function ARIA() {
       setToastMessage('Feedback recorded.');
       setTimeout(() => setToastMessage(null), 3000);
     } catch (err) {
-      console.error('Failed to log advice feedback', err);
+      if (import.meta.env.DEV) {
+        console.error('Failed to log advice feedback', err);
+      }
     }
   };
 
@@ -481,7 +492,9 @@ export default function ARIA() {
         }
       }).catch(() => {});
     } catch (err) {
-      console.error('Failed to end conversation:', err);
+      if (import.meta.env.DEV) {
+        console.error('Failed to end conversation:', err);
+      }
     } finally {
       setLoading(false);
     }
@@ -654,7 +667,9 @@ export default function ARIA() {
                   try {
                     await aiApi.resolveCrisis();
                   } catch (err) {
-                    console.error('Failed to resolve crisis on dismiss:', err);
+                    if (import.meta.env.DEV) {
+                      console.error('Failed to resolve crisis on dismiss:', err);
+                    }
                   }
                 }
                 setCrisisDetected(false);
@@ -790,14 +805,14 @@ export default function ARIA() {
                     </div>
                     
                     <div className="text-xs text-text2 space-y-1.5 leading-relaxed font-light whitespace-pre-line">
-                      {convo.summary || 'No summary available.'}
+                      {sanitizeForDisplay(convo.summary || 'No summary available.')}
                     </div>
                     
                     {convo.key_points && convo.key_points.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         {convo.key_points.map((tag: string, tIdx: number) => (
                           <span key={tIdx} className="text-[10px] bg-bg3 text-text3 border border-border px-2 py-0.5 rounded-md font-medium">
-                            #{tag}
+                            #{sanitizeForDisplay(tag)}
                           </span>
                         ))}
                       </div>
@@ -850,11 +865,11 @@ export default function ARIA() {
                         <div className="space-y-1">
                           <div className="text-xs text-rose font-bold uppercase tracking-wider">You deserve support right now</div>
                           <p className="text-sm text-text leading-relaxed">
-                            {message.content}
+                            {sanitizeForDisplay(message.content)}
                           </p>
                           {message.encourage && (
                             <p className="text-xs text-text2 italic">
-                              {message.encourage}
+                              {sanitizeForDisplay(message.encourage)}
                             </p>
                           )}
                         </div>
@@ -891,7 +906,7 @@ export default function ARIA() {
                       </div>
                       {message.contact_emergency && (
                         <div className="pt-2 text-[10px] text-text3 leading-relaxed border-t border-border">
-                          {message.contact_emergency}
+                          {sanitizeForDisplay(message.contact_emergency)}
                         </div>
                       )}
                     </div>
@@ -903,7 +918,7 @@ export default function ARIA() {
                           : 'bg-bg3 border border-border text-text'
                       }`}
                     >
-                      <p className="text-sm leading-relaxed">{renderMessageContent(message.content)}</p>
+                      <p className="text-sm leading-relaxed">{renderMessageContent(sanitizeForDisplay(message.content))}</p>
                     </div>
                   )}
                   {message.role === 'aria' && (
@@ -1028,7 +1043,7 @@ export default function ARIA() {
                   id="aria-input"
                   type="text"
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={(e) => setInput(sanitizeForInput(e.target.value))}
                   placeholder={
                     crisisDetected && (crisisSeverity === 3 || crisisSeverity === 'HIGH')
                       ? "Counselor support is recommended, but you may continue typing..."

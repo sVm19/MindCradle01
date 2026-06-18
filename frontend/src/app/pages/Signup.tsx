@@ -4,6 +4,8 @@ import { useAuth } from '@/lib/auth';
 import { auth as authApi } from '@/lib/api';
 import Logo from '@/app/components/Logo';
 import { ShieldAlert, Check } from 'lucide-react';
+import { validateEmail, validatePassword } from '@/lib/validation';
+import { sanitizeForInput } from '@/lib/sanitize';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -15,6 +17,11 @@ export default function Signup() {
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [ageChecked, setAgeChecked] = useState(false);
+
+  const [emailError, setEmailError] = useState('');
+  const [nameError, setNameError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordConfirmError, setPasswordConfirmError] = useState('');
   
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,9 +31,59 @@ export default function Signup() {
     setPrivacyAccepted(accepted);
   }, []);
 
+  const handleNameBlur = () => {
+    if (name.trim() === '') {
+      setNameError('Name is required');
+    } else if (name.length > 255) {
+      setNameError('Name must be 255 characters or less');
+    } else {
+      setNameError('');
+    }
+  };
+
+  const handleEmailBlur = () => {
+    if (email.trim() === '') {
+      setEmailError('Email is required');
+    } else if (!validateEmail(email)) {
+      setEmailError('Invalid email address');
+    } else {
+      setEmailError('');
+    }
+  };
+
+  const handlePasswordBlur = () => {
+    const err = validatePassword(password);
+    setPasswordError(err || '');
+  };
+
+  const handlePasswordConfirmBlur = () => {
+    if (passwordConfirm !== password) {
+      setPasswordConfirmError('Passwords do not match');
+    } else {
+      setPasswordConfirmError('');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Trigger all validations on submit to be sure
+    handleNameBlur();
+    handleEmailBlur();
+    handlePasswordBlur();
+    handlePasswordConfirmBlur();
+
+    if (
+      name.trim() === '' ||
+      name.length > 255 ||
+      !validateEmail(email) ||
+      validatePassword(password) ||
+      passwordConfirm !== password
+    ) {
+      setError('Please fix the validation errors before signing up.');
+      return;
+    }
 
     if (!privacyAccepted) {
       setError('You must accept the Privacy Policy and Terms of Service to sign up.');
@@ -35,11 +92,6 @@ export default function Signup() {
 
     if (!ageChecked) {
       setError('You must be 18 years or older to register.');
-      return;
-    }
-
-    if (password !== passwordConfirm) {
-      setError('Passwords do not match.');
       return;
     }
 
@@ -77,7 +129,11 @@ export default function Signup() {
     password.trim() !== '' &&
     passwordConfirm.trim() !== '' &&
     ageChecked &&
-    privacyAccepted;
+    privacyAccepted &&
+    emailError === '' &&
+    nameError === '' &&
+    passwordError === '' &&
+    passwordConfirmError === '';
 
   if (!privacyAccepted) {
     return (
@@ -125,11 +181,13 @@ export default function Signup() {
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => setName(sanitizeForInput(e.target.value))}
+              onBlur={handleNameBlur}
               required
               placeholder="Your name"
               className="w-full bg-bg3 border border-border rounded-[12px] px-4 py-3 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent/40 transition-colors"
             />
+            {nameError && <span className="text-xs text-rose mt-1 block">{nameError}</span>}
           </div>
 
           <div className="space-y-1.5">
@@ -138,10 +196,12 @@ export default function Signup() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={handleEmailBlur}
               required
               placeholder="you@example.com"
               className="w-full bg-bg3 border border-border rounded-[12px] px-4 py-3 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent/40 transition-colors"
             />
+            {emailError && <span className="text-xs text-rose mt-1 block">{emailError}</span>}
           </div>
 
           <div className="space-y-1.5">
@@ -150,11 +210,13 @@ export default function Signup() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onBlur={handlePasswordBlur}
               required
               minLength={8}
               placeholder="••••••••"
               className="w-full bg-bg3 border border-border rounded-[12px] px-4 py-3 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent/40 transition-colors"
             />
+            {passwordError && <span className="text-xs text-rose mt-1 block">{passwordError}</span>}
           </div>
 
           <div className="space-y-1.5">
@@ -163,11 +225,14 @@ export default function Signup() {
               type="password"
               value={passwordConfirm}
               onChange={(e) => setPasswordConfirm(e.target.value)}
+              onBlur={handlePasswordConfirmBlur}
               required
               placeholder="Repeat password"
               className="w-full bg-bg3 border border-border rounded-[12px] px-4 py-3 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent/40 transition-colors"
             />
+            {passwordConfirmError && <span className="text-xs text-rose mt-1 block">{passwordConfirmError}</span>}
           </div>
+
 
           {/* Age Verification Checkbox */}
           <div className="pt-2">

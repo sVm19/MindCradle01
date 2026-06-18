@@ -2454,6 +2454,9 @@ async def select_response_type(
     if not token:
         raise HTTPException(status_code=401, detail="Missing authorization token")
 
+    from app.utils.sanitize import sanitize_text
+    req.message = sanitize_text(req.message)
+
     user_id = extract_user_id(token) or "unknown"
     res = await _select_response_type_internal(token, user_id, req.message)
     return SelectResponseTypeResponse(**res)
@@ -2469,6 +2472,9 @@ async def chat(
     token = _normalize_token(authorization)
     if not token:
         raise HTTPException(status_code=401, detail="Missing authorization token")
+        
+    from app.utils.sanitize import sanitize_text
+    req.message = sanitize_text(req.message)
         
     logger.info(f"CHAT API: Received request - message: {req.message!r}, conversation_id: {req.conversation_id!r}, response_type: {req.response_type!r}")
     

@@ -38,7 +38,7 @@ def test_morning_ritual_payload_is_accepted(monkeypatch):
 def test_winddown_ritual_payload_is_accepted(monkeypatch):
     async def fake_create_record(collection, data, token=None):
         assert collection == "wind_down_rituals"
-        assert data["release_item"] == "Tomorrow's to-do list"
+        assert data["release_item"] == "Tomorrow&#x27;s to-do list"
         assert data["audio_choice"] == "story"
         return {"id": "ritual_2"}
 

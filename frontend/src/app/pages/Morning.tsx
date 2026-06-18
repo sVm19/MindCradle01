@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Frown, Meh, Smile, Sun, Wind, Activity, PenTool, Footprints, Heart, Moon } from 'lucide-react';
+import { sanitizeForInput } from '@/lib/sanitize';
 import { rituals as ritualsApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import GuestGate from '@/app/components/GuestGate';
@@ -151,7 +152,7 @@ export default function Morning() {
 
           <textarea
             value={intention}
-            onChange={(e) => setIntention(e.target.value)}
+            onChange={(e) => setIntention(sanitizeForInput(e.target.value))}
             placeholder="e.g. 'Be patient with myself' or 'Finish the report calmly'"
             className="w-full bg-bg2 border border-border rounded-[20px] px-5 py-4 text-sm text-text placeholder:text-text3 resize-none focus:outline-none focus:border-accent/30 min-h-28"
           />

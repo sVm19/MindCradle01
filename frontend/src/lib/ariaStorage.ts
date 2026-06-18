@@ -23,7 +23,9 @@ export function saveConversationToLocalStorage(messages: Message[], conversation
     const data: StoredConversation = { messages, conversationId };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch (error) {
-    console.error('Failed to save ARIA conversation to localStorage:', error);
+    if (import.meta.env.DEV) {
+      console.error('Failed to save ARIA conversation to localStorage:', error);
+    }
   }
 }
 
@@ -34,7 +36,9 @@ export function loadConversationFromLocalStorage(): StoredConversation {
       return JSON.parse(dataStr);
     }
   } catch (error) {
-    console.error('Failed to load ARIA conversation from localStorage:', error);
+    if (import.meta.env.DEV) {
+      console.error('Failed to load ARIA conversation from localStorage:', error);
+    }
   }
   return { messages: [] };
 }
@@ -43,6 +47,8 @@ export function clearConversation() {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch (error) {
-    console.error('Failed to clear ARIA conversation from localStorage:', error);
+    if (import.meta.env.DEV) {
+      console.error('Failed to clear ARIA conversation from localStorage:', error);
+    }
   }
 }

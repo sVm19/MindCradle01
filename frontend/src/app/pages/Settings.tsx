@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router';
 import { useAuth, getInitials } from '@/lib/auth';
+import { sanitizeForInput } from '@/lib/sanitize';
 import { useState, useEffect } from 'react';
 import { profile as profileApi, auth as authApi } from '@/lib/api';
 import { Lock, Settings as SettingsIcon, CheckCircle, Clock, ShieldAlert, Eye, Download, AlertTriangle, X } from 'lucide-react';
@@ -34,7 +35,9 @@ export default function Settings() {
         setNotifyOnCrisis(res.notify_on_crisis || false);
       })
       .catch((err) => {
-        console.error('Failed to load profile:', err);
+        if (import.meta.env.DEV) {
+          console.error('Failed to load profile:', err);
+        }
       });
 
     // Fetch age verification from DB
@@ -78,7 +81,9 @@ export default function Settings() {
       setSaveStatus('Saved successfully ✓');
       setTimeout(() => setSaveStatus(null), 3000);
     } catch (err) {
-      console.error(err);
+      if (import.meta.env.DEV) {
+        console.error(err);
+      }
       setSaveStatus('Failed to save settings.');
       setTimeout(() => setSaveStatus(null), 3000);
     } finally {
@@ -230,7 +235,7 @@ startxref
               id="emergency-contact"
               type="text"
               value={emergencyContact}
-              onChange={(e) => setEmergencyContact(e.target.value)}
+              onChange={(e) => setEmergencyContact(sanitizeForInput(e.target.value))}
               placeholder="e.g. Spouse (+1-555-0100) or contact@domain.com"
               className="w-full bg-bg3 border border-border rounded-[10px] px-4 py-2.5 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent"
             />

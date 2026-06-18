@@ -73,6 +73,9 @@ def test_schedule_checkin_wednesday_anxiety_spike(monkeypatch):
     wednesdays = []
     for i in range(30):
         d = now - timedelta(days=i)
+        # Skip Wednesdays in the last 36 hours to avoid triggering rough_day
+        if (now - d).total_seconds() <= 86400 * 1.5:
+            continue
         if d.weekday() == 2:  # Wednesday
             wednesdays.append(d)
 
