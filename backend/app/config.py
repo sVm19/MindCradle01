@@ -63,6 +63,17 @@ if ENVIRONMENT == "production":
             f"[FATAL] FRONTEND_URL must use https:// in production. Got: {FRONTEND_URL!r}\n"
             "Set FRONTEND_URL=https://your-domain.com in your deployment environment."
         )
+    if not SUPABASE_URL:
+        sys.exit(
+            "[FATAL] SUPABASE_URL is not set.\n"
+            "Cannot connect to database. Set it in your deployment environment variables."
+        )
+    if not SUPABASE_ANON_KEY:
+        sys.exit(
+            "[FATAL] SUPABASE_ANON_KEY is not set.\n"
+            "All database requests will fail. Set it in your deployment environment variables.\n"
+            "Find it at: Supabase Dashboard → Project Settings → API → anon (public)"
+        )
     if not SUPABASE_JWT_SECRET:
         sys.exit(
             "[FATAL] SUPABASE_JWT_SECRET is not set.\n"

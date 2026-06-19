@@ -1,7 +1,14 @@
+from datetime import datetime, timedelta, timezone
 from fastapi.testclient import TestClient
 from app.main import app
 
 client = TestClient(app)
+
+def get_recent_timestamp(days_ago: int = 0) -> str:
+    return (datetime.now(timezone.utc) - timedelta(days=days_ago)).strftime("%Y-%m-%d %H:%M:%S")
+
+def get_recent_date_str(days_ago: int = 0) -> str:
+    return (datetime.now(timezone.utc) - timedelta(days=days_ago)).strftime("%Y-%m-%d")
 
 def test_chat_route_requires_auth():
     response = client.post("/api/ai/chat", json={"message": "hello"})
@@ -42,7 +49,7 @@ def test_chat_route_success(monkeypatch):
             return {
                 "items": [
                     {
-                        "created": "2026-06-12 12:00:00",
+                        "created": get_recent_timestamp(1),
                         "situation": "Had work stress",
                         "emotion": "anxious",
                         "what_helped": "breathing",
@@ -153,8 +160,8 @@ def test_get_memory_insights(monkeypatch):
                     "what_helped": "deep breathing",
                     "follow_up": "Check back later",
                     "context_type": "rough_day_support",
-                    "date": "2026-06-12",
-                    "created": "2026-06-12 12:00:00"
+                    "date": get_recent_date_str(1),
+                    "created": get_recent_timestamp(1)
                 }
             ]
         }
@@ -242,7 +249,7 @@ def test_chat_route_memory_injection(monkeypatch):
                         "what_helped": "evening ritual",
                         "follow_up": "Follow up on work stress",
                         "context_type": "rough_day_support",
-                        "created": "2026-06-12 12:00:00"
+                        "created": get_recent_timestamp(1)
                     },
                     {
                         "id": "insight_2",
@@ -253,7 +260,7 @@ def test_chat_route_memory_injection(monkeypatch):
                         "what_helped": "breathing",
                         "follow_up": "Check back later",
                         "context_type": "rough_day_support",
-                        "created": "2026-06-12 13:00:00"
+                        "created": get_recent_timestamp(1)
                     }
                 ],
                 "totalItems": 2
@@ -267,7 +274,7 @@ def test_chat_route_memory_injection(monkeypatch):
                             {"role": "user", "content": "I had a hard day"},
                             {"role": "assistant", "content": "Tell me more"}
                         ],
-                        "updated": "2026-06-12 12:00:00"
+                        "updated": get_recent_timestamp(1)
                     }
                 ],
                 "totalItems": 1
@@ -278,7 +285,7 @@ def test_chat_route_memory_injection(monkeypatch):
                     {
                         "level": 3,
                         "emotions": ["stressed", "anxious"],
-                        "created": "2026-06-12 12:00:00"
+                        "created": get_recent_timestamp(1)
                     }
                 ],
                 "totalItems": 1
