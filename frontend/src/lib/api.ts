@@ -5,7 +5,7 @@
  *
  * Routing:
  *   Development — Vite proxy rewrites /api → http://localhost:8000
- *   Production  — Vercel rewrites /api → https://mindcradle01-959765770210.asia-south1.run.app
+ *   Production  — Vercel rewrites /api → https://mindcradle-959765770210.asia-south1.run.app
  *                 (configured in vercel.json) OR same-origin if collocated.
  *
  * All requests use relative /api paths so no VITE_API_URL is needed
