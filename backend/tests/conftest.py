@@ -1,3 +1,13 @@
+import os
+# Set default environment variables for test isolation before any imports that use them
+os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
+os.environ.setdefault("SUPABASE_ANON_KEY", "test-anon-key")
+os.environ.setdefault("SUPABASE_JWT_SECRET", "test-jwt-secret")
+os.environ.setdefault("JWT_SECRET_KEY", "test-jwt-secret-key")
+os.environ.setdefault("JWT_REFRESH_SECRET_KEY", "test-jwt-refresh-secret-key")
+os.environ.setdefault("OPENROUTER_API_KEY", "test-openrouter-key")
+os.environ.setdefault("ENVIRONMENT", "development")
+
 import pytest
 from app.main import app
 from app.routers.ai import check_aria_age_verified, OFF_TOPIC_LIMITS
