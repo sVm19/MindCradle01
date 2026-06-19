@@ -1,0 +1,13 @@
+.venv/
+backend/.venv/
+frontend/node_modules/
+frontend/dist/
+.git/
+.husky/
+__pycache__/
+*.pyc
+backend/firebase-key.json
+backend/.env
+backend/.env.production
+backend/.pytest_cache/
+backend/tests/
