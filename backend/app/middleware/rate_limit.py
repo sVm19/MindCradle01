@@ -3,6 +3,8 @@ import logging
 from fastapi.responses import JSONResponse
 from fastapi.requests import Request
 from starlette.middleware.base import BaseHTTPMiddleware
+import sys
+from app.config import ENVIRONMENT
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +50,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     self.request_log[k] = pruned
         
         # Stricter limit of 5 requests per minute for login and signup endpoints
+        is_testing = "pytest" in sys.modules
         if request.url.path in ["/api/auth/login", "/api/auth/signup"]:
-            limit = 5
+            if not is_testing and ENVIRONMENT != "production":
+                limit = 100  # Relaxed for local development and manual testing
+            else:
+                limit = 5
         else:
-            limit = self.requests_per_minute
+            if not is_testing and ENVIRONMENT != "production":
+                limit = 1000  # Relaxed for local development
+            else:
+                limit = self.requests_per_minute
         
         # Initialize log list for new IP
         if ip not in self.request_log:

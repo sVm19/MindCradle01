@@ -1,16 +1,20 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from app.config import FRONTEND_URL, ENVIRONMENT, JWT_SECRET_KEY
-from app.routers import resources, mood, journal, ai, auth, rituals, profile, notifications
+from app.routers import resources, mood, journal, ai, auth, rituals, profile, notifications, user
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.routers.ai import AgeGateException
 
 from fastapi_csrf_protect import CsrfProtect
 from fastapi_csrf_protect.exceptions import CsrfProtectError
 from pydantic import BaseModel
+import logging
+
+logger = logging.getLogger(__name__)
 
 class CsrfSettings(BaseModel):
     secret_key: str = JWT_SECRET_KEY
@@ -60,48 +64,100 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={"detail": exc.errors()}
     )
 
+# Handle validation errors (don't expose details)
+@app.exception_handler(ValueError)
+async def value_error_handler(request, exc):
+    logger.error(f"Validation error: {str(exc)}")
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": "Invalid request"}
+    )
+
+# Handle database errors (don't expose connection details)
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    logger.error(f"Unhandled error: {str(exc)}", exc_info=True)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "An error occurred. Please try again."}
+    )
+
+# Handle 404s gracefully
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    if exc.status_code == 404:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Not found"}
+        )
+    # Prevent 5xx detail leak centrally
+    if exc.status_code >= 500:
+        logger.error(f"HTTP Server Error {exc.status_code}: {exc.detail}")
+        detail_msg = "An error occurred. Please try again."
+        if exc.status_code == 502:
+            detail_msg = "AI service unavailable"
+        elif exc.status_code == 504:
+            detail_msg = "AI service timeout. Please try again."
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": detail_msg}
+        )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
+    )
+
 
 # ─── Security Headers Middleware ──────────────────────────────────────────────
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """
-    Attaches security response headers on every reply.
-
-    In production these enforce HTTPS, prevent clickjacking, stop MIME
-    sniffing, and tell browsers to apply a basic Content-Security-Policy.
-    Headers are safe to send in development too — they have no effect on
-    plain-HTTP localhost requests.
-    """
-
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request, call_next):
         response = await call_next(request)
-
-        # Strict-Transport-Security — tell browsers to only use HTTPS for 1 year
-        # includeSubDomains: covers api.mindcradle.com and any sub-paths
-        # preload: eligible for browser HSTS preload lists (optional)
-        if ENVIRONMENT == "production":
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains; preload"
-            )
-
-        # Prevent the page from being embedded in an iframe (clickjacking)
+        
+        # Prevent clickjacking
         response.headers["X-Frame-Options"] = "DENY"
-
-        # Stop browsers from MIME-sniffing a response away from the declared content-type
+        
+        # Prevent MIME type sniffing
         response.headers["X-Content-Type-Options"] = "nosniff"
-
-        # Control how much referrer info is included in requests
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-
-        # Disable browser features not needed by this API
-        response.headers["Permissions-Policy"] = (
-            "geolocation=(), microphone=(), camera=()"
+        
+        # Enable XSS protection (older browsers)
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        
+        # Content Security Policy (strict)
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' https://cdnjs.cloudflare.com; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: https:; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "connect-src 'self' https://api.openrouter.io https://api.firebase.com; "
+            "frame-ancestors 'none';"
         )
-
-        # Basic Content-Security-Policy for the API (not a browser-rendered app,
-        # but helps if the docs UI is ever exposed)
-        response.headers["Content-Security-Policy"] = "default-src 'none'"
-
+        
+        # Strict Transport Security (HTTPS only)
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains; preload"
+        )
+        
+        # Referrer Policy
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        
+        # Permissions Policy (formerly Feature Policy)
+        response.headers["Permissions-Policy"] = (
+            "geolocation=(), "
+            "microphone=(), "
+            "camera=(), "
+            "payment=(), "
+            "usb=(), "
+            "magnetometer=(), "
+            "gyroscope=(), "
+            "accelerometer=()"
+        )
+        
+        # Remove Server header (don't advertise FastAPI)
+        if "Server" in response.headers:
+            del response.headers["Server"]
+        
         return response
 
 
@@ -117,6 +173,12 @@ app.add_middleware(RateLimitMiddleware, requests_per_minute=100)
 if ENVIRONMENT == "production":
     # Only the real HTTPS frontend domain — no HTTP fallback in production
     allowed_origins = [FRONTEND_URL]
+    # Allow both www and non-www variants of FRONTEND_URL to avoid CORS issues
+    if "://www." in FRONTEND_URL:
+        allowed_origins.append(FRONTEND_URL.replace("://www.", "://"))
+    elif "://" in FRONTEND_URL:
+        scheme, domain = FRONTEND_URL.split("://", 1)
+        allowed_origins.append(f"{scheme}://www.{domain}")
 else:
     # Dev: accept both the configured URL and Vite's default dev server ports
     allowed_origins = [
@@ -144,6 +206,7 @@ app.include_router(rituals.router, prefix="/api/rituals", tags=["rituals"])
 app.include_router(profile.router, prefix="/api/profile", tags=["profile"])
 app.include_router(profile.router, prefix="/api", tags=["profile"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
+app.include_router(user.router, prefix="/api/user", tags=["user"])
 
 
 @app.get("/api/csrf-token")

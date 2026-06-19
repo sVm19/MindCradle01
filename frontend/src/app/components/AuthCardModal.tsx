@@ -3,7 +3,7 @@ import { useLocation } from 'react-router';
 import { useAuth } from '@/lib/auth';
 import Logo from './Logo';
 import { auth as authApi } from '@/lib/api';
-import { X } from 'lucide-react';
+import { X, Eye, EyeOff } from 'lucide-react';
 
 export default function AuthCardModal() {
   const { authModalOpen, setAuthModalOpen, setVerifyModalOpen, login, signup } = useAuth();
@@ -19,6 +19,8 @@ export default function AuthCardModal() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -30,11 +32,15 @@ export default function AuthCardModal() {
     setPassword('');
     setName('');
     setPasswordConfirm('');
+    setShowPassword(false);
+    setShowPasswordConfirm(false);
     setAuthModalOpen(false);
   };
 
   const handleSwitchTab = (toLogin: boolean) => {
     setError('');
+    setShowPassword(false);
+    setShowPasswordConfirm(false);
     setIsLogin(toLogin);
   };
 
@@ -164,28 +170,48 @@ export default function AuthCardModal() {
 
           <div className="space-y-1.5">
             <label className="text-xs text-text3 uppercase tracking-wider">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={isLogin ? undefined : 8}
-              placeholder="••••••••"
-              className="w-full bg-bg3 border border-border rounded-[12px] px-4 py-3 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent/40 transition-colors"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={isLogin ? undefined : 8}
+                placeholder="••••••••"
+                className="w-full bg-bg3 border border-border rounded-[12px] pl-4 pr-11 py-3 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent/40 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-black hover:text-black/80 cursor-pointer transition-colors focus:outline-none"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           {!isLogin && (
             <div className="space-y-1.5">
               <label className="text-xs text-text3 uppercase tracking-wider">Confirm password</label>
-              <input
-                type="password"
-                value={passwordConfirm}
-                onChange={(e) => setPasswordConfirm(e.target.value)}
-                required
-                placeholder="Repeat password"
-                className="w-full bg-bg3 border border-border rounded-[12px] px-4 py-3 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent/40 transition-colors"
-              />
+              <div className="relative">
+                <input
+                  type={showPasswordConfirm ? 'text' : 'password'}
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  required
+                  placeholder="Repeat password"
+                  className="w-full bg-bg3 border border-border rounded-[12px] pl-4 pr-11 py-3 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent/40 transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-black hover:text-black/80 cursor-pointer transition-colors focus:outline-none"
+                  aria-label={showPasswordConfirm ? "Hide confirm password" : "Show confirm password"}
+                >
+                  {showPasswordConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
           )}
 

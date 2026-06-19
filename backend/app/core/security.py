@@ -46,7 +46,15 @@ from jwt.exceptions import (
     InvalidTokenError,
 )
 
-from app.config import SUPABASE_JWT_SECRET, SUPABASE_URL, JWT_SECRET_KEY, JWT_REFRESH_SECRET_KEY
+import httpx
+
+from app.config import (
+    SUPABASE_ANON_KEY,
+    SUPABASE_JWT_SECRET,
+    SUPABASE_URL,
+    JWT_SECRET_KEY,
+    JWT_REFRESH_SECRET_KEY,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -196,6 +204,9 @@ def extract_user_id_verified(token: Optional[str]) -> Optional[str]:
     """
     if not token:
         return None
+    clean = token.removeprefix("Bearer ").strip()
+    if not clean:
+        return None
 
     # 1. Try to verify as custom access token
     try:
@@ -207,15 +218,44 @@ def extract_user_id_verified(token: Optional[str]) -> Optional[str]:
     except InvalidTokenError:
         pass  # Fall through to try Supabase token
 
-    # 2. Try to verify as Supabase token (for backwards compatibility/dev fallback)
+    # 2. Try to verify as Supabase token locally (legacy JWT secret / local JWKS setups)
     try:
         payload = verify_supabase_token(token)
         if payload:
             return payload.sub
     except (ExpiredSignatureError, InvalidTokenError):
+        pass
+
+    # 3. Supabase projects can use newer signing keys that are not verifiable
+    # with the legacy JWT secret. In that case, ask Supabase Auth to validate
+    # the token and return the authenticated user instead of trusting an
+    # unverified payload.
+    return _get_supabase_user_id_remotely(clean)
+
+
+def _get_supabase_user_id_remotely(clean_token: str) -> Optional[str]:
+    if not SUPABASE_URL or not SUPABASE_ANON_KEY:
         return None
 
-    return None
+    try:
+        response = httpx.get(
+            f"{SUPABASE_URL.rstrip('/')}/auth/v1/user",
+            headers={
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization": f"Bearer {clean_token}",
+            },
+            timeout=5,
+        )
+        if response.status_code != 200:
+            return None
+
+        data = response.json()
+        user_id = data.get("id")
+        return user_id if isinstance(user_id, str) and user_id else None
+    except Exception as exc:
+        logger.warning("Remote Supabase token validation failed: %s", type(exc).__name__)
+        return None
+
 
 
 

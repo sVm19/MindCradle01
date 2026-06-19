@@ -76,6 +76,7 @@ def test_signup_and_login_success(monkeypatch):
         assert password == get_deterministic_hash("ValidPassword1!")
         return {
             "token": "session-token",
+            "refresh_token": "session-refresh-token",
             "record": {
                 "id": "fake-user-id",
                 "email": "test_success@example.com",

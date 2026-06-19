@@ -69,9 +69,10 @@ async def login(req: LoginRequest, response: Response):
         name = record.get("name", "")
         email = record["email"]
 
-        # Generate custom tokens
-        access_token = create_access_token(user_id, email=email)
-        refresh_token = create_refresh_token(user_id, email=email, name=name)
+        # Use Supabase-issued tokens for API calls so Supabase RLS can validate
+        # requests with the project's active signing-key setup.
+        access_token = result["token"]
+        refresh_token = result["refresh_token"]
 
         # Set refresh token in HttpOnly cookie
         response.set_cookie(
@@ -116,9 +117,10 @@ async def signup(req: SignupRequest, response: Response):
         name = record.get("name", "")
         email = record["email"]
 
-        # Generate custom tokens
-        access_token = create_access_token(user_id, email=email)
-        refresh_token = create_refresh_token(user_id, email=email, name=name)
+        # Use Supabase-issued tokens for API calls so Supabase RLS can validate
+        # requests with the project's active signing-key setup.
+        access_token = result["token"]
+        refresh_token = result["refresh_token"]
 
         # Set refresh token in HttpOnly cookie
         response.set_cookie(
@@ -172,21 +174,23 @@ async def refresh_token_endpoint(
         raise HTTPException(status_code=401, detail="Refresh token missing")
 
     try:
-        # Verify the refresh token
-        payload = jwt.decode(
-            token_to_verify,
-            settings.JWT_REFRESH_SECRET_KEY,
-            algorithms=["HS256"]
+        result = await pb.refresh_session(token_to_verify)
+        record = result["record"]
+        user_id = record["id"]
+        email = record.get("email", "")
+        name = record.get("name", "")
+        new_access_token = result["token"]
+        new_refresh_token = result["refresh_token"]
+
+        response.set_cookie(
+            key="refresh_token",
+            value=new_refresh_token,
+            httponly=True,
+            secure=(settings.ENVIRONMENT == "production"),
+            samesite="lax",
+            max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            path="/"
         )
-        if payload.get("type") != "refresh":
-            raise HTTPException(status_code=401, detail="Invalid token type")
-
-        user_id = payload["sub"]
-        email = payload.get("email", "")
-        name = payload.get("name", "")
-
-        # Issue new short-lived access token
-        new_access_token = create_access_token(user_id, email=email)
 
         return AuthResponse(
             token=new_access_token,
@@ -195,13 +199,9 @@ async def refresh_token_endpoint(
             name=name,
             email=email,
         )
-    except jwt.ExpiredSignatureError:
+    except Exception:
         response.delete_cookie(key="refresh_token", path="/")
-        logger.warning("Refresh token expired")
-        raise HTTPException(status_code=401, detail="Session expired. Please log in again.")
-    except jwt.InvalidTokenError:
-        response.delete_cookie(key="refresh_token", path="/")
-        logger.warning("Invalid refresh token signature or payload")
+        logger.warning("Supabase refresh token invalid or expired")
         raise HTTPException(status_code=401, detail="Session expired. Please log in again.")
 
 

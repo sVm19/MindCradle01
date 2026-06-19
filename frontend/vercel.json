@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://api.mindcradle.online/api/:path*"
+      "destination": "https://mindcradle01-959765770210.asia-south1.run.app/api/:path*"
     }
   ],
   "headers": [

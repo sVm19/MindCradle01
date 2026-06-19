@@ -1,8 +1,10 @@
 import os
 import sys
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(BACKEND_DIR / ".env")
 
 # Runtime environment — set to "production" on deployment platforms.
 # Controls CORS origins, HSTS headers, and startup validation.

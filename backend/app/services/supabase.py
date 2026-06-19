@@ -100,6 +100,17 @@ def _apply_filter(query, filter_str: str):
                 query = query.eq(field, val)
     return query
 
+def _execute_query(query):
+    try:
+        return query.execute()
+    except Exception as e:
+        err_str = str(e)
+        if "PGRST301" in err_str or "wrong key type" in err_str or "decode the JWT" in err_str:
+            raise Exception(
+                "SUPABASE_JWT_SECRET is configured incorrectly in your backend .env file. "
+                "Please check your Supabase Settings -> API -> JWT Secret."
+            )
+        raise
 
 class JWTExpiredError(Exception):
     """Raised when a Supabase call fails due to an expired JWT."""
@@ -187,7 +198,7 @@ class SupabaseService:
             if "perPage" in p:
                 query = query.limit(int(p["perPage"]))
                 
-            res = query.execute()
+            res = _execute_query(query)
             return {
                 "items": res.data or [],
                 "totalItems": len(res.data) if res.data else 0
@@ -206,7 +217,7 @@ class SupabaseService:
     ) -> dict:
         def _call():
             client = _get_client(token)
-            res = client.table(collection).select("*").eq("id", record_id).execute()
+            res = _execute_query(client.table(collection).select("*").eq("id", record_id))
             if not res.data:
                 raise Exception(f"Record {record_id} not found in {collection}")
             return res.data[0]
@@ -221,7 +232,7 @@ class SupabaseService:
             if "user" in insert_data:
                 insert_data["user_id"] = insert_data.pop("user")
             
-            res = client.table(collection).insert(insert_data).execute()
+            res = _execute_query(client.table(collection).insert(insert_data))
             if not res.data:
                 raise Exception(f"Failed to create record in {collection}")
             return res.data[0]
@@ -240,7 +251,7 @@ class SupabaseService:
             if "user" in update_data:
                 update_data["user_id"] = update_data.pop("user")
                 
-            res = client.table(collection).update(update_data).eq("id", record_id).execute()
+            res = _execute_query(client.table(collection).update(update_data).eq("id", record_id))
             if not res.data:
                 raise Exception(f"Failed to update record {record_id} in {collection}")
             return res.data[0]

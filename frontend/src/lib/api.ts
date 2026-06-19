@@ -5,7 +5,7 @@
  *
  * Routing:
  *   Development — Vite proxy rewrites /api → http://localhost:8000
- *   Production  — Vercel rewrites /api → https://api.mindcradle.com
+ *   Production  — Vercel rewrites /api → https://mindcradle01-959765770210.asia-south1.run.app
  *                 (configured in vercel.json) OR same-origin if collocated.
  *
  * All requests use relative /api paths so no VITE_API_URL is needed
@@ -509,4 +509,9 @@ export const profile = {
   get: () => request<ProfileResponse>('GET', '/profile'),
   update: (data: { emergency_contact?: string; notify_on_crisis?: boolean }) => request<ProfileResponse>('PATCH', '/profile', data),
   patchMilestones: (unlockedBadges: string[]) => request<any>('PATCH', '/profile/milestones', { unlockedBadges }),
+};
+
+export const user = {
+  exportData: () => request<any>('GET', '/user/export-data'),
+  deleteAccount: (password: string) => request<{ message: string }>('DELETE', '/user/delete-account', { password }),
 };

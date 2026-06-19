@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken(null);
     localStorage.removeItem(STORAGE_USER_KEY);
     setUser(null);
-    authApi.logout().catch(() => {});
+    authApi.logout().catch(() => { });
   }, []);
 
   // Register the global token-expired callback so the API layer
@@ -150,5 +150,33 @@ export function getInitials(name: string): string {
     .join('');
 }
 
+/** Returns a modern colorful gradient based on name/email string. */
+export function getAvatarGradient(name: string): string {
+  const sum = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const gradients = [
+    'from-[#ff007f] via-[#7f00ff] to-[#00f0ff]', // Neon Pink-Purple-Cyan
+    'from-[#ff5e62] to-[#ff9966]', // Salmon-Orange
+    'from-[#11998e] to-[#38ef7d]', // Emerald-Mint
+    'from-[#130cb7] to-[#52e5e7]', // Electric Blue
+    'from-[#fc4a1a] to-[#f7b733]', // Fire Sunrise
+    'from-[#ee0979] to-[#ff6a00]', // Pink Sunset
+    'from-[#8a2387] via-[#e94057] to-[#f27121]', // Crimson-Orange
+    'from-[#f857a6] to-[#ff5858]', // Hot Pink
+    'from-[#654ea3] to-[#eaafc8]', // Orchid
+  ];
+  return gradients[sum % gradients.length];
+}
+
 export const isAgeVerified = () => localStorage.getItem('age_verified') === 'true';
+
+/** A stylized modern sketch of a human face/silhouette for avatars. */
+export function UserSketchAvatar({ className = "w-6 h-6 text-white" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="8.5" r="4.5" />
+      <path d="M4.5 20c0-3.3 2.7-6 6-6h3c3.3 0 6 2.7 6 6" />
+    </svg>
+  );
+}
+
 

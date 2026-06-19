@@ -2,9 +2,10 @@ import React from 'react';
 
 interface LogoProps extends React.SVGProps<SVGSVGElement> {
   showText?: boolean;
+  spin?: boolean;
 }
 
-export default function Logo({ showText = true, className, ...props }: LogoProps) {
+export default function Logo({ showText = true, spin = false, className, ...props }: LogoProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -30,12 +31,24 @@ export default function Logo({ showText = true, className, ...props }: LogoProps
               font-weight: 700;
               fill: currentColor;
             }
+            @keyframes mc-spin {
+              from {
+                transform: rotate(0deg);
+              }
+              to {
+                transform: rotate(360deg);
+              }
+            }
+            .mc-spin {
+              animation: mc-spin 3s linear infinite;
+              transform-origin: 40px 40px;
+            }
           `}
         </style>
       </defs>
       
       {/* Icon Area: 60x60 container centered vertically (y: 10 to 70), center of icon is (40, 40) */}
-      <g id="logo-icon">
+      <g id="logo-icon" className={spin ? "mc-spin" : ""}>
         {/* Large Corner Shape */}
         <path className="mc-icon-shape" d="M 23,37 L 23,17 L 63,17 L 63,57 L 43,57 L 43,37 Z" />
         

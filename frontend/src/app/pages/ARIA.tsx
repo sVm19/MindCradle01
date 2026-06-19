@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router';
 import { sanitizeForInput, sanitizeForDisplay } from '@/lib/sanitize';
 import { ai as aiApi, resources as resourcesApi, mood as moodApi, journal as journalApi } from '@/lib/api';
 import type { ResourceItem, MoodItem, JournalItem } from '@/lib/api';
-import { useAuth, getInitials } from '@/lib/auth';
+import { useAuth, getInitials, getAvatarGradient, UserSketchAvatar } from '@/lib/auth';
 import { useARIA } from '@/context/ARIAContext';
 import { Lock, Heart, Brain, Target, Lightbulb, Sparkles, Phone, MessageSquare, ThumbsUp, ThumbsDown, Meh, Wind, PhoneCall, X, Zap, Flower2, AlignLeft, HeartHandshake } from 'lucide-react';
 import AgeVerificationModal from '@/app/components/AgeVerificationModal';
 import { auth as authApi } from '@/lib/api';
 import GuestGate from '@/app/components/GuestGate';
+import Logo from '@/app/components/Logo';
 
 interface Message {
   role: 'user' | 'aria';
@@ -50,7 +51,7 @@ const renderMessageContent = (content: string) => {
 };
 
 export default function ARIA() {
-  const { user } = useAuth();
+  const { user, setVerifyModalOpen, verifyModalOpen } = useAuth();
   const navigate = useNavigate();
   const initials = user ? getInitials(user.name || user.email) : '?';
 
@@ -63,7 +64,7 @@ export default function ARIA() {
     setLoading,
     clearARIAConversation,
   } = useARIA();
-  
+
   const [ageVerified, setAgeVerified] = useState<boolean | null>(null);
 
   const [input, setInput] = useState('');
@@ -204,7 +205,7 @@ export default function ARIA() {
       .catch(() => {
         setAgeVerified(false);
       });
-  }, [user]);
+  }, [user, verifyModalOpen]);
 
   // Auto-scroll on new message
   useEffect(() => {
@@ -254,20 +255,17 @@ export default function ARIA() {
       aiApi.extractThemes(nextConvoId).then(() => {
         aiApi.getConversationThemes().then((tRes) => {
           setThemeFrequencies(tRes.frequencies || []);
-        }).catch(() => {});
-      }).catch(() => {});
+        }).catch(() => { });
+      }).catch(() => { });
 
       if (responseType) {
         setShowMemoryPrompt(true);
       }
     } catch (err) {
       const errorMsg = (err as any)?.response?.data?.detail || (err as Error)?.message || "I'm having trouble connecting right now. Please try again in a moment.";
-      if (errorMsg.includes("Age verification") || errorMsg.includes("403")) {
-        if (errorMsg.includes("expired")) {
-          setAgeVerificationStatus('reverify');
-        } else {
-          setAgeVerificationStatus('pending');
-        }
+      if (errorMsg.includes("Age verification") || errorMsg.includes("403") || errorMsg.includes("age_restricted")) {
+        setAgeVerified(false);
+        setVerifyModalOpen(true);
       }
       setMessages((prev) => [...prev, { role: 'aria', content: errorMsg }]);
     } finally {
@@ -372,7 +370,7 @@ export default function ARIA() {
       } else {
         setPersonality(null);
       }
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   const handleAnalyzePersonality = async () => {
@@ -456,7 +454,7 @@ export default function ARIA() {
         rating
       );
       if (conversationId) {
-        aiApi.trackEngagement(conversationId).catch(() => {});
+        aiApi.trackEngagement(conversationId).catch(() => { });
       }
       setToastMessage('Feedback recorded.');
       setTimeout(() => setToastMessage(null), 3000);
@@ -475,14 +473,14 @@ export default function ARIA() {
       clearARIAConversation();
       setCrisisDetected(false);
       setCrisisSeverity(null);
-      await aiApi.resolveCrisis().catch(() => {});
+      await aiApi.resolveCrisis().catch(() => { });
       setToastMessage('Conversation ended and summarized.');
       setTimeout(() => setToastMessage(null), 3000);
-      
+
       // Reload timeline and check-ins
       aiApi.listConversations().then((res) => {
         setHistoryTimeline(res || []);
-      }).catch(() => {});
+      }).catch(() => { });
       aiApi.getCheckIn().then((res) => {
         if (res && res.check_in_message) {
           setCheckInMessage(res.check_in_message);
@@ -490,7 +488,7 @@ export default function ARIA() {
         } else {
           setCheckInMessage(null);
         }
-      }).catch(() => {});
+      }).catch(() => { });
     } catch (err) {
       if (import.meta.env.DEV) {
         console.error('Failed to end conversation:', err);
@@ -570,7 +568,7 @@ export default function ARIA() {
         <h1>ARIA is not available for you</h1>
         <p>ARIA is designed for users 18 and older.</p>
         <p>If you need support, please reach out:</p>
-        
+
         <div className="bg-bg3/50 border border-border rounded-xl p-4 space-y-3 text-left max-w-md mx-auto my-4">
           <a
             href="tel:988"
@@ -789,11 +787,11 @@ export default function ARIA() {
                 day: 'numeric',
                 year: 'numeric',
               }) : 'Recent';
-              
+
               return (
                 <div key={convo.id} className="relative group">
                   <div className="absolute -left-[31px] top-1.5 w-2.5 h-2.5 rounded-full bg-accent/40 group-hover:bg-accent border-2 border-bg transition-colors" />
-                  
+
                   <div className="bg-bg2/50 border border-border/80 hover:border-border2 hover:bg-bg2 rounded-[18px] p-5 transition-all space-y-3 shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/30 pb-2.5">
                       <span className="text-xs text-text3 font-medium">{dateStr}</span>
@@ -803,11 +801,11 @@ export default function ARIA() {
                         </span>
                       )}
                     </div>
-                    
+
                     <div className="text-xs text-text2 space-y-1.5 leading-relaxed font-light whitespace-pre-line">
                       {sanitizeForDisplay(convo.summary || 'No summary available.')}
                     </div>
-                    
+
                     {convo.key_points && convo.key_points.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         {convo.key_points.map((tag: string, tIdx: number) => (
@@ -842,8 +840,8 @@ export default function ARIA() {
                 className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {message.role === 'aria' && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent2 to-teal flex items-center justify-center text-sm flex-shrink-0" aria-hidden="true">
-                    ✦
+                  <div className="w-8 h-8 rounded-full bg-bg3/60 border border-border/60 flex items-center justify-center flex-shrink-0 backdrop-blur-md" aria-hidden="true">
+                    <Logo showText={false} className="w-7 h-7" />
                   </div>
                 )}
                 <div className="flex flex-col gap-1 max-w-[75%]">
@@ -912,11 +910,10 @@ export default function ARIA() {
                     </div>
                   ) : (
                     <div
-                      className={`aria-message px-4 py-3 rounded-[14px] w-full ${
-                        message.role === 'user'
+                      className={`aria-message px-4 py-3 rounded-[14px] w-full ${message.role === 'user'
                           ? 'bg-accent text-white'
                           : 'bg-bg3 border border-border text-text'
-                      }`}
+                        }`}
                     >
                       <p className="text-sm leading-relaxed">{renderMessageContent(sanitizeForDisplay(message.content))}</p>
                     </div>
@@ -960,8 +957,15 @@ export default function ARIA() {
                   )}
                 </div>
                 {message.role === 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent2 to-teal flex items-center justify-center text-[11px] font-medium text-white flex-shrink-0" aria-hidden="true">
-                    {initials}
+                  <div className="w-8 h-8 rounded-full bg-[#eef2f6] border border-[#b0b8c0] flex items-center justify-center flex-shrink-0 shadow-sm animate-fadeIn" aria-hidden="true">
+                    <span
+                      className="font-extrabold font-sans text-xs tracking-wide select-none"
+                      style={{
+                        color: '#612318ff'
+                      }}
+                    >
+                      {initials}
+                    </span>
                   </div>
                 )}
               </div>
@@ -970,8 +974,8 @@ export default function ARIA() {
             {/* Typing/Thinking indicator */}
             {loading && (
               <div className="flex gap-3 justify-start animate-fadeIn" role="status" aria-live="polite">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent2 to-teal flex items-center justify-center text-sm flex-shrink-0" aria-hidden="true">
-                  ✦
+                <div className="w-8 h-8 rounded-full bg-bg3/60 border border-border/60 flex items-center justify-center flex-shrink-0 backdrop-blur-md" aria-hidden="true">
+                  <Logo showText={false} spin={true} className="w-7 h-7" />
                 </div>
                 <div className="flex flex-col gap-1 max-w-[75%]">
                   <div className="text-gray-500 text-sm italic flex items-center gap-1.5 mb-1.5 opacity-80 animate-pulse">
@@ -1055,7 +1059,7 @@ export default function ARIA() {
                   title="ARIA will remember this conversation"
                 />
                 <span className="text-[10px] text-text3 ml-2 flex items-center gap-1">
-                  <Lock size={12} className="text-blue-500 inline mr-1" /> 
+                  <Lock size={12} className="text-blue-500 inline mr-1" />
                   {crisisDetected && (crisisSeverity === 3 || crisisSeverity === 'HIGH')
                     ? "Chat is active. Counselor support is recommended."
                     : "ARIA will remember this conversation"}

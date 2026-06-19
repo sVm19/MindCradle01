@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router';
 import { useEffect, useState } from 'react';
-import { useAuth, getInitials } from '@/lib/auth';
+import { useAuth, getInitials, getAvatarGradient, UserSketchAvatar } from '@/lib/auth';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi } from '@/lib/api';
 import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, Flame, AlertTriangle, X, User } from 'lucide-react';
 import Logo from './Logo';
@@ -37,7 +37,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     moodApi.history('7d').then((res) => {
       const uniqueDates = new Set(res.items.map((item) => item.created.slice(0, 10)));
       setStreak(uniqueDates.size);
-    }).catch(() => {/* silently ignore if API is unavailable */});
+    }).catch(() => {/* silently ignore if API is unavailable */ });
   }, [user]);
 
   // Fetch crisis status
@@ -47,7 +47,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         .then((res) => {
           setHasCriticalCrisis(res.has_critical_crisis);
         })
-        .catch(() => {});
+        .catch(() => { });
     } else {
       setHasCriticalCrisis(false);
     }
@@ -96,10 +96,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (user) {
-      aiApi.scheduleCheckin().catch(() => {}).finally(() => {
+      aiApi.scheduleCheckin().catch(() => { }).finally(() => {
         aiApi.listProactiveCheckins().then((list) => {
           setNotifications(list);
-        }).catch(() => {});
+        }).catch(() => { });
       });
     } else {
       setNotifications([]);
@@ -219,7 +219,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                               <div className="text-[12.5px] text-text font-light leading-relaxed">
                                 "{n.suggested_message}"
                               </div>
-                              
+
                               <div className="flex items-center justify-between text-[10px] text-text3">
                                 <span>{dateLabel}</span>
                                 {hasResponded && (
@@ -249,11 +249,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                           alert("This feature is for users 18+. Please contact a crisis counselor instead.");
                                         }
                                       }}
-                                      className={`text-[11px] hover:underline ${
-                                        localStorage.getItem('age_verified') === 'false'
-                                          ? 'text-text3 cursor-not-allowed opacity-50'
-                                          : 'text-accent'
-                                      }`}
+                                      className={`text-[11px] hover:underline ${localStorage.getItem('age_verified') === 'false'
+                                        ? 'text-text3 cursor-not-allowed opacity-50'
+                                        : 'text-accent'
+                                        }`}
                                     >
                                       Chat in ARIA →
                                     </Link>
@@ -287,19 +286,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {user ? (
                 <Link
                   to="/settings"
-                  className="w-11 h-11 rounded-lg bg-gradient-to-br from-accent2 to-teal flex items-center justify-center text-[13px] font-medium text-white cursor-pointer hover:opacity-90 transition-opacity flex-shrink-0"
+                  className="w-11 h-11 rounded-full bg-[#eef2f6] border border-[#b0b8c0] flex items-center justify-center flex-shrink-0 hover:scale-105 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
                   title="Settings / Profile"
                 >
-                  {initials}
+                  <span
+                    className="font-extrabold font-sans text-[15px] tracking-wide select-none animate-fadeIn"
+                    style={{
+                      color: '#612318ff'
+                    }}
+                  >
+                    {initials}
+                  </span>
                 </Link>
               ) : (
                 <button
                   type="button"
                   onClick={() => setAuthModalOpen(true)}
-                  className="w-11 h-11 rounded-lg bg-bg2/50 border border-border flex items-center justify-center text-text2 hover:text-text hover:border-border2 hover:bg-white/5 cursor-pointer transition-all flex-shrink-0"
+                  className="w-11 h-11 rounded-full bg-bg2/50 border border-border flex items-center justify-center text-text2 hover:text-text hover:border-border2 hover:bg-white/5 cursor-pointer transition-all flex-shrink-0 backdrop-blur-md"
                   title="Sign In / Create Account"
                 >
-                  <User size={18} />
+                  <UserSketchAvatar className="w-5 h-5 text-text2" />
                 </button>
               )}
             </div>
@@ -322,13 +328,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       alert("This feature is for users 18+. Please contact a crisis counselor instead.");
                     }
                   }}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap ${
-                    isBlocked
-                      ? 'opacity-40 cursor-not-allowed text-text3 hover:bg-transparent'
-                      : isActive
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap ${isBlocked
+                    ? 'opacity-40 cursor-not-allowed text-text3 hover:bg-transparent'
+                    : isActive
                       ? 'bg-accent-glow text-accent border border-accent/20'
                       : 'text-text2 hover:bg-white/5 hover:text-text'
-                  }`}
+                    }`}
                 >
                   {item.icon}
                   <span>{item.label}</span>
@@ -354,11 +359,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     setAuthModalOpen(true);
                   }
                 }}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap ${
-                  location.pathname === '/settings'
-                    ? 'bg-accent-glow text-accent border border-accent/20'
-                    : 'text-text2 hover:bg-white/5 hover:text-text'
-                }`}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap ${location.pathname === '/settings'
+                  ? 'bg-accent-glow text-accent border border-accent/20'
+                  : 'text-text2 hover:bg-white/5 hover:text-text'
+                  }`}
               >
                 <Settings size={15} />
                 <span>Settings</span>
@@ -392,7 +396,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <p className="text-sm text-text leading-relaxed font-light">
                 We're concerned about your safety. You don't have to face this alone. Please reach out to one of the following 24/7 resources:
               </p>
-              
+
               <div className="space-y-3">
                 <div className="bg-bg3 border border-border rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div>

@@ -1,8 +1,10 @@
-"""AI API integration service (OpenRouter-compatible via OpenAI client)."""
-
-from openai import OpenAI
+from openai import OpenAI, APITimeoutError, APIConnectionError, APIError
+from fastapi import HTTPException
+import logging
 from app.config import OPENROUTER_API_KEY, OPENROUTER_API_URL, OPENROUTER_MODEL
 
+logger = logging.getLogger(__name__)
+OPENROUTER_TIMEOUT = 30.0
 
 def _get_client() -> OpenAI:
     """Create an OpenAI client pointed at OpenRouter's API."""
@@ -32,16 +34,35 @@ async def chat_completion(
     if system_prompt:
         full_messages = [{"role": "system", "content": system_prompt}] + messages
 
-    completion = client.chat.completions.create(
-        model=model or OPENROUTER_MODEL,
-        messages=full_messages,
-        temperature=temperature,
-        top_p=top_p,
-        max_tokens=max_tokens,
-        stream=False,
-    )
-
-    return completion.choices[0].message.content or ""
+    try:
+        completion = client.chat.completions.create(
+            model=model or OPENROUTER_MODEL,
+            messages=full_messages,
+            temperature=temperature,
+            top_p=top_p,
+            max_tokens=max_tokens,
+            stream=False,
+            timeout=OPENROUTER_TIMEOUT,
+        )
+        return completion.choices[0].message.content or ""
+    except APITimeoutError as e:
+        logger.error(f"OpenRouter timeout error: {str(e)}")
+        raise HTTPException(
+            status_code=504,
+            detail="AI service timeout. Please try again."
+        )
+    except (APIConnectionError, APIError) as e:
+        logger.error(f"OpenRouter API error: {str(e)}")
+        raise HTTPException(
+            status_code=502,
+            detail="AI service unavailable"
+        )
+    except Exception as e:
+        logger.error(f"OpenRouter unexpected error: {str(e)}")
+        raise HTTPException(
+            status_code=502,
+            detail="AI service unavailable"
+        )
 
 
 async def chat_completion_stream(messages: list[dict], *, system_prompt: str | None = None):
@@ -52,21 +73,41 @@ async def chat_completion_stream(messages: list[dict], *, system_prompt: str | N
     if system_prompt:
         full_messages = [{"role": "system", "content": system_prompt}] + messages
 
-    completion = client.chat.completions.create(
-        model=OPENROUTER_MODEL,
-        messages=full_messages,
-        temperature=0.7,
-        top_p=0.9,
-        max_tokens=180,
-        stream=True,
-    )
+    try:
+        completion = client.chat.completions.create(
+            model=OPENROUTER_MODEL,
+            messages=full_messages,
+            temperature=0.7,
+            top_p=0.9,
+            max_tokens=180,
+            stream=True,
+            timeout=OPENROUTER_TIMEOUT,
+        )
 
-    for chunk in completion:
-        if not chunk.choices:
-            continue
-        delta = chunk.choices[0].delta
-        if delta.content is not None:
-            yield delta.content
+        for chunk in completion:
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta
+            if delta.content is not None:
+                yield delta.content
+    except APITimeoutError as e:
+        logger.error(f"OpenRouter stream timeout error: {str(e)}")
+        raise HTTPException(
+            status_code=504,
+            detail="AI service timeout. Please try again."
+        )
+    except (APIConnectionError, APIError) as e:
+        logger.error(f"OpenRouter stream API error: {str(e)}")
+        raise HTTPException(
+            status_code=502,
+            detail="AI service unavailable"
+        )
+    except Exception as e:
+        logger.error(f"OpenRouter stream unexpected error: {str(e)}")
+        raise HTTPException(
+            status_code=502,
+            detail="AI service unavailable"
+        )
 
 
 async def get_recommendation(mood_level: int, emotions: list[str], history_summary: str) -> str:

@@ -3079,9 +3079,11 @@ async def chat(
                     top_p=0.9,
                     max_tokens=180,
                 )
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error("CHAT API: OpenRouter call failed: %s", str(e))
-                raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
+                raise HTTPException(status_code=502, detail="AI service unavailable")
 
         if not _passes_safety_filter(reply):
             raise HTTPException(
@@ -3196,7 +3198,8 @@ async def chat(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
+        logger.error("CHAT API unhandled error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=502, detail="AI service unavailable")
 
 
 @router.post("/chat/stream")
@@ -3283,8 +3286,11 @@ async def recommend(
             history_summary=req.context,
         )
         return {"recommendation": result}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
+        logger.error("AI recommendation failed: %s", str(e))
+        raise HTTPException(status_code=502, detail="AI service unavailable")
 
 
 def parse_json_safely(text: str) -> dict:
