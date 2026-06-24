@@ -16,6 +16,35 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+app = FastAPI(
+    title="MindCradle API",
+    description="Backend API for the MindCradle mental health dashboard",
+    version="0.1.0",
+)
+
+# Add routers
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(resources.router, prefix="/api/resources", tags=["resources"])
+app.include_router(mood.router, prefix="/api/mood", tags=["mood"])
+app.include_router(journal.router, prefix="/api/journal", tags=["journal"])
+app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
+app.include_router(ai.aria_router, prefix="/api/aria", tags=["aria"])
+app.include_router(rituals.router, prefix="/api/rituals", tags=["rituals"])
+app.include_router(profile.router, prefix="/api/profile", tags=["profile"])
+app.include_router(profile.router, prefix="/api", tags=["profile"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
+app.include_router(user.router, prefix="/api/user", tags=["user"])
+
+# Health endpoint (no DB required)
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+@app.get("/api/health")
+async def health_check():
+    return {"status": "healthy", "service": "mindcradle-backend"}
+
+# Everything else below
 class CsrfSettings(BaseModel):
     secret_key: str = JWT_SECRET_KEY
     cookie_samesite: str = "lax"
@@ -26,12 +55,6 @@ def load_config():
     return CsrfSettings()
 
 csrf_protect = CsrfProtect()
-
-app = FastAPI(
-    title="MindCradle API",
-    description="Backend API for the MindCradle mental health dashboard",
-    version="0.1.0",
-)
 
 from fastapi.exceptions import RequestValidationError
 
@@ -195,20 +218,6 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
 )
 
-# Register routers
-app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
-app.include_router(resources.router, prefix="/api/resources", tags=["resources"])
-app.include_router(mood.router, prefix="/api/mood", tags=["mood"])
-app.include_router(journal.router, prefix="/api/journal", tags=["journal"])
-app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
-app.include_router(ai.aria_router, prefix="/api/aria", tags=["aria"])
-app.include_router(rituals.router, prefix="/api/rituals", tags=["rituals"])
-app.include_router(profile.router, prefix="/api/profile", tags=["profile"])
-app.include_router(profile.router, prefix="/api", tags=["profile"])
-app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
-app.include_router(user.router, prefix="/api/user", tags=["user"])
-
-
 @app.get("/api/csrf-token")
 async def get_csrf_token(request: Request):
     """Return CSRF token for form submissions and set signed cookie."""
@@ -216,8 +225,3 @@ async def get_csrf_token(request: Request):
     response = JSONResponse(content={"csrf_token": csrf_token})
     csrf_protect.set_csrf_cookie(signed_token, response)
     return response
-
-
-@app.get("/api/health")
-async def health_check():
-    return {"status": "healthy", "service": "mindcradle-backend"}
