@@ -152,8 +152,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 {formatDate(new Date())}
               </div>
               <div className="font-[family-name:var(--font-serif)] text-xs sm:text-base md:text-lg font-light text-text italic leading-tight truncate">
-                Good {greeting}, <span className="not-italic text-accent">{user?.name?.split(' ')[0] || 'guest'}</span> ✦
+                Good {greeting}, <span className="not-italic text-accent">{user?.name?.split(' ')[0] || 'guest'}</span>
               </div>
+              {streak > 0 && (
+                <div className="text-xs text-amber font-medium mt-1.5 animate-fadeIn">
+                  {streak} Days | Keep it going!
+                </div>
+              )}
             </div>
 
             {/* Right: Notification Center & Profile Link */}
