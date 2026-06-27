@@ -12,6 +12,38 @@ logger = logging.getLogger(__name__)
 class DeleteAccountRequest(BaseModel):
     password: str
 
+
+@router.get("/me")
+async def get_current_user(authorization: Optional[str] = Header(None)):
+    """
+    Return the authenticated user's id and email.
+    Used by the frontend AuthProvider to verify that an access token
+    stored in-memory (restored via refresh cookie) is still valid.
+    """
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    token = authorization.removeprefix("Bearer ").strip()
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    try:
+        client = _get_client(token)
+        user_res = client.auth.get_user(token)
+        if not user_res or not user_res.user:
+            raise HTTPException(status_code=401, detail="User not found")
+
+        return {
+            "id": str(user_res.user.id),
+            "email": user_res.user.email,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to fetch current user: %s", e)
+        raise HTTPException(status_code=401, detail="Could not verify token")
+
 @router.get("/export-data")
 async def export_user_data(authorization: Optional[str] = Header(None)):
     """
