@@ -1,4 +1,6 @@
 import logging
+import uuid
+import bcrypt
 from typing import Optional
 from datetime import datetime, timedelta, timezone
 import jwt
@@ -13,6 +15,10 @@ from app.models.schemas import (
     PrivacyAcceptanceRequest,
     WithdrawConsentRequest,
     ChangePasswordRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    MagicLinkRequest,
+    MagicLoginRequest,
 )
 from app.utils.security import (
     hash_password,
@@ -20,8 +26,14 @@ from app.utils.security import (
     validate_password,
     get_deterministic_hash,
 )
+from app.utils.email import (
+    send_password_reset_email,
+    send_signup_welcome,
+    send_magic_link_email,
+)
 from app.services.supabase import pb, extract_user_id
 from app import config as settings
+
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -145,6 +157,12 @@ async def signup(req: SignupRequest, response: Response):
             )
         except Exception as hexc:
             logger.warning("Failed to save initial password in history: %s", hexc)
+
+        # Send welcome email
+        try:
+            send_signup_welcome(email)
+        except Exception as e:
+            logger.warning("Failed to send welcome email: %s", e)
 
         return AuthResponse(
             token=access_token,
@@ -500,6 +518,137 @@ async def change_password(
         logger.warning("Failed to record new password in history: %s", hexc)
         
     return {"success": True, "message": "Password changed successfully"}
+
+
+@router.post("/forgot-password")
+async def forgot_password(req: ForgotPasswordRequest):
+    """Request password reset email."""
+    # Generate reset token (15 min expiry)
+    reset_token = str(uuid.uuid4())
+    expiry_seconds = 900  # 15 minutes
+    
+    try:
+        # Call Database RPC to lookup user and save the token securely
+        res = await pb.create_password_reset_token(req.email, reset_token, expiry_seconds)
+        
+        # If successfully created, send email
+        if res is True:
+            reset_link = f"{settings.FRONTEND_URL}/reset?token={reset_token}"
+            send_password_reset_email(req.email, reset_link)
+    except Exception as e:
+        logger.error(f"Forgot password failed: {str(e)}")
+        # Proceed silently to prevent email enumeration
+        
+    return {"message": "If email exists, reset link sent"}
+
+
+@router.post("/reset-password")
+async def reset_password(req: ResetPasswordRequest):
+    """Verify token and reset password."""
+    # 1. Validate password strength
+    password_error = validate_password(req.new_password)
+    if password_error:
+        raise HTTPException(status_code=400, detail=password_error)
+
+    try:
+        # 2. Retrieve last 5 passwords to enforce history constraint
+        history = await pb.get_password_history_by_token(req.token)
+        for record in history:
+            if verify_password(req.new_password, record.get("password_hash")):
+                raise HTTPException(status_code=400, detail="Cannot reuse any of your last 5 passwords.")
+                
+        # 3. Bcrypt-hash the new deterministic password and call the reset RPC
+        deterministic_pass = get_deterministic_hash(req.new_password)
+        salt = bcrypt.gensalt(rounds=settings.BCRYPT_ROUNDS)
+        new_encrypted_pass = bcrypt.hashpw(deterministic_pass.encode("utf-8"), salt).decode("utf-8")
+        
+        # Hash new password for history
+        new_history_hash = hash_password(req.new_password)
+        
+        # Execute reset password RPC
+        reset_res = await pb.reset_password_with_token(
+            req.token,
+            new_encrypted_pass,
+            new_history_hash
+        )
+        
+        if not reset_res:
+            raise HTTPException(status_code=400, detail="Invalid or expired token")
+            
+        return {"message": "Password reset successful. Login now."}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Reset password failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to reset password. Please try again.")
+
+
+@router.post("/magic-link")
+async def magic_link_request(req: MagicLinkRequest):
+    """Request passwordless magic link email."""
+    # Generate token
+    token = str(uuid.uuid4())
+    expiry_seconds = 900  # 15 minutes
+    
+    try:
+        # Call database RPC to lookup user and store the token
+        res = await pb.create_magic_login_token(req.email, token, expiry_seconds)
+        
+        # If successfully created, send email
+        if res is True:
+            magic_link = f"{settings.FRONTEND_URL}/magic-login?token={token}"
+            send_magic_link_email(req.email, magic_link)
+    except Exception as e:
+        logger.error(f"Magic link request failed: {str(e)}")
+        # Proceed silently to prevent email enumeration
+        
+    return {"message": "If email exists, magic login link sent"}
+
+
+@router.post("/magic-login", response_model=AuthResponse)
+async def magic_login(req: MagicLoginRequest, response: Response):
+    """Verify magic link token and log user in, returning Custom JWT AuthResponse."""
+    try:
+        # Consume the token via Database RPC
+        user_info = await pb.consume_magic_login_token(req.token)
+        
+        if not user_info:
+            raise HTTPException(status_code=400, detail="Invalid or expired magic link")
+            
+        user_id = str(user_info["user_id"])
+        email = user_info["user_email"]
+        name = user_info["user_name"]
+        
+        # Generate custom tokens (standard custom JWT flow)
+        access_token = create_access_token(user_id, email)
+        refresh_token = create_refresh_token(user_id, email, name)
+        
+        # Set refresh token in HttpOnly cookie
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=(settings.ENVIRONMENT == "production"),
+            samesite="lax",
+            max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            path="/"
+        )
+        
+        return AuthResponse(
+            token=access_token,
+            refresh_token="",  # Do not return refresh token in body
+            user_id=user_id,
+            name=name,
+            email=email,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Magic login failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to log in with magic link.")
+
+
 
 
 

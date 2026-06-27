@@ -13,6 +13,13 @@ import ARIA from './pages/ARIA';
 import WindDown from './pages/WindDown';
 import Settings from './pages/Settings';
 import Signup from './pages/Signup';
+import Pricing from './pages/Pricing';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
+import Refund from './pages/Refund';
+import ForgotPassword from './pages/ForgotPassword';
+import Reset from './pages/Reset';
+
 
 function AppRoutes() {
   const { user, isLoading } = useAuth();
@@ -48,7 +55,7 @@ function AppRoutes() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-bg">
+      <div className="min-h-[60vh] flex items-center justify-center bg-bg">
         <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
       </div>
     );
@@ -74,6 +81,12 @@ function AppRoutes() {
               <Route path="/wind-down" element={<WindDown />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/refund" element={<Refund />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset" element={<Reset />} />
             </Routes>
           </Layout>
         }

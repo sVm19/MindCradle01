@@ -149,12 +149,14 @@
               filter 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
               border-color 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
               box-shadow 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .bg-bg2:hover, .bg-bg3:hover, .bg-bg4:hover, .bg-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-2px) translateZ(0);
   filter: brightness(105%);
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.16); /* Softer outline to prevent aliasing glow */
   /* Elegant glass elevation shadow */
   box-shadow: 0 16px 38px rgba(0, 0, 0, 0.35);
 }

@@ -52,6 +52,36 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(alias="newPassword")
 
 
+# --- Forgot / Reset Password ---
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class MagicLinkRequest(BaseModel):
+    email: EmailStr
+
+
+class MagicLoginRequest(BaseModel):
+    token: str
+
+
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(alias="newPassword")
+
+    @field_validator('new_password')
+    @classmethod
+    def validate_new_password(cls, v):
+        from app.utils.security import validate_password as val_pwd
+        err = val_pwd(v)
+        if err:
+            raise ValueError(err)
+        return v
+
+
+
 
 # --- Resources ---
 class ResourceCategory(str, Enum):
@@ -491,6 +521,8 @@ class ProfileResponse(BaseModel):
     badge_history: Optional[list[dict]] = None
     emergency_contact: Optional[str] = None
     notify_on_crisis: Optional[bool] = False
+    is_premium: bool = False
+    subscription_expires_at: Optional[str] = None
     created: str
 
 
@@ -506,6 +538,10 @@ class ProfileUpdate(BaseModel):
         return v
 
 
+class SubscriptionCheckoutRequest(BaseModel):
+    card_number: str
+    cvc: str
+    expiry: str
 
 
 # --- Notifications ---

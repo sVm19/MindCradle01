@@ -27,6 +27,7 @@ OPENROUTER_API_URL = os.getenv(
     "https://openrouter.ai/api/v1",
 )
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemma-4-31b-it:free")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 
 # CORS — the URL of the frontend that is allowed to call this API.
 # In production this MUST be an https:// URL.
@@ -87,4 +88,7 @@ if ENVIRONMENT == "production":
         )
     if not OPENROUTER_API_KEY:
         sys.exit("[FATAL] OPENROUTER_API_KEY is not set. Cannot run in production.")
+    if not RESEND_API_KEY:
+        sys.exit("[FATAL] RESEND_API_KEY is not set. Cannot run in production.")
+
 

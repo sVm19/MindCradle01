@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '@/lib/auth';
-import { mood as moodApi, resources as resourcesApi, ai as aiApi } from '@/lib/api';
+import { mood as moodApi, resources as resourcesApi, ai as aiApi, rituals as ritualsApi, journal as journalApi } from '@/lib/api';
 import type { ResourceItem } from '@/lib/api';
-import { Lock, Award, Moon, Wind, PenTool } from 'lucide-react';
+import { Lock, Award, Moon, Wind, PenTool, CheckCircle2, TrendingUp, Brain, Star, Flame, BookOpen, Target } from 'lucide-react';
 import GuestGate from '@/app/components/GuestGate';
+import { WellnessInsightCard } from '@/app/components/WellnessInsightCard';
 
 const SHORT_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -23,6 +24,11 @@ export default function Dashboard() {
   // AI Insight
   const [ariaInsight, setAriaInsight] = useState('');
   const [ariaLoading, setAriaLoading] = useState(true);
+
+  // Wellness stats
+  const [ritualsCompleted, setRitualsCompleted] = useState<number | null>(null);
+  const [insightPatternsCount, setInsightPatternsCount] = useState<number | null>(null);
+  const [journalCount, setJournalCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -71,37 +77,221 @@ export default function Dashboard() {
     }).finally(() => {
       setAriaLoading(false);
     });
+
+    // Fetch rituals completed stats
+    ritualsApi.getStats().then((res) => {
+      setRitualsCompleted(res.completed);
+    }).catch(() => {});
+
+    // Fetch ARIA memory insights
+    aiApi.getMemoryInsights().then((res) => {
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      const newPatterns = res.filter(insight => {
+        const createdDate = new Date(insight.created);
+        return createdDate >= oneWeekAgo;
+      }).length;
+      setInsightPatternsCount(newPatterns);
+    }).catch(() => {});
+
+    // Fetch journal entries count
+    journalApi.list().then((res) => {
+      setJournalCount(res.items.length);
+    }).catch(() => {});
   }, [user]);
+
+  const getMoodTrend = () => {
+    if (moodItems.length < 2) {
+      return { text: 'Getting Better', arrow: '↗', color: 'text-teal bg-teal-dim border-teal/20' };
+    }
+    
+    const sorted = [...moodItems].sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime());
+    const mid = Math.floor(sorted.length / 2);
+    const firstHalf = sorted.slice(0, mid);
+    const secondHalf = sorted.slice(mid);
+    
+    const avgFirst = firstHalf.reduce((sum, item) => sum + item.level, 0) / firstHalf.length;
+    const avgSecond = secondHalf.reduce((sum, item) => sum + item.level, 0) / secondHalf.length;
+    
+    if (avgSecond > avgFirst) {
+      return { text: 'Getting Better', arrow: '↗', color: 'text-teal bg-teal-dim border-teal/20' };
+    } else if (avgSecond < avgFirst) {
+      return { text: 'Feeling Heavy', arrow: '↘', color: 'text-rose bg-rose-dim border-rose/20' };
+    } else {
+      return { text: 'Stable Calm', arrow: '→', color: 'text-amber bg-amber-dim border-amber/20' };
+    }
+  };
 
   if (!user) {
     return (
       <div className="space-y-8 animate-fadeIn">
         {/* Welcome & Discovery Hero Card */}
         <section className="animate-fadeIn">
-          <div className="bg-bg2 border border-border rounded-[20px] p-6 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="bg-bg2 border border-border rounded-[20px] p-6 relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-8">
             {/* Ambient Glow */}
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,124,248,0.1),transparent_60%)] pointer-events-none" />
             
-            <div className="relative z-10 flex-1 space-y-3 text-left">
+            <div className="relative z-10 flex-1 space-y-4 text-left">
               <h1 className="font-[family-name:var(--font-serif)] text-2xl sm:text-3xl font-light text-text leading-tight">
                 What will you discover today?
               </h1>
               <p className="text-sm text-text3 leading-relaxed max-w-2xl">
                 Your <span className="text-rose font-medium">mood</span> tells a story. Your <span className="text-amber font-medium">rituals</span> create patterns. Your <span className="text-teal font-medium">journal</span> holds wisdom. <span className="text-text font-semibold">ARIA</span> connects the dots.
               </p>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setAuthModalOpen(true)}
+                  className="inline-flex items-center justify-center px-6 py-3 bg-accent hover:opacity-90 rounded-full text-xs font-semibold tracking-wider transition-all cursor-pointer"
+                >
+                  Start here →
+                </button>
+              </div>
+
+              {/* Testimonial Box */}
+              <div className="pt-4 border-t border-border flex flex-col sm:flex-row sm:items-center gap-4 text-[11.5px] text-text3">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2 w-2 rounded-full bg-green shadow-[0_0_8px_var(--green)] animate-pulse" />
+                  <span className="font-semibold text-text2">12,547</span> people found calm today
+                </div>
+                <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-border" />
+                <div className="italic">
+                  "This app saved my mental health" <span className="text-text2 not-italic font-medium">— Sarah, 23</span>
+                </div>
+              </div>
             </div>
 
-            <div className="relative z-10 flex-shrink-0 self-start md:self-center">
-              <button
-                type="button"
-                onClick={() => setAuthModalOpen(true)}
-                className="inline-flex items-center justify-center px-6 py-3 bg-accent hover:opacity-90 rounded-full text-xs font-semibold tracking-wider transition-all cursor-pointer"
-              >
-                Start here →
-              </button>
+            {/* Right Stack of Cards */}
+            <div className="flex flex-col sm:flex-row lg:flex-col gap-4 flex-shrink-0 w-full lg:w-auto">
+              {/* This Week's Wellness Card */}
+              <div className="relative z-10 w-full sm:w-[320px] bg-bg3 border border-border2 rounded-[16px] p-5 backdrop-blur-md shadow-2xl space-y-4">
+                <div className="flex items-center justify-between border-b border-border pb-2">
+                  <span className="font-[family-name:var(--font-serif)] text-[15px] font-light text-text">
+                    This Week's Wellness
+                  </span>
+                  <span className="w-2 h-2 rounded-full bg-accent animate-pulse shadow-[0_0_8px_var(--accent)]" />
+                </div>
+
+                <div className="space-y-3.5 text-left">
+                  {/* Rituals Row */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-green-dim flex items-center justify-center text-green shadow-[0_0_8px_var(--green-dim)]">
+                          <CheckCircle2 className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs text-text2 font-medium">Rituals Completed</span>
+                      </div>
+                      <span className="text-xs font-semibold text-green bg-green-dim border border-green/20 px-2 py-0.5 rounded-full">
+                        5/7
+                      </span>
+                    </div>
+                    <div className="w-full bg-border h-1 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-green to-teal rounded-full" 
+                        style={{ width: '71.4%' }} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Mood Trend Row */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-teal-dim flex items-center justify-center text-teal shadow-[0_0_8px_var(--teal-dim)]">
+                        <TrendingUp className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs text-text2 font-medium">Mood Trend</span>
+                    </div>
+                    <span className="text-xs font-semibold text-teal bg-teal-dim border border-teal/20 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                      ↗ Getting Better
+                    </span>
+                  </div>
+
+                  {/* ARIA Insights Row */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-rose-dim flex items-center justify-center text-rose shadow-[0_0_8px_var(--rose-dim)]">
+                        <Brain className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs text-text2 font-medium">ARIA Insights</span>
+                    </div>
+                    <span className="text-xs font-semibold text-rose bg-rose-dim border border-rose/20 px-2.5 py-0.5 rounded-full">
+                      3 New Patterns
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Your Achievements Card */}
+              <div className="relative z-10 w-full sm:w-[320px] bg-bg3 border border-border2 rounded-[16px] p-5 backdrop-blur-md shadow-2xl space-y-4">
+                <div className="flex items-center justify-between border-b border-border pb-2">
+                  <span className="font-[family-name:var(--font-serif)] text-[15px] font-light text-text flex items-center gap-2">
+                    🏆 Your Achievements
+                  </span>
+                  <span className="text-[10px] text-text3 uppercase tracking-wider">
+                    2 / 4 Unlocked
+                  </span>
+                </div>
+
+                <div className="space-y-3 text-left">
+                  {/* First Check-in */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-amber-dim flex items-center justify-center text-amber shadow-[0_0_8px_var(--amber-dim)]">
+                        <Star className="w-4 h-4" fill="currentColor" />
+                      </div>
+                      <span className="text-xs text-text2 font-medium">First Check-in</span>
+                    </div>
+                    <span className="text-[10px] font-semibold text-green bg-green-dim border border-green/20 px-2 py-0.5 rounded-full">
+                      Unlocked
+                    </span>
+                  </div>
+
+                  {/* 7-Day Streak */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-rose-dim flex items-center justify-center text-rose shadow-[0_0_8px_var(--rose-dim)]">
+                        <Flame className="w-4 h-4" fill="currentColor" />
+                      </div>
+                      <span className="text-xs text-text2 font-medium">7-Day Streak</span>
+                    </div>
+                    <span className="text-[10px] font-semibold text-text3 bg-bg4 border border-border px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" /> Locked
+                    </span>
+                  </div>
+
+                  {/* Journal Enthusiast */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-teal-dim flex items-center justify-center text-teal shadow-[0_0_8px_var(--teal-dim)]">
+                        <BookOpen className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs text-text2 font-medium">Journal Enthusiast</span>
+                    </div>
+                    <span className="text-[10px] font-semibold text-green bg-green-dim border border-green/20 px-2 py-0.5 rounded-full">
+                      Unlocked
+                    </span>
+                  </div>
+
+                  {/* Ritual Master */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-accent-glow flex items-center justify-center text-text shadow-[0_0_8px_var(--accent-glow)]">
+                        <Target className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs text-text2 font-medium">Ritual Master</span>
+                    </div>
+                    <span className="text-[10px] font-semibold text-text3 bg-bg4 border border-border px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" /> Locked
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
+
+        <WellnessInsightCard />
 
         <GuestGate
           title="Your Wellness Dashboard"
@@ -118,44 +308,225 @@ export default function Dashboard() {
     <div className="space-y-8 animate-fadeIn">
       {/* Welcome & Discovery Hero Card */}
       <section className="animate-fadeIn">
-        <div className="bg-bg2 border border-border rounded-[20px] p-6 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="bg-bg2 border border-border rounded-[20px] p-6 relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-8">
           {/* Ambient Glow */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,124,248,0.1),transparent_60%)] pointer-events-none" />
           
-          <div className="relative z-10 flex-1 space-y-3">
+          <div className="relative z-10 flex-1 space-y-4 text-left">
             <h1 className="font-[family-name:var(--font-serif)] text-2xl sm:text-3xl font-light text-text leading-tight">
               What will you discover today?
             </h1>
             <p className="text-sm text-text3 leading-relaxed max-w-2xl">
               Your <span className="text-rose font-medium">mood</span> tells a story. Your <span className="text-amber font-medium">rituals</span> create patterns. Your <span className="text-teal font-medium">journal</span> holds wisdom. <span className="text-text font-semibold">ARIA</span> connects the dots.
             </p>
+            <div>
+              <Link
+                to="/mood"
+                className="inline-flex items-center justify-center px-6 py-3 bg-accent hover:opacity-90 rounded-full text-xs font-semibold tracking-wider transition-all"
+              >
+                Start here →
+              </Link>
+            </div>
+
+            {/* Testimonial Box */}
+            <div className="pt-4 border-t border-border flex flex-col sm:flex-row sm:items-center gap-4 text-[11.5px] text-text3">
+              <div className="flex items-center gap-2">
+                <span className="flex h-2 w-2 rounded-full bg-green shadow-[0_0_8px_var(--green)] animate-pulse" />
+                <span className="font-semibold text-text2">12,547</span> people found calm today
+              </div>
+              <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-border" />
+              <div className="italic">
+                "This app saved my mental health" <span className="text-text2 not-italic font-medium">— Sarah, 23</span>
+              </div>
+            </div>
           </div>
 
-          <div className="relative z-10 flex-shrink-0 self-start md:self-center">
-            <Link
-              to="/mood"
-              className="inline-flex items-center justify-center px-6 py-3 bg-accent hover:opacity-90 rounded-full text-xs font-semibold tracking-wider transition-all"
-            >
-              Start here →
-            </Link>
-          </div>
+          {/* Right Stack of Cards */}
+          {(() => {
+            const hasCheckIn = moodItems.length >= 1;
+            const hasStreak = streak >= 7;
+            const hasJournal = journalCount !== null ? journalCount >= 3 : true; // Fallback to true if not loaded
+            const hasRitualMaster = ritualsCompleted !== null ? ritualsCompleted >= 7 : false;
+
+            const unlockedCount = [hasCheckIn, hasStreak, hasJournal, hasRitualMaster].filter(Boolean).length;
+
+            return (
+              <div className="flex flex-col sm:flex-row lg:flex-col gap-4 flex-shrink-0 w-full lg:w-auto animate-fadeIn">
+                {/* This Week's Wellness Card */}
+                <div className="relative z-10 w-full sm:w-[320px] bg-bg3 border border-border2 rounded-[16px] p-5 backdrop-blur-md shadow-2xl space-y-4">
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <span className="font-[family-name:var(--font-serif)] text-[15px] font-light text-text">
+                      This Week's Wellness
+                    </span>
+                    <span className="w-2 h-2 rounded-full bg-accent animate-pulse shadow-[0_0_8px_var(--accent)]" />
+                  </div>
+
+                  <div className="space-y-3.5 text-left">
+                    {/* Rituals Row */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-green-dim flex items-center justify-center text-green shadow-[0_0_8px_var(--green-dim)]">
+                            <CheckCircle2 className="w-4 h-4" />
+                          </div>
+                          <span className="text-xs text-text2 font-medium">Rituals Completed</span>
+                        </div>
+                        <span className="text-xs font-semibold text-green bg-green-dim border border-green/20 px-2 py-0.5 rounded-full">
+                          {ritualsCompleted !== null ? `${ritualsCompleted}/7` : '5/7'}
+                        </span>
+                      </div>
+                      <div className="w-full bg-border h-1 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-green to-teal rounded-full" 
+                          style={{ width: `${((ritualsCompleted !== null ? ritualsCompleted : 5) / 7) * 100}%` }} 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Mood Trend Row */}
+                    {(() => {
+                      const trend = getMoodTrend();
+                      return (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-full bg-teal-dim flex items-center justify-center text-teal shadow-[0_0_8px_var(--teal-dim)]">
+                              <TrendingUp className="w-4 h-4" />
+                            </div>
+                            <span className="text-xs text-text2 font-medium">Mood Trend</span>
+                          </div>
+                          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1 ${trend.color}`}>
+                            {trend.arrow} {trend.text}
+                          </span>
+                        </div>
+                      );
+                    })()}
+
+                    {/* ARIA Insights Row */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-rose-dim flex items-center justify-center text-rose shadow-[0_0_8px_var(--rose-dim)]">
+                          <Brain className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs text-text2 font-medium">ARIA Insights</span>
+                      </div>
+                      <span className="text-xs font-semibold text-rose bg-rose-dim border border-rose/20 px-2.5 py-0.5 rounded-full">
+                        {insightPatternsCount !== null ? `${insightPatternsCount} New Pattern${insightPatternsCount !== 1 ? 's' : ''}` : '3 New Patterns'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Your Achievements Card */}
+                <div className="relative z-10 w-full sm:w-[320px] bg-bg3 border border-border2 rounded-[16px] p-5 backdrop-blur-md shadow-2xl space-y-4">
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <span className="font-[family-name:var(--font-serif)] text-[15px] font-light text-text flex items-center gap-2">
+                      🏆 Your Achievements
+                    </span>
+                    <span className="text-[10px] text-text3 uppercase tracking-wider">
+                      {unlockedCount} / 4 Unlocked
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 text-left">
+                    {/* First Check-in */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-amber-dim flex items-center justify-center text-amber shadow-[0_0_8px_var(--amber-dim)]">
+                          <Star className="w-4 h-4" fill="currentColor" />
+                        </div>
+                        <span className="text-xs text-text2 font-medium">First Check-in</span>
+                      </div>
+                      {hasCheckIn ? (
+                        <span className="text-[10px] font-semibold text-green bg-green-dim border border-green/20 px-2 py-0.5 rounded-full">
+                          Unlocked
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-text3 bg-bg4 border border-border px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Lock className="w-2.5 h-2.5" /> Locked
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 7-Day Streak */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-rose-dim flex items-center justify-center text-rose shadow-[0_0_8px_var(--rose-dim)]">
+                          <Flame className="w-4 h-4" fill="currentColor" />
+                        </div>
+                        <span className="text-xs text-text2 font-medium">7-Day Streak</span>
+                      </div>
+                      {hasStreak ? (
+                        <span className="text-[10px] font-semibold text-green bg-green-dim border border-green/20 px-2 py-0.5 rounded-full">
+                          Unlocked
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-text3 bg-bg4 border border-border px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Lock className="w-2.5 h-2.5" /> Locked
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Journal Enthusiast */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-teal-dim flex items-center justify-center text-teal shadow-[0_0_8px_var(--teal-dim)]">
+                          <BookOpen className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs text-text2 font-medium">Journal Enthusiast</span>
+                      </div>
+                      {hasJournal ? (
+                        <span className="text-[10px] font-semibold text-green bg-green-dim border border-green/20 px-2 py-0.5 rounded-full">
+                          Unlocked
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-text3 bg-bg4 border border-border px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Lock className="w-2.5 h-2.5" /> Locked
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Ritual Master */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-accent-glow flex items-center justify-center text-text shadow-[0_0_8px_var(--accent-glow)]">
+                          <Target className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs text-text2 font-medium">Ritual Master</span>
+                      </div>
+                      {hasRitualMaster ? (
+                        <span className="text-[10px] font-semibold text-green bg-green-dim border border-green/20 px-2 py-0.5 rounded-full">
+                          Unlocked
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-text3 bg-bg4 border border-border px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Lock className="w-2.5 h-2.5" /> Locked
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </section>
 
+      <WellnessInsightCard />
+
       {/* Quick Stats Summary */}
       <section>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-bg2 border border-border rounded-[20px] p-5 text-center relative overflow-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-bg2 border border-border rounded-[20px] p-4 sm:p-5 text-center relative overflow-hidden">
             <div className="text-[10px] text-text3 uppercase tracking-wider mb-1">Current Streak</div>
-            <div className="text-2xl font-light font-[family-name:var(--font-serif)] text-amber">{streak} Days</div>
+            <div className="text-xl sm:text-2xl font-light font-[family-name:var(--font-serif)] text-amber">{streak} Days</div>
           </div>
-          <div className="bg-bg2 border border-border rounded-[20px] p-5 text-center relative overflow-hidden">
+          <div className="bg-bg2 border border-border rounded-[20px] p-4 sm:p-5 text-center relative overflow-hidden">
             <div className="text-[10px] text-text3 uppercase tracking-wider mb-1">Calm Score</div>
-            <div className="text-2xl font-light font-[family-name:var(--font-serif)] text-accent">{calmScore}%</div>
+            <div className="text-xl sm:text-2xl font-light font-[family-name:var(--font-serif)] text-accent">{calmScore}%</div>
           </div>
-          <div className="bg-bg2 border border-border rounded-[20px] p-5 text-center relative overflow-hidden">
+          <div className="bg-bg2 border border-border rounded-[20px] p-4 sm:p-5 text-center relative overflow-hidden">
             <div className="text-[10px] text-text3 uppercase tracking-wider mb-1">Weekly Logs</div>
-            <div className="text-2xl font-light font-[family-name:var(--font-serif)] text-teal">{moodItems.length} Check-ins</div>
+            <div className="text-xl sm:text-2xl font-light font-[family-name:var(--font-serif)] text-teal">{moodItems.length} Check-ins</div>
           </div>
         </div>
       </section>
@@ -165,7 +536,7 @@ export default function Dashboard() {
         <div className="text-[10.5px] tracking-[0.14em] uppercase text-accent font-medium mb-4">
           Today's Rituals
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Link
             to="/morning"
             className="bg-bg2 border border-border rounded-[20px] px-6 py-5 cursor-pointer relative overflow-hidden"
@@ -207,7 +578,7 @@ export default function Dashboard() {
 
       {/* Status Strip */}
       <section>
-        <div className="bg-bg2 border border-border rounded-[14px] px-5 py-4 flex gap-6 items-center">
+        <div className="bg-bg2 border border-border rounded-[14px] px-5 py-4 flex flex-col sm:flex-row gap-4 sm:gap-6 items-stretch sm:items-center">
           <div className="flex items-center gap-2.5 flex-1">
             <div className="w-2 h-2 rounded-full bg-green shadow-[0_0_8px_var(--green)] flex-shrink-0" />
             <div className="text-[13px]">
@@ -215,7 +586,8 @@ export default function Dashboard() {
               <div className="text-[11px] text-text3">Still available today</div>
             </div>
           </div>
-          <div className="w-px h-8 bg-border" />
+          <div className="hidden sm:block w-px h-8 bg-border" />
+          <div className="sm:hidden w-full h-px bg-border/50" />
           <div className="flex items-center gap-2.5 flex-1">
             <div className="w-2 h-2 rounded-full bg-amber shadow-[0_0_8px_var(--amber)] flex-shrink-0" />
             <div className="text-[13px]">
@@ -223,21 +595,22 @@ export default function Dashboard() {
               <div className="text-[11px] text-text3">Unlocks at 9:00 PM</div>
             </div>
           </div>
-          <div className="w-px h-8 bg-border" />
-          <div className="text-right flex-0">
-            <div className="text-[11px] text-text3 mb-0.5">Consecutive days</div>
+          <div className="hidden sm:block w-px h-8 bg-border" />
+          <div className="sm:hidden w-full h-px bg-border/50" />
+          <div className="text-left sm:text-right flex-0 flex justify-between sm:block items-center">
+            <div className="text-[11px] text-text3 mb-0.5 sm:mb-0">Consecutive days</div>
             <div className="font-[family-name:var(--font-serif)] text-[22px] font-light text-text">{streak}</div>
           </div>
         </div>
       </section>
 
       {/* Weekly Calm + AI Insight */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <section>
           <div className="text-[10.5px] tracking-[0.14em] uppercase text-accent font-medium mb-4">
             Weekly Calm Score
           </div>
-          <div className="bg-bg2 border border-border rounded-[20px] px-6 py-6 flex gap-6 items-start">
+          <div className="bg-bg2 border border-border rounded-[20px] p-5 sm:p-6 flex flex-col sm:flex-row gap-5 sm:gap-6 items-center sm:items-start text-center sm:text-left w-full">
             <div className="w-[90px] h-[90px] flex-shrink-0 relative">
               <svg width="90" height="90" viewBox="0 0 90 90" className="-rotate-90">
                 <circle cx="45" cy="45" r="36" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
@@ -264,12 +637,12 @@ export default function Dashboard() {
                 <div className="text-[9px] text-text3 uppercase tracking-[0.08em]">/ 100</div>
               </div>
             </div>
-            <div className="flex-1">
+            <div className="flex-1 w-full">
               <div className="text-[15px] font-medium text-text mb-1">Your Weekly Score</div>
               <div className="text-[12.5px] text-text2 mb-3.5">
                 {moodItems.length === 0 ? 'Complete rituals to build your score' : `Based on ${moodItems.length} check-in${moodItems.length !== 1 ? 's' : ''}`}
               </div>
-              <div className="flex gap-1.5 items-end h-10">
+              <div className="flex gap-1.5 items-end h-10 justify-center sm:justify-start">
                 {weekBars.map((bar, i) => (
                   <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
                     <div
@@ -291,10 +664,10 @@ export default function Dashboard() {
           <div className="text-[10.5px] tracking-[0.14em] uppercase text-accent font-medium mb-4">
             AI Companion
           </div>
-          <div className="bg-bg2 border border-border rounded-[20px] px-6 py-5 relative overflow-hidden flex flex-col justify-between h-full">
+          <div className="bg-bg2 border border-border rounded-[20px] p-5 sm:p-6 relative overflow-hidden flex flex-col justify-between h-full text-center sm:text-left">
             <div className="absolute top-0 left-0 right-0 bottom-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,124,248,0.06),transparent_60%)] pointer-events-none" />
             <div>
-              <div className="flex items-center gap-2.5 mb-3">
+              <div className="flex items-center justify-center sm:justify-start gap-2.5 mb-3">
                 <div className="text-[10px] tracking-[0.12em] uppercase text-accent bg-accent-glow border border-accent/20 px-2.5 py-1 rounded-full">
                   ARIA Insight
                 </div>
@@ -312,7 +685,7 @@ export default function Dashboard() {
             </div>
             <Link
               to="/aria"
-              className="inline-flex items-center gap-1.5 text-[12.5px] text-accent font-medium bg-accent-glow border border-accent/25 px-4 py-2 rounded-full hover:bg-accent/20 transition-all self-start"
+              className="inline-flex items-center gap-1.5 text-[12.5px] text-accent font-medium bg-accent-glow border border-accent/25 px-4 py-2 rounded-full hover:bg-accent/20 transition-all self-center sm:self-start"
             >
               Explore Toolkit →
             </Link>

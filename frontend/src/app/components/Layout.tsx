@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router';
 import { useEffect, useState } from 'react';
 import { useAuth, getInitials, getAvatarGradient, UserSketchAvatar } from '@/lib/auth';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi } from '@/lib/api';
-import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, Flame, AlertTriangle, X, User } from 'lucide-react';
+import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, Flame, AlertTriangle, X, User, Award } from 'lucide-react';
 import Logo from './Logo';
 import AuthCardModal from './AuthCardModal';
 import AgeVerificationModal from './AgeVerificationModal';
@@ -355,6 +355,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </div>
               )}
 
+              {/* Pricing button */}
+              <Link
+                to="/pricing"
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap ${location.pathname === '/pricing'
+                  ? 'bg-accent-glow text-accent border border-accent/20'
+                  : 'text-text2 hover:bg-white/5 hover:text-text'
+                  }`}
+              >
+                <Award size={15} />
+                <span>Pricing</span>
+              </Link>
+
               {/* Settings button */}
               <Link
                 to={user ? "/settings" : "#"}
@@ -380,6 +392,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 p-6 md:p-10 max-w-[900px] w-full mx-auto">
           {children}
         </main>
+
+        {/* Global Footer */}
+        <footer className="w-full border-t border-border/40 mt-auto py-8 relative z-20">
+          <div className="max-w-[900px] mx-auto px-6 md:px-10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-text3">
+            <div>
+              &copy; {new Date().getFullYear()} MindCradle. All rights reserved.
+            </div>
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+              <Link to="/pricing" className="hover:text-text transition-all">Pricing</Link>
+              <Link to="/privacy" className="hover:text-text transition-all">Privacy Policy</Link>
+              <Link to="/refund" className="hover:text-text transition-all">Refund Policy</Link>
+              <Link to="/terms" className="hover:text-text transition-all">Terms of Service</Link>
+              <a href="mailto:support@mindcradle.online" className="hover:text-text transition-all">Contact Us</a>
+            </div>
+          </div>
+        </footer>
       </div>
 
       {showCrisisModal && (

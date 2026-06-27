@@ -309,6 +309,12 @@ export const auth = {
     request<{ success: boolean; message: string }>('DELETE', '/auth/withdraw-consent', {
       password,
     }),
+
+  forgotPassword: (email: string) =>
+    request<{ message: string }>('POST', '/auth/forgot-password', { email }, false),
+
+  resetPassword: (token: string, newPassword: string) =>
+    request<{ message: string }>('POST', '/auth/reset-password', { token, newPassword }, false),
 };
 
 // ─── Mood ─────────────────────────────────────────────────────────────────────
@@ -350,6 +356,9 @@ export const rituals = {
     audioChoice: string;
     timer: string;
   }) => request<{ id: string; saved: boolean }>('POST', '/rituals/winddown', data),
+
+  getStats: () =>
+    request<{ completed: number; total: number }>('GET', '/rituals/stats'),
 };
 
 // ─── AI ───────────────────────────────────────────────────────────────────────
@@ -502,6 +511,8 @@ export interface ProfileResponse {
   badge_history?: any[];
   emergency_contact?: string;
   notify_on_crisis?: boolean;
+  is_premium?: boolean;
+  subscription_expires_at?: string | null;
   created: string;
 }
 
@@ -514,4 +525,23 @@ export const profile = {
 export const user = {
   exportData: () => request<any>('GET', '/user/export-data'),
   deleteAccount: (password: string) => request<{ message: string }>('DELETE', '/user/delete-account', { password }),
+};
+
+// ─── Billing & Subscriptions ──────────────────────────────────────────────────
+
+export const billing = {
+  checkout: (cardNumber: string, cvc: string, expiry: string) =>
+    request<{
+      status: string;
+      message: string;
+      is_premium: boolean;
+      subscription_expires_at: string;
+    }>('POST', '/billing/checkout', {
+      card_number: cardNumber,
+      cvc,
+      expiry,
+    }),
+
+  cancel: () =>
+    request<{ status: string; message: string }>('POST', '/billing/cancel'),
 };

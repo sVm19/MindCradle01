@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation, Link } from 'react-router';
 import { useAuth } from '@/lib/auth';
 import Logo from './Logo';
 import { auth as authApi } from '@/lib/api';
@@ -222,6 +222,18 @@ export default function AuthCardModal() {
           >
             {loading ? (isLogin ? 'Signing in…' : 'Creating account…') : (isLogin ? 'Sign in →' : 'Create account →')}
           </button>
+
+          {isLogin && (
+            <div className="mt-3 text-center">
+              <Link
+                to="/forgot-password"
+                onClick={handleClose}
+                className="inline-block w-full py-2.5 text-center text-xs border border-border text-text3 hover:text-text hover:bg-bg3/40 rounded-[12px] transition-all cursor-pointer font-medium"
+              >
+                Forgot Password?
+              </Link>
+            </div>
+          )}
         </form>
       </div>
     </div>

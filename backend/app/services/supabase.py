@@ -328,4 +328,77 @@ class SupabaseService:
             raise Exception("Failed to retrieve user email from Supabase Auth")
         return await asyncio.to_thread(_call)
 
+    async def create_password_reset_token(self, email: str, token: str, expiry_seconds: int) -> bool:
+        """Call RPC to securely generate and store password reset token for user email."""
+        def _call():
+            client = _get_client()
+            res = client.rpc(
+                "create_password_reset_token_for_email",
+                {
+                    "email_address": email,
+                    "reset_token": token,
+                    "expiry_seconds": expiry_seconds
+                }
+            ).execute()
+            return res.data is True
+        return await asyncio.to_thread(_call)
+
+    async def get_password_history_by_token(self, reset_token: str) -> list:
+        """Call RPC to securely fetch password history for validation prior to reset."""
+        def _call():
+            client = _get_client()
+            res = client.rpc(
+                "get_password_history_by_token",
+                {"reset_token": reset_token}
+            ).execute()
+            return res.data or []
+        return await asyncio.to_thread(_call)
+
+    async def reset_password_with_token(
+        self, reset_token: str, new_encrypted_password: str, new_history_hash: str
+    ) -> bool:
+        """Call RPC to securely update user password in auth.users and record history."""
+        def _call():
+            client = _get_client()
+            res = client.rpc(
+                "reset_password_with_token",
+                {
+                    "reset_token": reset_token,
+                    "new_encrypted_password": new_encrypted_password,
+                    "new_history_hash": new_history_hash
+                }
+            ).execute()
+            return res.data is True
+        return await asyncio.to_thread(_call)
+
+    async def create_magic_login_token(self, email: str, token: str, expiry_seconds: int) -> bool:
+        """Call RPC to securely generate and store magic login token for user email."""
+        def _call():
+            client = _get_client()
+            res = client.rpc(
+                "create_magic_login_token_for_email",
+                {
+                    "email_address": email,
+                    "magic_token": token,
+                    "expiry_seconds": expiry_seconds
+                }
+            ).execute()
+            return res.data is True
+        return await asyncio.to_thread(_call)
+
+    async def consume_magic_login_token(self, magic_token: str) -> Optional[dict]:
+        """Call RPC to securely verify and consume a magic login token, returning user details."""
+        def _call():
+            client = _get_client()
+            res = client.rpc(
+                "consume_magic_login_token",
+                {"magic_token": magic_token}
+            ).execute()
+            if res.data and len(res.data) > 0:
+                return res.data[0]
+            return None
+        return await asyncio.to_thread(_call)
+
 pb = SupabaseService()
+
+

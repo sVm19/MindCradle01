@@ -1,9 +1,10 @@
 from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, status
 
 from app.models.schemas import ProfileMilestonesUpdate, ProfileResponse, ProfileUpdate
 from app.services.supabase import pb, extract_user_id
+from app.core.security import verify_user_premium
 
 router = APIRouter()
 
@@ -14,14 +15,15 @@ async def patch_milestones(
     authorization: Optional[str] = Header(None),
 ):
     try:
+        user_id = extract_user_id(authorization)
         return await pb.upsert_user_profile(
             authorization or "",
-            {"unlocked_badges": req.unlocked_badges},
+            {"unlocked_badges": req.unlocked_badges, "badge_history": req.badge_history},
         )
     except Exception as exc:
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to sync milestones: {type(exc).__name__}: {exc}",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
         ) from exc
 
 
@@ -43,6 +45,7 @@ async def get_profile(
         items = res.get("items") or []
         if items:
             i = items[0]
+            is_premium, expires_at = verify_user_premium(i, user_id)
             return ProfileResponse(
                 id=i["id"],
                 user_id=i["user_id"],
@@ -50,6 +53,8 @@ async def get_profile(
                 badge_history=i.get("badge_history"),
                 emergency_contact=i.get("emergency_contact"),
                 notify_on_crisis=i.get("notify_on_crisis", False),
+                is_premium=is_premium,
+                subscription_expires_at=expires_at,
                 created=i.get("created") or i.get("created_at") or ""
             )
         # Create a new profile if it doesn't exist
@@ -61,6 +66,8 @@ async def get_profile(
             badge_history=new_prof.get("badge_history") or [],
             emergency_contact=new_prof.get("emergency_contact"),
             notify_on_crisis=new_prof.get("notify_on_crisis", False),
+            is_premium=False,
+            subscription_expires_at=None,
             created=new_prof.get("created") or new_prof.get("created_at") or ""
         )
     except Exception as e:
@@ -100,6 +107,7 @@ async def patch_profile(
             payload["user"] = user_id
             updated = await pb.create_record("user_profiles", payload, token=token)
             
+        is_premium, expires_at = verify_user_premium(updated, user_id)
         return ProfileResponse(
             id=updated["id"],
             user_id=updated["user_id"],
@@ -107,6 +115,8 @@ async def patch_profile(
             badge_history=updated.get("badge_history"),
             emergency_contact=updated.get("emergency_contact"),
             notify_on_crisis=updated.get("notify_on_crisis", False),
+            is_premium=is_premium,
+            subscription_expires_at=expires_at,
             created=updated.get("created") or updated.get("created_at") or ""
         )
     except Exception as e:

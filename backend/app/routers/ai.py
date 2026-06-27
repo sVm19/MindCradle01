@@ -24,6 +24,7 @@ from app.models.schemas import (
 )
 from app.services import openrouter_ai
 from app.services.supabase import pb, JWTExpiredError, extract_user_id
+from app.core.security import verify_user_premium
 import os
 
 
@@ -2462,6 +2463,49 @@ async def select_response_type(
     return SelectResponseTypeResponse(**res)
 
 
+async def check_chat_limit(user_id: str, token: str):
+    try:
+        profile_resp = await pb.list_records(
+            "user_profiles",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 1}
+        )
+        items = profile_resp.get("items") or []
+        is_premium = False
+        if items:
+            is_premium, _ = verify_user_premium(items[0], user_id)
+            
+        if is_premium:
+            return  # Unlimited
+            
+        # Free tier: count user messages today
+        now_utc = datetime.now(timezone.utc)
+        today_midnight = now_utc.replace(hour=0, minute=0, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S")
+        
+        convo_list = await pb.list_records(
+            "ai_conversations",
+            token=token,
+            params={"filter": f'user_id="{user_id}" && updated >= "{today_midnight}"'}
+        )
+        items = convo_list.get("items") or []
+        user_msg_count = 0
+        for c in items:
+            msgs = c.get("messages") or []
+            for m in msgs:
+                if m.get("role") == "user":
+                    user_msg_count += 1
+                    
+        if user_msg_count >= 50:
+            raise HTTPException(
+                status_code=403,
+                detail="You have reached your daily limit of 50 ARIA messages on the Free tier. Upgrade to Premium for unlimited chat."
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+
+
 @router.post("/chat", response_model=AIChatResponse)
 async def chat(
     req: AIChatRequest,
@@ -2480,6 +2524,8 @@ async def chat(
     
     try:
         user_id = extract_user_id(token) or "unknown"
+        if user_id != "unknown":
+            await check_chat_limit(user_id, token)
         
         # Check user age verification status in database
         from app.main import app
@@ -3210,6 +3256,8 @@ async def chat_stream(
     """Send a message to the AI wellness assistant (streaming SSE)."""
     token = _normalize_token(authorization)
     user_id = extract_user_id(token) or "unknown" if token else "unknown"
+    if user_id != "unknown":
+        await check_chat_limit(user_id, token)
 
     # Run crisis keyword detection first
     crisis = detect_crisis_keywords(req.message)

@@ -284,3 +284,52 @@ def _unsafe_decode_for_dev(clean_token: str) -> Optional[TokenPayload]:
         )
     except Exception:
         return None
+
+
+def generate_subscription_token(user_id: str, expires_at) -> str:
+    payload = {
+        "sub": user_id,
+        "is_premium": True,
+        "exp": int(expires_at.timestamp()),
+        "expires_at_str": expires_at.isoformat()
+    }
+    return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+
+def verify_subscription_token(token: str, user_id: str) -> Optional[dict]:
+    try:
+        data = jwt.decode(
+            token,
+            JWT_SECRET_KEY,
+            algorithms=[JWT_ALGORITHM],
+            options={"require": ["exp", "sub"]}
+        )
+        if data.get("sub") == user_id and data.get("is_premium") is True:
+            return data
+    except Exception:
+        pass
+    return None
+
+
+def verify_user_premium(profile_data: dict, user_id: str) -> tuple[bool, Optional[str]]:
+    token = profile_data.get("subscription_token")
+    expires_at_str = profile_data.get("subscription_expires_at")
+
+    if token:
+        verified = verify_subscription_token(token, user_id)
+        if verified:
+            return True, expires_at_str
+
+    badges = profile_data.get("unlocked_badges") or []
+    if isinstance(badges, list):
+        for b in badges:
+            if isinstance(b, dict) and b.get("type") == "subscription":
+                b_token = b.get("token")
+                b_expiry = b.get("expires_at")
+                if b_token:
+                    verified = verify_subscription_token(b_token, user_id)
+                    if verified:
+                        return True, b_expiry
+
+    return False, None
+
