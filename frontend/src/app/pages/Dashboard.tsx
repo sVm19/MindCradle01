@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useAuth } from '@/lib/auth';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi, rituals as ritualsApi, journal as journalApi } from '@/lib/api';
 import type { ResourceItem } from '@/lib/api';
@@ -11,6 +11,78 @@ const SHORT_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export default function Dashboard() {
   const { user, setAuthModalOpen } = useAuth();
+  const navigate = useNavigate();
+
+  // Sleep Logger state
+  const [sleepStartTime, setSleepStartTime] = useState<number | null>(null);
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+
+  // Load saved sleep start time from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('mc_sleep_start_time');
+    if (saved) {
+      setSleepStartTime(parseInt(saved, 10));
+    }
+  }, []);
+
+  // Update current time every second if the user is sleeping
+  useEffect(() => {
+    if (!sleepStartTime) return;
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sleepStartTime]);
+
+  const handleGoingToSleep = () => {
+    const now = Date.now();
+    setSleepStartTime(now);
+    setCurrentTime(now);
+    localStorage.setItem('mc_sleep_start_time', now.toString());
+  };
+
+  const handleWokeUp = () => {
+    if (!sleepStartTime) return;
+    const now = Date.now();
+    const elapsedMs = now - sleepStartTime;
+
+    const totalSecs = Math.floor(elapsedMs / 1000);
+    const totalMins = Math.floor(totalSecs / 60);
+    const hours = Math.floor(totalMins / 60);
+    const minutes = totalMins % 60;
+
+    localStorage.removeItem('mc_sleep_start_time');
+    setSleepStartTime(null);
+
+    let durationStr = '';
+    if (hours === 0 && minutes === 0) {
+      durationStr = 'less than a minute (micro-sleep/quick logger test)';
+    } else {
+      durationStr = `${hours} hours and ${minutes} minutes`;
+    }
+
+    const sleepPrompt = `I logged my sleep duration: I slept for ${durationStr}. Please analyze my sleep duration. Tell me if I slept more or less than the recommended 7-9 hours, suggest guidelines/tips for my wellness, talk about random naps if applicable, and basically use this sleeping info to guide me.`;
+
+    localStorage.setItem('mc_aria_context', sleepPrompt);
+    navigate('/aria');
+  };
+
+  const formatElapsed = (ms: number) => {
+    if (ms < 0) return '0s';
+    const totalSecs = Math.floor(ms / 1000);
+    const secs = totalSecs % 60;
+    const totalMins = Math.floor(totalSecs / 60);
+    const mins = totalMins % 60;
+    const hrs = Math.floor(totalMins / 60);
+
+    if (hrs > 0) {
+      return `${hrs}h ${mins}m`;
+    }
+    if (mins > 0) {
+      return `${mins}m ${secs}s`;
+    }
+    return `${secs}s`;
+  };
 
   // Mood data
   const [moodItems, setMoodItems] = useState<{ created: string; level: number }[]>([]);
@@ -515,18 +587,54 @@ export default function Dashboard() {
 
       {/* Quick Stats Summary */}
       <section>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-bg2 border border-border rounded-[20px] p-4 sm:p-5 text-center relative overflow-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-bg2 border border-border rounded-[20px] p-4 sm:p-5 text-center relative overflow-hidden flex flex-col justify-center min-h-[110px]">
             <div className="text-[10px] text-text3 uppercase tracking-wider mb-1">Current Streak</div>
             <div className="text-xl sm:text-2xl font-light font-[family-name:var(--font-serif)] text-amber">{streak} Days</div>
           </div>
-          <div className="bg-bg2 border border-border rounded-[20px] p-4 sm:p-5 text-center relative overflow-hidden">
+          <div className="bg-bg2 border border-border rounded-[20px] p-4 sm:p-5 text-center relative overflow-hidden flex flex-col justify-center min-h-[110px]">
             <div className="text-[10px] text-text3 uppercase tracking-wider mb-1">Calm Score</div>
             <div className="text-xl sm:text-2xl font-light font-[family-name:var(--font-serif)] text-accent">{calmScore}%</div>
           </div>
-          <div className="bg-bg2 border border-border rounded-[20px] p-4 sm:p-5 text-center relative overflow-hidden">
+          <div className="bg-bg2 border border-border rounded-[20px] p-4 sm:p-5 text-center relative overflow-hidden flex flex-col justify-center min-h-[110px]">
             <div className="text-[10px] text-text3 uppercase tracking-wider mb-1">Weekly Logs</div>
             <div className="text-xl sm:text-2xl font-light font-[family-name:var(--font-serif)] text-teal">{moodItems.length} Check-ins</div>
+          </div>
+          
+          <div className="bg-bg2 border border-border rounded-[20px] p-4 sm:p-5 text-center relative overflow-hidden flex flex-col justify-between min-h-[110px]">
+            <div>
+              <div className="text-[10px] text-text3 uppercase tracking-wider mb-1 flex items-center justify-center gap-1.5 select-none">
+                <Moon className="w-3.5 h-3.5 text-purple-400" />
+                Sleep Tracker
+              </div>
+              {sleepStartTime ? (
+                <div className="text-sm font-light text-text2 mt-1 animate-pulse">
+                  Sleeping: {formatElapsed(currentTime - sleepStartTime)}
+                </div>
+              ) : (
+                <div className="text-[11px] font-light text-text3 mt-1.5 leading-tight">
+                  Aria will know how much you slept last night.
+                </div>
+              )}
+            </div>
+
+            <div className="mt-2.5">
+              {sleepStartTime ? (
+                <button
+                  onClick={handleWokeUp}
+                  className="w-full h-8 px-4 bg-teal-dim hover:bg-teal/20 text-teal border border-teal/30 hover:border-teal/50 rounded-full text-[11px] font-semibold tracking-wider transition-all cursor-pointer"
+                >
+                  Woke Up
+                </button>
+              ) : (
+                <button
+                  onClick={handleGoingToSleep}
+                  className="w-full h-8 px-4 bg-rose-dim hover:bg-rose/25 text-rose border border-rose/30 hover:border-rose/50 rounded-full text-[11px] font-semibold tracking-wider transition-all cursor-pointer"
+                >
+                  Going to Sleep
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </section>

@@ -185,14 +185,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-app.add_middleware(SecurityHeadersMiddleware)
-
-# Register rate limiter middleware (standard endpoints: 100 requests/minute)
-app.add_middleware(RateLimitMiddleware, requests_per_minute=100)
-
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 # In production: only the HTTPS production frontend origin is allowed.
 # In development: localhost origins are added so the Vite dev server works.
+# NOTE: Starlette middleware runs in LIFO order — CORS must be added last
+# so it is the outermost wrapper and handles preflight before other middleware.
 
 if ENVIRONMENT == "production":
     # Only the real HTTPS frontend domain — no HTTP fallback in production
@@ -211,12 +208,24 @@ else:
         "http://localhost:5173",
     ]
 
+# Security and rate-limit middleware (inner layers)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=100)
+
+# CORS middleware must be outermost (added last) so it intercepts OPTIONS
+# preflights before any other middleware can reject them.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "X-Requested-With",
+        "X-CSRF-Token",  # Required for CSRF-protected POST/PUT/DELETE requests
+    ],
 )
 
 @app.get("/api/csrf-token")
