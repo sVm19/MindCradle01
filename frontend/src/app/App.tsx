@@ -1,26 +1,29 @@
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
-import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ARIAProvider } from '@/context/ARIAContext';
 import { registerFCMToken, listenForMessages } from '@/lib/firebase';
 import { useCSRF } from '@/lib/csrf';
 import Layout from './components/Layout';
-import Dashboard from './pages/Dashboard';
-import Morning from './pages/Morning';
-import Mood from './pages/Mood';
-import Journal from './pages/Journal';
-import ARIA from './pages/ARIA';
-import WindDown from './pages/WindDown';
-import Settings from './pages/Settings';
-import Signup from './pages/Signup';
-import Pricing from './pages/Pricing';
-import Privacy from './pages/Privacy';
-import Terms from './pages/Terms';
-import Refund from './pages/Refund';
-import ForgotPassword from './pages/ForgotPassword';
-import Reset from './pages/Reset';
-import About from './pages/About';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
+
+// Lazy-loaded page components for optimization
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Morning = lazy(() => import('./pages/Morning'));
+const Mood = lazy(() => import('./pages/Mood'));
+const Journal = lazy(() => import('./pages/Journal'));
+const ARIA = lazy(() => import('./pages/ARIA'));
+const WindDown = lazy(() => import('./pages/WindDown'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Signup = lazy(() => import('./pages/Signup'));
+const Pricing = lazy(() => import('./pages/Pricing'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const Terms = lazy(() => import('./pages/Terms'));
+const Refund = lazy(() => import('./pages/Refund'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const Reset = lazy(() => import('./pages/Reset'));
+const About = lazy(() => import('./pages/About'));
+
 
 
 
@@ -74,24 +77,30 @@ function AppRoutes() {
         path="/*"
         element={
           <Layout>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/morning" element={<Morning />} />
-              <Route path="/mood" element={<Mood />} />
-              <Route path="/journal" element={<Journal />} />
-              <Route path="/aria" element={<ARIA />} />
-              <Route path="/wind-down" element={<WindDown />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/pricing" element={<Pricing />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/refund" element={<Refund />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset" element={<Reset />} />
-              <Route path="/about" element={<About />} />
-            </Routes>
+            <Suspense fallback={
+              <div className="min-h-[60vh] flex items-center justify-center bg-bg">
+                <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+              </div>
+            }>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/morning" element={<Morning />} />
+                <Route path="/mood" element={<Mood />} />
+                <Route path="/journal" element={<Journal />} />
+                <Route path="/aria" element={<ARIA />} />
+                <Route path="/wind-down" element={<WindDown />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/pricing" element={<Pricing />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/refund" element={<Refund />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset" element={<Reset />} />
+                <Route path="/about" element={<About />} />
+              </Routes>
+            </Suspense>
           </Layout>
         }
       />
