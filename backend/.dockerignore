@@ -13,3 +13,8 @@ venv
 .pytest_cache
 node_modules
 firebase-key.json
+BRAIN.md
+brain.md
+
+
+

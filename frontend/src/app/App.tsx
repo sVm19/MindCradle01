@@ -19,6 +19,9 @@ import Terms from './pages/Terms';
 import Refund from './pages/Refund';
 import ForgotPassword from './pages/ForgotPassword';
 import Reset from './pages/Reset';
+import About from './pages/About';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
+
 
 
 function AppRoutes() {
@@ -87,6 +90,7 @@ function AppRoutes() {
               <Route path="/refund" element={<Refund />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset" element={<Reset />} />
+              <Route path="/about" element={<About />} />
             </Routes>
           </Layout>
         }
@@ -100,6 +104,7 @@ export default function App() {
     <AuthProvider>
       <ARIAProvider>
         <BrowserRouter>
+          <PWAInstallPrompt />
           <AppRoutes />
         </BrowserRouter>
       </ARIAProvider>
