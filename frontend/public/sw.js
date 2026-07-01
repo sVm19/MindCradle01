@@ -4,7 +4,9 @@ self.addEventListener('install', event => {
       return cache.addAll([
         '/',
         '/index.html',
-        '/mindcradle-logo.svg'
+        '/mindcradle-logo.svg',
+        '/mindcradle-icon-192.png',
+        '/mindcradle-icon-512.png'
       ]);
     })
   );
