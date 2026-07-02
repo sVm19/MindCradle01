@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { sanitizeForInput } from '@/lib/sanitize';
 import { Loader2, Frown, Meh, Smile, Laugh, Compass, Activity, BatteryWarning, AlertCircle, Heart, Flame, HelpCircle, Ghost, Sparkles, ThumbsDown, Lock } from 'lucide-react';
-import { mood as moodApi, ai as aiApi } from '@/lib/api';
+import { mood as moodApi, ai as aiApi, profile as profileApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import GuestGate from '@/app/components/GuestGate';
 import { validateMood } from '@/lib/validation';
@@ -30,6 +30,7 @@ export default function Mood() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
+  const [isPremium, setIsPremium] = useState(false);
 
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
@@ -63,15 +64,17 @@ export default function Mood() {
     );
   };
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (premiumOverride?: boolean) => {
     setAnalyzing(true);
     setAnalysisError('');
     setAnalysisData(null);
     try {
-      const historyRes = await moodApi.history('7d');
+      const activePremium = premiumOverride !== undefined ? premiumOverride : isPremium;
+      const range = activePremium ? '30d' : '7d';
+      const historyRes = await moodApi.history(range);
       const items = historyRes.items || [];
       if (items.length === 0) {
-        setAnalysisError("No mood logs found for the last 7 days. Try logging a check-in first.");
+        setAnalysisError(`No mood logs found for the last ${activePremium ? '30' : '7'} days. Try logging a check-in first.`);
         setAnalyzing(false);
         return;
       }
@@ -92,9 +95,26 @@ export default function Mood() {
     }
   };
 
+  useEffect(() => {
+    if (user) {
+      profileApi.get()
+        .then((res) => {
+          const premium = !!res.is_premium;
+          setIsPremium(premium);
+          if (premium) {
+            handleAnalyze(premium);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load profile in Mood page:", err);
+        });
+    }
+  }, [user]);
+
   const handleChatWithAria = () => {
     if (!analysisData) return;
-    const chatPrompt = `Let's discuss my weekly mood analysis. ARIA noticed: "${analysisData.analysis}" and the pattern: "${analysisData.pattern}". How can I work on the suggestion: "${analysisData.suggestion}"?`;
+    const intervalStr = isPremium ? 'monthly' : 'weekly';
+    const chatPrompt = `Let's discuss my ${intervalStr} mood analysis. ARIA noticed: "${analysisData.analysis}" and the pattern: "${analysisData.pattern}". How can I work on the suggestion: "${analysisData.suggestion}"?`;
     localStorage.setItem('mc_aria_context', chatPrompt);
     navigate('/aria');
   };
@@ -118,6 +138,12 @@ export default function Mood() {
     try {
       await moodApi.log(moodLevel, feelings, notes);
       setSaved(true);
+
+      // Automatically re-run the 30-day analytics if premium
+      if (isPremium) {
+        handleAnalyze();
+      }
+
       // Reset after 2s
       setTimeout(() => {
         setSaved(false);
@@ -264,10 +290,10 @@ export default function Mood() {
           {!analysisData && !analyzing && (
             <>
               <p className="text-sm text-text2 mb-4">
-                After logging, ARIA can help you notice patterns in how you feel across the week.
+                After logging, ARIA can help you notice patterns in how you feel across the {isPremium ? 'month' : 'week'}.
               </p>
               <button
-                onClick={handleAnalyze}
+                onClick={() => handleAnalyze()}
                 className="px-5 py-2.5 bg-accent-glow border border-accent/25 text-accent rounded-full text-sm font-medium hover:bg-accent/20 transition-all"
               >
                 Analyze Trends
@@ -277,10 +303,10 @@ export default function Mood() {
 
           {analysisData && !analyzing && (
             <div className="space-y-4 animate-fadeIn">
-              <h4 className="text-sm font-medium text-accent">Here's what I noticed about your week...</h4>
+              <h4 className="text-sm font-medium text-accent">Here's what I noticed about your {isPremium ? 'month' : 'week'}...</h4>
               <div className="space-y-3.5 pt-1">
                 <div>
-                  <div className="text-[10px] tracking-wider uppercase text-text3 mb-1">Weekly Observation</div>
+                  <div className="text-[10px] tracking-wider uppercase text-text3 mb-1">{isPremium ? 'Monthly' : 'Weekly'} Observation</div>
                   <p className="text-sm text-text2 leading-relaxed italic font-[family-name:var(--font-serif)]">
                     "{analysisData.analysis}"
                   </p>

@@ -3489,29 +3489,45 @@ async def mood_analysis(
     req: MoodAnalysisRequest,
     authorization: Optional[str] = Header(None),
 ):
-    """Analyze weekly mood logs and habit patterns to produce structured AI observation."""
-    since = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+    """Analyze weekly or monthly mood logs and habit patterns to produce structured AI observation."""
+    token = _normalize_token(authorization)
+    is_premium = False
+    if token:
+        try:
+            profile_resp = await pb.list_records(
+                "user_profiles",
+                token=token,
+                params={"filter": f'user_id="{req.user_id}"', "perPage": 1}
+            )
+            items = profile_resp.get("items") or []
+            if items:
+                is_premium, _ = verify_user_premium(items[0], req.user_id)
+        except Exception as profile_err:
+            logger.warning("Failed to fetch user profile in mood_analysis: %s", profile_err)
+
+    days = 30 if is_premium else 7
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
     filter_str = f'user_id="{req.user_id}" && created >= "{since}"'
     
     try:
         morning_resp = await pb.list_records("morning_rituals", token=authorization, params={"filter": filter_str})
         morning_count = len(morning_resp.get("items") or [])
     except Exception as e:
-        logger.warning("Failed to fetch user's last 7 morning rituals: %s", e)
+        logger.warning(f"Failed to fetch user's last {days} morning rituals: %s", e)
         morning_count = 0
 
     try:
         wind_down_resp = await pb.list_records("wind_down_rituals", token=authorization, params={"filter": filter_str})
         wind_down_count = len(wind_down_resp.get("items") or [])
     except Exception as e:
-        logger.warning("Failed to fetch user's last 7 wind down rituals: %s", e)
+        logger.warning(f"Failed to fetch user's last {days} wind down rituals: %s", e)
         wind_down_count = 0
 
     try:
         journal_resp = await pb.list_records("journal_entries", token=authorization, params={"filter": filter_str})
         journal_count = len(journal_resp.get("items") or [])
     except Exception as e:
-        logger.warning("Failed to fetch user's last 7 journals: %s", e)
+        logger.warning(f"Failed to fetch user's last {days} journals: %s", e)
         journal_count = 0
 
     mood_data = req.mood_data
@@ -3551,7 +3567,7 @@ async def mood_analysis(
 
     system_prompt = (
         "You are ARIA, a warm, validating mental health companion in MindCradle. "
-        "Analyze the user's weekly mood data and ritual habits, then output a JSON object. "
+        f"Analyze the user's {'monthly' if is_premium else 'weekly'} mood data and ritual habits, then output a JSON object. "
         "Keep the tone extremely conversational, supportive, and non-clinical (like talking to a friend).\n\n"
         "Output structure must be a JSON object with exactly these keys:\n"
         "- 'analysis': One honest observation about their mood trend. Warm and validating. Max 1 sentence.\n"
@@ -3570,15 +3586,15 @@ async def mood_analysis(
     )
     
     user_prompt = (
-        f"User's Mood Logs (last 7 days):\n"
+        f"User's Mood Logs (last {days} days):\n"
         f"- Average mood level: {avg_mood_level:.1f}/10\n"
         f"- Mood trend direction: {trend_str}\n"
         f"- Highest mood day: {highest_day}\n"
         f"- Lowest mood day: {lowest_day}\n"
         f"- Dominant emotions: {', '.join(dominant_emotions) if dominant_emotions else 'None specified'}\n\n"
-        f"User's Habit Data (last 7 days):\n"
-        f"- Morning Ritual completion count: {morning_count} out of 7 days\n"
-        f"- Evening Wind Down completion count: {wind_down_count} out of 7 days\n"
+        f"User's Habit Data (last {days} days):\n"
+        f"- Morning Ritual completion count: {morning_count} out of {days} days\n"
+        f"- Evening Wind Down completion count: {wind_down_count} out of {days} days\n"
         f"- Guided Journal frequency: {journal_count} entries\n"
     )
 
@@ -3592,7 +3608,7 @@ async def mood_analysis(
         )
         
         data = parse_json_safely(reply)
-        analysis = data.get("analysis", "I noticed your mood patterns remained fairly stable this week.")
+        analysis = data.get("analysis", f"I noticed your mood patterns remained fairly stable this {'month' if is_premium else 'week'}.")
         pattern = data.get("pattern", "You report steadier levels on days you check in consistently.")
         suggestion = data.get("suggestion", "Try the Wind Down ritual more consistently.")
         mood_trend = data.get("mood_trend", trend_str)
@@ -3600,10 +3616,10 @@ async def mood_analysis(
         payload = {
             "user": req.user_id,
             "messages": [
-                {"role": "user", "content": "Analyze my mood logs and habit patterns for the week."},
-                {"role": "assistant", "content": f"Here's what I noticed about your week:\n\nObservation: {analysis}\nPattern: {pattern}\nSuggestion: {suggestion}"}
+                {"role": "user", "content": f"Analyze my mood logs and habit patterns for the {'month' if is_premium else 'week'}."},
+                {"role": "assistant", "content": f"Here's what I noticed about your {'month' if is_premium else 'week'}:\n\nObservation: {analysis}\nPattern: {pattern}\nSuggestion: {suggestion}"}
             ],
-            "summary": f"Weekly mood analysis for {req.user_id}"
+            "summary": f"{'Monthly' if is_premium else 'Weekly'} mood analysis for {req.user_id}"
         }
         try:
             await pb.create_record(

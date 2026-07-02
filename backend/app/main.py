@@ -5,9 +5,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from app.config import FRONTEND_URL, ENVIRONMENT, JWT_SECRET_KEY
-from app.routers import resources, mood, journal, ai, auth, rituals, profile, notifications, user, billing
+from app.routers import resources, mood, journal, ai, auth, rituals, profile, notifications, user, billing, payments, webhooks
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.routers.ai import AgeGateException
+
 
 from fastapi_csrf_protect import CsrfProtect
 from fastapi_csrf_protect.exceptions import CsrfProtectError
@@ -35,6 +36,9 @@ app.include_router(profile.router, prefix="/api", tags=["profile"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 app.include_router(user.router, prefix="/api/user", tags=["user"])
 app.include_router(billing.router, prefix="/api/billing", tags=["billing"])
+app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
+app.include_router(webhooks.router, prefix="/api/webhooks", tags=["webhooks"])
+
 
 # Health endpoint (no DB required)
 @app.get("/health")
