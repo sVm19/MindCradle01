@@ -33,7 +33,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if request.method == "OPTIONS":
             return await call_next(request)
             
-        ip = request.client.host if request.client else "unknown-ip"
+        # Check X-Forwarded-For header first if behind reverse proxies (like Google Cloud Run)
+        x_forwarded_for = request.headers.get("x-forwarded-for")
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(",")[0].strip()
+        else:
+            ip = request.client.host if request.client else "unknown-ip"
+        
         now = datetime.utcnow()
         
         # Periodic cleanup of expired entries across all IPs to prevent memory leaks
