@@ -3,6 +3,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://mindcradle01-959765770210.europe-west1.run.app/api/:path*"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
