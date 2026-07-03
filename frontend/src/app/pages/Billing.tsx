@@ -182,49 +182,69 @@ export default function Billing() {
         )}
 
         {!isPremium && !processing && (
-          <div className="space-y-6">
-            <div className="border-b border-border pb-6 space-y-2">
-              <span className="text-xs font-semibold text-rose bg-rose-dim border border-rose/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                Premium Monthly
-              </span>
-              <h2 className="text-3xl font-light text-text mt-4">
-                $9.99<span className="text-sm font-normal text-text3"> / month</span>
-              </h2>
-              <p className="text-sm text-text2">
-                Unlock all advanced wellness and AI features in MindCradle.
+          <div className="space-y-8 animate-fadeIn">
+            {/* Plan Header */}
+            <div className="border-b border-border/80 pb-6 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] tracking-widest font-bold text-rose bg-rose-dim border border-rose/20 px-3 py-1 rounded-full uppercase">
+                  Premium Pass
+                </span>
+                <span className="text-[10.5px] uppercase tracking-wider font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
+                  7-Day Free Trial
+                </span>
+              </div>
+              
+              <div className="flex items-baseline gap-2 mt-4">
+                <h2 className="text-4xl font-extralight text-text tracking-tight">$9.99</h2>
+                <span className="text-sm font-normal text-text3">/ month</span>
+              </div>
+              
+              <p className="text-sm text-text2 leading-relaxed font-light">
+                Unlock all premium mental wellness tools, unlimited AI companion reflections, and detailed mood analytics.
               </p>
             </div>
 
             {/* Premium Features List */}
-            <ul className="space-y-3">
-              {[
-                "Unlimited morning & evening rituals",
-                "Unlimited conversation with ARIA (AI Companion)",
-                "30-day automatic monthly emotion analytics",
-                "Full data export and privacy-first logs",
-                "Priority response time and support"
-              ].map((feat, i) => (
-                <li key={i} className="flex items-center gap-3 text-sm text-text2">
-                  <Check className="w-4 h-4 text-green shrink-0" />
-                  <span>{feat}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-4">
+              <h4 className="text-xs font-semibold text-text3 uppercase tracking-wider">Features Included:</h4>
+              <ul className="space-y-3.5">
+                {[
+                  "Unlimited morning & evening rituals",
+                  "Unlimited chat & reflections with ARIA (AI Companion)",
+                  "30-day automatic monthly emotion analytics",
+                  "Detailed recovery pattern & theme insights",
+                  "Full data export (GDPR compliant) & priority support",
+                  "Ad-free focused meditation experience"
+                ].map((feat, i) => (
+                  <li key={i} className="flex items-start gap-3.5 text-sm text-text2">
+                    <div className="w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                      <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                    </div>
+                    <span className="font-light">{feat}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
             {/* Subscribe Action */}
-            <div className="pt-6 space-y-4">
+            <div className="pt-6 border-t border-border/80 space-y-4">
               <button
                 onClick={handlePayPalSubscription}
                 disabled={processing}
-                className="w-full h-[52px] bg-[#FFB730] hover:bg-[#F2AE2B] text-[#003087] font-bold rounded-xl text-sm flex items-center justify-center gap-2.5 transition-all shadow-md cursor-pointer hover:scale-[1.01]"
+                className="w-full h-[54px] bg-gradient-to-r from-[#FFD140] via-[#FFB800] to-[#FFA800] text-[#003087] font-bold rounded-xl text-sm flex items-center justify-center gap-2.5 transition-all shadow-lg hover:shadow-[0_0_22px_rgba(255,184,0,0.3)] hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
               >
-                <Sparkles className="w-4 h-4 text-[#003087]" />
-                Subscribe with PayPal
+                {/* Custom SVG PayPal Monogram */}
+                <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20.067 8.478c0 3.238-2.316 6.386-5.882 6.386h-2.128c-.46 0-.853.332-.937.787l-1.042 5.56a.465.465 0 0 1-.46.389H6.467c-.297 0-.518-.268-.466-.56l2.368-12.63c.084-.455.477-.787.937-.787h5.187c3.566 0 5.574 1.706 5.574 3.85h-.004z" fill="#0079C1" />
+                  <path d="M17.15 4.397c0 3.238-2.316 6.386-5.882 6.386H9.14c-.46 0-.853.332-.937.787L7.16 17.13c-.052.292.17.56.466.56h3.151c.46 0 .853-.332.937-.787l1.042-5.56a.465.465 0 0 1 .46-.389h2.128c3.566 0 5.574-1.706 5.574-3.85s-2.008-3.707-5.574-3.707H10.15c-.296 0-.518.268-.466.56l.942-5.02c.084-.455.477-.787.937-.787H12.18c3.566 0 4.97 1.636 4.97 3.774v.006z" fill="#00457C" />
+                </svg>
+                <span className="font-extrabold tracking-tight">Pay with PayPal</span>
               </button>
               
-              <p className="text-[11px] text-text3 text-center">
-                7 days free trial, cancel anytime. Processed securely via PayPal encryption protocols.
-              </p>
+              <div className="flex items-center justify-center gap-1.5 text-[11px] text-text3">
+                <Lock className="w-3.5 h-3.5 text-text3" />
+                <span>Secured by PayPal encryption protocols. Cancel anytime.</span>
+              </div>
             </div>
           </div>
         )}
