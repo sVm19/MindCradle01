@@ -115,7 +115,7 @@ async def create_paypal_subscription(
         token_match = re.search(r"token=(EC-[A-Z0-9]+)", approval_url)
         if token_match:
             ec_token = token_match.group(1)
-            return {"plan_id": ec_token}
+            return {"plan_id": ec_token, "approval_url": approval_url}
         else:
             raise HTTPException(status_code=502, detail="Failed to extract token from approval URL")
 

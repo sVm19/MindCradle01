@@ -89,8 +89,8 @@ export default function Billing() {
       const token = res.plan_id;
       localStorage.setItem('mc_paypal_plan_id', token);
       
-      // Redirect to PayPal Express Checkout Sandbox/Production page
-      const paypalUrl = `https://www.paypal.com/cgi-bin/webscr?cmd=_express-checkout&token=${token}`;
+      // Redirect to PayPal (dynamically use the URL returned by the backend, falling back to live)
+      const paypalUrl = res.approval_url || `https://www.paypal.com/cgi-bin/webscr?cmd=_express-checkout&token=${token}`;
       window.location.href = paypalUrl;
     } catch (err: any) {
       setError(err.message || 'Failed to create subscription plan.');
