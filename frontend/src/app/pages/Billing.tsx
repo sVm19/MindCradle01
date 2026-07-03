@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router';
 import { useAuth } from '@/lib/auth';
 import { payments, profile as profileApi } from '@/lib/api';
-import { Loader2, ShieldCheck, AlertCircle, Sparkles, ArrowLeft, Check } from 'lucide-react';
+import { Loader2, ShieldCheck, AlertCircle, Sparkles, ArrowLeft, Check, Lock } from 'lucide-react';
 import GuestGate from '@/app/components/GuestGate';
 
 export default function Billing() {
