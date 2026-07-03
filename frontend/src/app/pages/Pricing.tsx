@@ -260,8 +260,8 @@ export default function Pricing() {
                   ✓ Active Premium Plan
                 </div>
               ) : (
-                <button
-                  onClick={() => setIsCheckoutOpen(true)}
+                <Link
+                  to="/billing"
                   className="inline-flex items-center justify-center gap-2 w-full h-[48px] text-white rounded-xl text-sm font-semibold transition-all shadow-lg hover:brightness-110 cursor-pointer"
                   style={{ 
                     backgroundColor: "#E94B6F",
@@ -269,7 +269,7 @@ export default function Pricing() {
                   }}
                 >
                   Start Free Trial <Sparkles className="w-4 h-4 text-white" />
-                </button>
+                </Link>
               )
             ) : (
               <Link
