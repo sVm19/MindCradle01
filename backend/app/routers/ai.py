@@ -4416,3 +4416,189 @@ async def get_recovery_patterns(
     except Exception as e:
         logger.error("Failed to analyze recovery patterns: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to analyze recovery patterns: {str(e)}")
+
+
+from pydantic import BaseModel
+
+class TelemetryInteractionRequest(BaseModel):
+    event_type: str
+    element_id: Optional[str] = None
+    element_name: Optional[str] = None
+    page_path: str
+    input_placeholder: Optional[str] = None
+    input_length: Optional[int] = 0
+    metadata: Optional[dict] = None
+
+@router.post("/track-interaction")
+async def track_interaction(
+    req: TelemetryInteractionRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """Track clicks, navigations, and input placeholder usage and report to database."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+        
+    try:
+        payload = {
+            "user_id": user_id,
+            "event_type": req.event_type,
+            "element_id": req.element_id,
+            "element_name": req.element_name,
+            "page_path": req.page_path,
+            "input_placeholder": req.input_placeholder,
+            "input_length": req.input_length,
+            "metadata": req.metadata or {}
+        }
+        rec = await pb.create_record("user_interactions", payload, token=token)
+        return {"success": True, "id": rec["id"]}
+    except Exception as e:
+        logger.error("Error logging interaction: %s", e)
+        return {"success": False, "error": str(e)}
+
+@router.get("/30day-insights")
+async def get_30day_insights(
+    authorization: Optional[str] = Header(None)
+):
+    """Generate 30-day AI Insights and analytics report."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+        
+    try:
+        since_30d = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+        filter_user = f'user_id="{user_id}"'
+        
+        # Retrieve mood logs
+        moods = await pb.list_records(
+            "mood_logs",
+            token=token,
+            params={"filter": f'{filter_user} && created >= "{since_30d}"', "perPage": 100}
+        )
+        moods_items = moods.get("items") or []
+        
+        # Retrieve journal entries
+        journals = await pb.list_records(
+            "journal_entries",
+            token=token,
+            params={"filter": f'{filter_user} && created >= "{since_30d}"', "perPage": 100}
+        )
+        journals_items = journals.get("items") or []
+        
+        # Retrieve rituals
+        m_rituals = await pb.list_records(
+            "morning_rituals",
+            token=token,
+            params={"filter": f'{filter_user} && created >= "{since_30d}"', "perPage": 100}
+        )
+        m_rituals_items = m_rituals.get("items") or []
+        
+        w_rituals = await pb.list_records(
+            "wind_down_rituals",
+            token=token,
+            params={"filter": f'{filter_user} && created >= "{since_30d}"', "perPage": 100}
+        )
+        w_rituals_items = w_rituals.get("items") or []
+        
+        # Retrieve telemetry interactions
+        interactions = await pb.list_records(
+            "user_interactions",
+            token=token,
+            params={"filter": f'{filter_user} && created_at >= "{since_30d}"', "perPage": 1000}
+        )
+        interactions_items = interactions.get("items") or []
+        
+        # Calculate stats
+        total_moods = len(moods_items)
+        avg_mood = sum(m.get("level", 5) for m in moods_items) / total_moods if total_moods > 0 else 5.0
+        
+        total_journals = len(journals_items)
+        total_rituals = len(m_rituals_items) + len(w_rituals_items)
+        
+        total_clicks = len([i for i in interactions_items if i.get("event_type") == "click"])
+        total_navigations = len([i for i in interactions_items if i.get("event_type") == "navigation"])
+        
+        page_counts = {}
+        for i in interactions_items:
+            path = i.get("page_path", "/dashboard")
+            page_counts[path] = page_counts.get(path, 0) + 1
+        top_page = max(page_counts, key=page_counts.get) if page_counts else "/dashboard"
+        
+        placeholders_used = [i.get("input_placeholder") for i in interactions_items if i.get("input_placeholder")]
+        placeholder_counts = {}
+        for p in placeholders_used:
+            placeholder_counts[p] = placeholder_counts.get(p, 0) + 1
+        top_placeholders = sorted(placeholder_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+        placeholders_summary = ", ".join([f"{p} ({c}x)" for p, c in top_placeholders]) or "None recorded"
+        
+        system_prompt = (
+            "You are ARIA, the quiet wellness intelligence engine of MindCradle.\n"
+            "Analyze the user's 30-day activity, mood logs, and telemetry clicks to generate a personalized wellness insight report.\n"
+            "Provide your analysis as a clean JSON object containing:\n"
+            "1. 'calmness_score': a rating from 1 to 100 based on mood averages and variance.\n"
+            "2. 'consistency_index': completion score from 1 to 100 based on ritual rates.\n"
+            "3. 'interaction_focus': a short string describing their primary feature used.\n"
+            "4. 'insights': an array of exactly 3 distinct, highly personalized, actionable bullet points (e.g. noting if they track mood but skip rituals, or if they write long journals, and giving retention-oriented positive reinforcement).\n"
+            "Return ONLY valid JSON. No markdown wrappers, no backticks, no explanations."
+        )
+        
+        user_prompt = (
+            f"Here are the user's statistics for the past 30 days:\n"
+            f"- Average Mood: {avg_mood:.1f}/10 (based on {total_moods} check-ins)\n"
+            f"- Journals written: {total_journals}\n"
+            f"- Rituals completed: {total_rituals} ({len(m_rituals_items)} morning, {len(w_rituals_items)} evening)\n"
+            f"- Total clicks tracked: {total_clicks}\n"
+            f"- Total page navigations: {total_navigations}\n"
+            f"- Top visited page: {top_page}\n"
+            f"- Top input fields/placeholders used: {placeholders_summary}\n\n"
+            "Analyze this data and generate the JSON insights report."
+        )
+        
+        try:
+            ai_res = await openrouter_ai.chat_completion(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                max_tokens=800,
+                temperature=0.7
+            )
+            import re
+            json_match = re.search(r"({[\s\S]*})", ai_res.strip())
+            cleaned_res = json_match.group(1) if json_match else ai_res.strip()
+            insights_data = json.loads(cleaned_res)
+        except Exception as ai_err:
+            logger.error("Failed to generate AI insights: %s", ai_err)
+            insights_data = {
+                "calmness_score": int(avg_mood * 10),
+                "consistency_index": min(100, (total_rituals * 5) or 20),
+                "interaction_focus": "Journaling & Reflections" if total_journals > total_moods else "Mood Tracking",
+                "insights": [
+                    f"You've logged {total_moods} mood check-ins this month with a stable average of {avg_mood:.1f}/10.",
+                    f"Great consistency with completing {total_rituals} rituals! Try adding evening breathing exercises to wind down.",
+                    f"Your most active path is {top_page}. Daily visits help build healthy wellness routines!"
+                ]
+            }
+            
+        return {
+            "success": True,
+            "data": insights_data,
+            "stats": {
+                "total_moods": total_moods,
+                "avg_mood": round(avg_mood, 1),
+                "total_journals": total_journals,
+                "total_rituals": total_rituals,
+                "total_clicks": total_clicks,
+                "total_navigations": total_navigations,
+                "top_page": top_page
+            }
+        }
+    except Exception as e:
+        logger.error("Failed in get_30day_insights: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))

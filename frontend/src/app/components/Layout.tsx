@@ -2,11 +2,12 @@ import { Link, useLocation } from 'react-router';
 import { useEffect, useState } from 'react';
 import { useAuth, getInitials, getAvatarGradient, UserSketchAvatar } from '@/lib/auth';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi } from '@/lib/api';
-import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, Flame, AlertTriangle, X, User, Award } from 'lucide-react';
+import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, Flame, AlertTriangle, X, User, Award, Sparkles } from 'lucide-react';
 import Logo from './Logo';
 import AuthCardModal from './AuthCardModal';
 import AgeVerificationModal from './AgeVerificationModal';
 import PrivacyPolicyModal from './PrivacyPolicyModal';
+import { TelemetryProvider } from '@/context/TelemetryContext';
 
 function formatDate(d: Date): string {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -112,6 +113,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { path: '/mood', label: 'Mood', icon: <Smile size={15} /> },
     { path: '/journal', label: 'Journal', icon: <BookOpen size={15} /> },
     { path: '/aria', label: 'ARIA', icon: <Brain size={15} /> },
+    { path: '/insights', label: 'AI Insights', icon: <Sparkles size={15} /> },
     { path: '/wind-down', label: 'Wind Down', icon: <Moon size={15} /> },
   ];
 
@@ -119,7 +121,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const greeting = new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening';
 
   return (
-    <>
+    <TelemetryProvider>
+      <>
       {/* Ambient orbs */}
       <div className="fixed w-[500px] h-[500px] rounded-full blur-[80px] bg-accent/8 -top-[150px] -right-[100px] pointer-events-none z-0" />
       <div className="fixed w-[400px] h-[400px] rounded-full blur-[80px] bg-teal/6 bottom-[100px] -left-[100px] pointer-events-none z-0" />
@@ -506,6 +509,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         onDeclined={() => setVerifyModalOpen(false)}
       />
       <PrivacyPolicyModal />
-    </>
+      </>
+    </TelemetryProvider>
   );
 }

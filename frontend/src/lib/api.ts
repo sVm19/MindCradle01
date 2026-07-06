@@ -491,6 +491,35 @@ export const ai = {
 
   resolveCrisis: () =>
     request<{ status: string; resolved_count: number }>('POST', '/aria/crisis-resolve'),
+
+  trackInteraction: (data: {
+    event_type: string;
+    element_id?: string;
+    element_name?: string;
+    page_path: string;
+    input_placeholder?: string;
+    input_length?: number;
+    metadata?: Record<string, any>;
+  }) => request<{ success: boolean; id?: string }>('POST', '/ai/track-interaction', data),
+
+  get30DayInsights: () => request<{
+    success: boolean;
+    data: {
+      calmness_score: number;
+      consistency_index: number;
+      interaction_focus: string;
+      insights: string[];
+    };
+    stats: {
+      total_moods: number;
+      avg_mood: number;
+      total_journals: number;
+      total_rituals: number;
+      total_clicks: number;
+      total_navigations: number;
+      top_page: string;
+    };
+  }>('GET', '/ai/30day-insights'),
 };
 
 // ─── Resources ────────────────────────────────────────────────────────────────

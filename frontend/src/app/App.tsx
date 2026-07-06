@@ -26,6 +26,7 @@ const About = lazy(() => import('./pages/About'));
 const Billing = lazy(() => import('./pages/Billing'));
 const BillingSuccess = lazy(() => import('./pages/BillingSuccess'));
 const BillingCancel = lazy(() => import('./pages/BillingCancel'));
+const Insights = lazy(() => import('./pages/Insights'));
 
 
 
@@ -106,6 +107,7 @@ function AppRoutes() {
                 <Route path="/billing" element={<Billing />} />
                 <Route path="/billing/success" element={<BillingSuccess />} />
                 <Route path="/billing/cancel" element={<BillingCancel />} />
+                <Route path="/insights" element={<Insights />} />
               </Routes>
             </Suspense>
           </Layout>
