@@ -29,6 +29,11 @@ OPENROUTER_API_URL = os.getenv(
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemma-4-31b-it:free")
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 
+# Creem Settings
+CREEM_API_KEY = os.getenv("CREEM_API_KEY", "")
+CREEM_API_URL = os.getenv("CREEM_API_URL", "https://test-api.creem.io")
+CREEM_PRODUCT_ID = os.getenv("CREEM_PRODUCT_ID", "")
+
 
 # CORS — the URL of the frontend that is allowed to call this API.
 # In production this MUST be an https:// URL.

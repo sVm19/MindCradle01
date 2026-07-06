@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router';
 import { useAuth } from '@/lib/auth';
-import { profile as profileApi } from '@/lib/api';
+import { payments, profile as profileApi } from '@/lib/api';
 import { Loader2, ShieldCheck, AlertCircle, Sparkles, ArrowLeft, Check, Lock } from 'lucide-react';
 import GuestGate from '@/app/components/GuestGate';
 
@@ -29,6 +29,16 @@ export default function Billing() {
       try {
         const prof = await profileApi.get();
         setIsPremium(!!prof.is_premium);
+
+        // Check if returning from a successful Creem checkout
+        const isSuccess = searchParams.get('success') === 'true';
+        if (isSuccess) {
+          setSuccess(true);
+          setIsPremium(true);
+          setMessage('Your Premium subscription is now active! Enjoy unlimited access.');
+        } else if (searchParams.get('success') === 'false') {
+          setError('Subscription checkout was cancelled.');
+        }
       } catch (err: any) {
         setError(err.message || 'An error occurred while loading billing status.');
       } finally {
@@ -37,9 +47,29 @@ export default function Billing() {
     }
 
     init();
-  }, [user]);
+  }, [user, searchParams]);
 
-
+  const handleCreemCheckout = async () => {
+    setProcessing(true);
+    setError('');
+    setMessage('Connecting to Creem...');
+    try {
+      const res = await payments.createCreemCheckout();
+      if (res.error) {
+        setError(res.error);
+        setProcessing(false);
+        return;
+      }
+      if (res.checkout_url) {
+        window.location.href = res.checkout_url;
+      } else {
+        throw new Error('No checkout URL returned.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to create subscription checkout session.');
+      setProcessing(false);
+    }
+  };
 
   if (!user) {
     return (
@@ -172,6 +202,7 @@ export default function Billing() {
             {/* Subscribe Action */}
             <div className="pt-6 border-t border-border/80 space-y-4">
               <button
+                onClick={handleCreemCheckout}
                 disabled={processing}
                 className="w-full h-[54px] bg-accent hover:bg-accent2 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2.5 transition-all shadow-lg cursor-pointer"
               >

@@ -547,5 +547,10 @@ export const billing = {
     request<{ status: string; message: string }>('POST', '/billing/cancel'),
 };
 
+export const payments = {
+  createCreemCheckout: () =>
+    request<{ checkout_url: string; error?: string }>('POST', '/payments/creem-checkout'),
+};
+
 
 
