@@ -547,13 +547,5 @@ export const billing = {
     request<{ status: string; message: string }>('POST', '/billing/cancel'),
 };
 
-export const payments = {
-  createPaypalSubscription: () =>
-    request<{ plan_id: string; approval_url?: string; error?: string }>('POST', '/payments/paypal-subscription'),
-  executePaypalSubscription: (planId: string, token: string) =>
-    request<{ success: boolean; agreement_id?: string; error?: string }>('POST', '/payments/paypal-execute', {
-      plan_id: planId,
-      token,
-    }),
-};
+
 

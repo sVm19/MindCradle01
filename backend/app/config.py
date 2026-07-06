@@ -29,11 +29,6 @@ OPENROUTER_API_URL = os.getenv(
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemma-4-31b-it:free")
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 
-# PayPal Settings
-PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
-PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
-PAYPAL_MODE = os.getenv("PAYPAL_MODE", "sandbox")
-
 
 # CORS — the URL of the frontend that is allowed to call this API.
 # In production this MUST be an https:// URL.

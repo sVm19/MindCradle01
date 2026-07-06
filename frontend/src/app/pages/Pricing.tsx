@@ -132,13 +132,13 @@ export default function Pricing() {
           Simple, Transparent Pricing
         </h1>
         <p className="text-sm sm:text-base text-text3 font-light leading-relaxed">
-          Choose the plan that fits your wellness journey
+          The plan that fits your wellness journey
         </p>
       </header>
 
       {/* Pricing Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch max-w-4xl mx-auto">
-        
+
         {/* Free Plan Card */}
         <div className="bg-slate-50 text-slate-900 border border-slate-200 rounded-[24px] p-8 flex flex-col justify-between shadow-lg relative overflow-hidden transition-all duration-300 hover:-translate-y-1">
           <div className="space-y-6">
@@ -197,7 +197,7 @@ export default function Pricing() {
         </div>
 
         {/* Premium Plan Card */}
-        <div 
+        <div
           className="bg-bg2 border-2 rounded-[24px] p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden transition-all duration-300 hover:-translate-y-1"
           style={{ borderColor: "#E94B6F" }}
         >
@@ -206,7 +206,7 @@ export default function Pricing() {
 
           {/* Recommended badge */}
           <div className="absolute top-4 right-4">
-            <span 
+            <span
               className="inline-flex items-center gap-1 text-[10.5px] uppercase tracking-wider font-semibold text-white px-3 py-1 rounded-full shadow-lg"
               style={{ backgroundColor: "#E94B6F" }}
             >
@@ -250,9 +250,9 @@ export default function Pricing() {
           <div className="pt-8 space-y-3 text-center">
             {user ? (
               profileData?.is_premium ? (
-                <div 
+                <div
                   className="w-full h-[48px] text-white rounded-xl text-sm font-semibold flex items-center justify-center select-none"
-                  style={{ 
+                  style={{
                     backgroundColor: "#10B981",
                     boxShadow: "0 4px 14px rgba(16, 185, 129, 0.3)"
                   }}
@@ -263,7 +263,7 @@ export default function Pricing() {
                 <Link
                   to="/billing"
                   className="inline-flex items-center justify-center gap-2 w-full h-[48px] text-white rounded-xl text-sm font-semibold transition-all shadow-lg hover:brightness-110 cursor-pointer"
-                  style={{ 
+                  style={{
                     backgroundColor: "#E94B6F",
                     boxShadow: "0 4px 14px rgba(233, 75, 111, 0.3)"
                   }}
@@ -275,7 +275,7 @@ export default function Pricing() {
               <Link
                 to="/signup"
                 className="inline-flex items-center justify-center gap-2 w-full h-[48px] text-white rounded-xl text-sm font-semibold transition-all shadow-lg hover:brightness-110 cursor-pointer"
-                style={{ 
+                style={{
                   backgroundColor: "#E94B6F",
                   boxShadow: "0 4px 14px rgba(233, 75, 111, 0.3)"
                 }}
@@ -349,16 +349,16 @@ export default function Pricing() {
                     </span>
                   ) : (
                     <form onSubmit={handleSubscribeUpdates} className="flex gap-2 max-w-[240px]">
-                      <input 
-                        type="email" 
+                      <input
+                        type="email"
                         value={emailInput}
                         onChange={(e) => setEmailInput(e.target.value)}
-                        placeholder="your@email.com" 
+                        placeholder="your@email.com"
                         className="bg-bg border border-border rounded-lg px-2.5 py-1 text-[11px] text-text flex-1 focus:outline-none focus:border-rose/50"
                         required
                       />
-                      <button 
-                        type="submit" 
+                      <button
+                        type="submit"
                         className="bg-rose text-white text-[10px] font-semibold px-3 py-1 rounded-lg hover:opacity-90 transition-all cursor-pointer"
                       >
                         Notify me
@@ -376,7 +376,7 @@ export default function Pricing() {
       {isCheckoutOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
           <div className="bg-[#120921] border border-border w-full max-w-md rounded-[28px] p-6 sm:p-8 space-y-6 shadow-2xl relative animate-scaleIn text-left">
-            <button 
+            <button
               onClick={() => setIsCheckoutOpen(false)}
               className="absolute top-4 right-4 text-text3 hover:text-text transition-all cursor-pointer"
             >
@@ -488,7 +488,7 @@ export default function Pricing() {
       {isCancelConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
           <div className="bg-[#120921] border border-border w-full max-w-sm rounded-[28px] p-6 space-y-6 shadow-2xl relative animate-scaleIn text-left">
-            <button 
+            <button
               onClick={() => setIsCancelConfirmOpen(false)}
               className="absolute top-4 right-4 text-text3 hover:text-text transition-all cursor-pointer"
             >
