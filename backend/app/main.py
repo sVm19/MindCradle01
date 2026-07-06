@@ -52,7 +52,7 @@ async def health_check():
 # Everything else below
 class CsrfSettings(BaseModel):
     secret_key: str = JWT_SECRET_KEY
-    cookie_samesite: str = "lax"
+    cookie_samesite: str = "none" if ENVIRONMENT == "production" else "lax"
     cookie_secure: bool = (ENVIRONMENT == "production")
 
 @CsrfProtect.load_config

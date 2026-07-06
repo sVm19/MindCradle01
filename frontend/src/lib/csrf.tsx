@@ -6,7 +6,9 @@ export const getCsrfToken = (): string | null => csrfToken;
 
 export const initCSRF = async () => {
   try {
-    const response = await fetch('/api/csrf-token');
+    const response = await fetch('/api/csrf-token', {
+      credentials: 'include',
+    });
     if (response.ok) {
       const data = await response.json();
       csrfToken = data.csrf_token;
@@ -37,6 +39,7 @@ export const apiCall = async (
       'Content-Type': 'application/json',
       'X-CSRF-Token': csrfToken || '',
     },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
   return response.json();
