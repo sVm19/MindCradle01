@@ -49,6 +49,18 @@ export default function Journal() {
     setSaveError('');
     try {
       await journalApi.save(TODAY_PROMPT, journalText);
+      
+      aiApi.trackInteraction({
+        event_type: 'input_submit',
+        page_path: '/journal',
+        input_placeholder: 'journal_entry_content',
+        input_length: journalText.length,
+        metadata: {
+          word_count: journalText.split(/\s+/).filter(Boolean).length,
+          has_reflection: false,
+        }
+      }).catch((err) => console.error('Failed to log journal telemetry:', err));
+
       setSaved(true);
       setJournalError('');
       setTimeout(() => setSaved(false), 3000);
@@ -69,6 +81,18 @@ export default function Journal() {
     try {
       const formattedReflection = `Reflection: ${reflectionData.reflection}\nKey Themes: ${reflectionData.themes.join(', ')}\nEmotional Tone: ${reflectionData.emotional_tone}`;
       await journalApi.save(TODAY_PROMPT, journalText, formattedReflection);
+
+      aiApi.trackInteraction({
+        event_type: 'input_submit',
+        page_path: '/journal',
+        input_placeholder: 'journal_entry_content',
+        input_length: journalText.length,
+        metadata: {
+          word_count: journalText.split(/\s+/).filter(Boolean).length,
+          has_reflection: true,
+        }
+      }).catch((err) => console.error('Failed to log journal telemetry:', err));
+
       setSaved(true);
       setJournalError('');
       setTimeout(() => setSaved(false), 3000);
