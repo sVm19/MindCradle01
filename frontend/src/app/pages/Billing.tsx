@@ -269,8 +269,14 @@ export default function Billing() {
                 <button
                   onClick={handleCreemCheckout}
                   disabled={processing}
-                  className="w-full h-[54px] bg-accent hover:bg-accent2 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2.5 transition-all shadow-lg cursor-pointer"
+                  className="w-full h-[54px] bg-gradient-to-r from-violet-600 via-indigo-600 to-accent text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2.5 transition-all duration-300 shadow-lg hover:shadow-[0_0_24px_rgba(139,92,246,0.35)] hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
                 >
+                  {/* Premium Credit Card SVG Monogram */}
+                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="5" width="20" height="14" rx="2" />
+                    <line x1="2" y1="10" x2="22" y2="10" />
+                    <path d="M6 14h.01M10 14h2" />
+                  </svg>
                   <span className="font-semibold tracking-tight">Pay with Creem</span>
                 </button>
               )}
