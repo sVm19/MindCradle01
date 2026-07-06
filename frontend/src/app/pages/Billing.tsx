@@ -17,6 +17,16 @@ export default function Billing() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [trialStatus, setTrialStatus] = useState<{
+    trial_active: boolean;
+    days_remaining: number;
+    trial_ends_at?: string;
+    trial_used: boolean;
+  }>({
+    trial_active: false,
+    days_remaining: 0,
+    trial_used: false,
+  });
 
   // Load user premium status
   useEffect(() => {
@@ -29,6 +39,9 @@ export default function Billing() {
       try {
         const prof = await profileApi.get();
         setIsPremium(!!prof.is_premium);
+
+        const statusData = await payments.trialStatus();
+        setTrialStatus(statusData);
 
         // Check if returning from a successful Creem checkout
         const isSuccess = searchParams.get('success') === 'true';
@@ -67,6 +80,35 @@ export default function Billing() {
       }
     } catch (err: any) {
       setError(err.message || 'Failed to create subscription checkout session.');
+      setProcessing(false);
+    }
+  };
+
+  const handleStartTrial = async () => {
+    setProcessing(true);
+    setError('');
+    setMessage('Starting your 7-day free trial...');
+    try {
+      const res = await payments.startTrial();
+      if (res.error) {
+        setError(res.error);
+        setProcessing(false);
+        return;
+      }
+      if (res.success) {
+        setSuccess(true);
+        setIsPremium(true);
+        setTrialStatus({
+          trial_active: true,
+          days_remaining: 7,
+          trial_ends_at: res.trial_ends_at,
+          trial_used: true
+        });
+        setMessage('Your 7-day Premium trial is now active! Enjoy unlimited features.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to start trial.');
+    } finally {
       setProcessing(false);
     }
   };
@@ -133,15 +175,29 @@ export default function Billing() {
 
         {isPremium && !processing && !success && (
           <div className="space-y-6">
-            <div className="flex items-center gap-4 bg-green/5 border border-green/20 rounded-xl p-4">
-              <div className="w-10 h-10 rounded-full bg-green/10 flex items-center justify-center">
-                <ShieldCheck className="w-5 h-5 text-green" />
+            {trialStatus.trial_active ? (
+              <div className="flex items-center gap-4 bg-accent/5 border border-accent/20 rounded-xl p-4">
+                <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-accent animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-text text-sm">Free Trial Active ✅</h3>
+                  <p className="text-xs text-text3">
+                    {trialStatus.days_remaining} days remaining. Trial expires on {trialStatus.trial_ends_at ? new Date(trialStatus.trial_ends_at).toLocaleDateString() : ''}.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-text text-sm">MindCradle Premium Active</h3>
-                <p className="text-xs text-text3">Thank you for supporting MindCradle! You have full unlimited access.</p>
+            ) : (
+              <div className="flex items-center gap-4 bg-green/5 border border-green/20 rounded-xl p-4">
+                <div className="w-10 h-10 rounded-full bg-green/10 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5 text-green" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-text text-sm">MindCradle Premium Active</h3>
+                  <p className="text-xs text-text3">Thank you for supporting MindCradle! You have full unlimited access.</p>
+                </div>
               </div>
-            </div>
+            )}
             
             <div className="pt-4 text-center">
               <Link 
@@ -201,17 +257,31 @@ export default function Billing() {
 
             {/* Subscribe Action */}
             <div className="pt-6 border-t border-border/80 space-y-4">
-              <button
-                onClick={handleCreemCheckout}
-                disabled={processing}
-                className="w-full h-[54px] bg-accent hover:bg-accent2 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2.5 transition-all shadow-lg cursor-pointer"
-              >
-                <span className="font-semibold tracking-tight">Pay with Creem</span>
-              </button>
+              {!trialStatus.trial_used ? (
+                <button
+                  onClick={handleStartTrial}
+                  disabled={processing}
+                  className="w-full h-[54px] bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2.5 transition-all shadow-lg cursor-pointer"
+                >
+                  <span className="font-semibold tracking-tight">Start 7-Day Free Trial</span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleCreemCheckout}
+                  disabled={processing}
+                  className="w-full h-[54px] bg-accent hover:bg-accent2 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2.5 transition-all shadow-lg cursor-pointer"
+                >
+                  <span className="font-semibold tracking-tight">Pay with Creem</span>
+                </button>
+              )}
               
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-text3">
                 <Lock className="w-3.5 h-3.5 text-text3" />
-                <span>Secured by Creem encryption protocols. Cancel anytime.</span>
+                <span>
+                  {!trialStatus.trial_used 
+                    ? "No credit card required. Cancel anytime." 
+                    : "Secured by Creem encryption protocols. Cancel anytime."}
+                </span>
               </div>
             </div>
           </div>

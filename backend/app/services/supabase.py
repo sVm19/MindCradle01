@@ -399,6 +399,14 @@ class SupabaseService:
             return None
         return await asyncio.to_thread(_call)
 
+    async def check_expired_trials(self) -> bool:
+        """Call RPC to check and deactivate expired trials in the database."""
+        def _call():
+            client = _get_client()
+            client.rpc("check_expired_trials").execute()
+            return True
+        return await asyncio.to_thread(_call)
+
 pb = SupabaseService()
 
 

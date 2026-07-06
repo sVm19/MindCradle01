@@ -550,6 +550,10 @@ export const billing = {
 export const payments = {
   createCreemCheckout: () =>
     request<{ checkout_url: string; error?: string }>('POST', '/payments/creem-checkout'),
+  startTrial: () =>
+    request<{ success: boolean; trial_ends_at: string; message: string; error?: string }>('POST', '/payments/start-trial'),
+  trialStatus: () =>
+    request<{ trial_active: boolean; days_remaining: number; trial_ends_at?: string; trial_used: boolean }>('GET', '/payments/trial-status'),
 };
 
 

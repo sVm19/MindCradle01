@@ -17,11 +17,34 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
 app = FastAPI(
     title="MindCradle API",
     description="Backend API for the MindCradle mental health dashboard",
     version="0.1.0",
 )
+
+scheduler = AsyncIOScheduler()
+
+@app.on_event("startup")
+async def start_scheduler():
+    async def check_expired_trials_job():
+        try:
+            from app.services.supabase import pb
+            await pb.check_expired_trials()
+            logger.info("Checked and deactivated expired trials successfully")
+        except Exception as e:
+            logger.error("Failed to run check_expired_trials background job: %s", e)
+            
+    scheduler.add_job(check_expired_trials_job, "interval", hours=1)
+    scheduler.start()
+    logger.info("Background AsyncIOScheduler started successfully")
+
+@app.on_event("shutdown")
+async def shutdown_scheduler():
+    scheduler.shutdown()
+    logger.info("Background AsyncIOScheduler shutdown successfully")
 
 # Add routers
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])

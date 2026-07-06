@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '@/lib/auth';
-import { mood as moodApi, resources as resourcesApi, ai as aiApi, rituals as ritualsApi, journal as journalApi } from '@/lib/api';
+import { mood as moodApi, resources as resourcesApi, ai as aiApi, rituals as ritualsApi, journal as journalApi, payments as paymentsApi } from '@/lib/api';
 import type { ResourceItem } from '@/lib/api';
-import { Lock, Award, Moon, Wind, PenTool, CheckCircle2, TrendingUp, Brain, Star, Flame, BookOpen, Target } from 'lucide-react';
+import { Lock, Award, Moon, Wind, PenTool, CheckCircle2, TrendingUp, Brain, Star, Flame, BookOpen, Target, Sparkles } from 'lucide-react';
 import GuestGate from '@/app/components/GuestGate';
 import { WellnessInsightCard } from '@/app/components/WellnessInsightCard';
 
@@ -12,6 +12,29 @@ const SHORT_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 export default function Dashboard() {
   const { user, setAuthModalOpen } = useAuth();
   const navigate = useNavigate();
+
+  const [trialDays, setTrialDays] = useState<number | null>(null);
+  const [trialActive, setTrialActive] = useState<boolean>(false);
+
+  // Fetch trial status on mount
+  useEffect(() => {
+    if (!user) return;
+    async function checkTrial() {
+      try {
+        const data = await paymentsApi.trialStatus();
+        if (data.trial_active) {
+          setTrialActive(true);
+          setTrialDays(data.days_remaining);
+        } else {
+          setTrialActive(false);
+          setTrialDays(null);
+        }
+      } catch (err) {
+        console.error('Failed to fetch trial status:', err);
+      }
+    }
+    checkTrial();
+  }, [user]);
 
   // Sleep Logger state
   const [sleepStartTime, setSleepStartTime] = useState<number | null>(null);
@@ -378,6 +401,26 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-fadeIn">
+      {trialActive && trialDays !== null && trialDays > 0 && (
+        <div className="bg-accent/10 border border-accent/20 text-text rounded-2xl p-4 flex items-center justify-between gap-4 shadow-lg animate-fadeIn text-left">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent shrink-0">
+              <Sparkles className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <h4 className="font-semibold text-sm">🎁 Premium Free Trial Active</h4>
+              <p className="text-xs text-text3">Enjoy full access to all features! You have {trialDays} {trialDays === 1 ? 'day' : 'days'} remaining.</p>
+            </div>
+          </div>
+          <Link 
+            to="/billing" 
+            className="px-4 py-2 bg-accent hover:bg-accent2 text-white text-xs font-semibold rounded-xl transition-all shadow-md shrink-0"
+          >
+            Manage Subscription
+          </Link>
+        </div>
+      )}
+
       {/* Welcome & Discovery Hero Card */}
       <section className="animate-fadeIn">
         <div className="bg-bg2 border border-border rounded-[20px] p-6 relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-8">
