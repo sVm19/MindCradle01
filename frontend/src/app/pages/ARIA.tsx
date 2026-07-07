@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { sanitizeForInput, sanitizeForDisplay } from '@/lib/sanitize';
-import { ai as aiApi, resources as resourcesApi, mood as moodApi, journal as journalApi } from '@/lib/api';
+import { ai as aiApi, resources as resourcesApi, mood as moodApi, journal as journalApi, profile as profileApi } from '@/lib/api';
 import type { ResourceItem, MoodItem, JournalItem } from '@/lib/api';
 import { useAuth, getInitials, getAvatarGradient, UserSketchAvatar } from '@/lib/auth';
 import { useARIA } from '@/context/ARIAContext';
@@ -66,6 +66,35 @@ export default function ARIA() {
   } = useARIA();
 
   const [ageVerified, setAgeVerified] = useState<boolean | null>(null);
+  const [isPremium, setIsPremium] = useState(false);
+  const [linguisticShift, setLinguisticShift] = useState<string | null>(null);
+  const [discovery, setDiscovery] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      profileApi.get()
+        .then((res) => {
+          setIsPremium(!!res.is_premium);
+        })
+        .catch((err) => {
+          console.error("Failed to load profile in ARIA page:", err);
+        });
+      
+      const shift = localStorage.getItem('mc_linguistic_shift');
+      if (shift) {
+        setLinguisticShift(shift);
+      }
+
+      aiApi.getDailyDiscovery().then((res) => {
+        if (res && res.id) {
+          setDiscovery(res);
+          if (!res.is_viewed) {
+            aiApi.updateDiscoveryFeedback(res.id, { is_viewed: true }).catch(() => {});
+          }
+        }
+      }).catch(() => {});
+    }
+  }, [user]);
 
   const [input, setInput] = useState('');
   const [resources, setResources] = useState<ResourceItem[]>([]);
@@ -276,13 +305,19 @@ export default function ARIA() {
 
   const handleSend = () => sendMessage(input);
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayMoodItem = allMoods.find(m => m.created.slice(0, 10) === todayStr);
+  const todayMood = todayMoodItem ? todayMoodItem.emotions?.[0] || 'Neutral' : null;
+  const todayIntention = localStorage.getItem('last_morning_intention');
+  const morningCompletedToday = localStorage.getItem('morning_completed_at')?.slice(0, 10) === todayStr;
+
   const handleQuickResponseClick = (type: 'rough_day' | 'vent' | 'calm') => {
     let prefillText = '';
     let responseType = '';
     let context: Record<string, any> = {};
 
     if (type === 'rough_day') {
-      prefillText = 'I had a rough day';
+      prefillText = todayMood ? `Let's talk about why I felt '${todayMood}' today` : 'I had a rough day';
       responseType = 'rough_day_support';
       const nowMs = Date.now();
       const threeDaysAgoMs = nowMs - 3 * 24 * 60 * 60 * 1000;
@@ -293,7 +328,7 @@ export default function ARIA() {
         journal_entries: last2Journals.map(j => ({ prompt: j.prompt, content: j.content, date: j.created }))
       };
     } else if (type === 'vent') {
-      prefillText = 'I need to vent';
+      prefillText = (morningCompletedToday && todayIntention) ? `Let's discuss my focus intention: '${todayIntention}'` : 'I need to clear my thoughts';
       responseType = 'active_listening';
       const nowMs = Date.now();
       const oneDayAgoMs = nowMs - 24 * 60 * 60 * 1000;
@@ -547,7 +582,7 @@ export default function ARIA() {
     return (
       <GuestGate
         title="ARIA Companion"
-        description="Your supportive AI guide. Safe, compassionate, and ready to walk through your thoughts and emotions."
+        description="Your private AI companion. Safe, compassionate, and ready to help you organize your thoughts and reflect on your day."
         icon={<Brain className="w-8 h-8 text-accent animate-pulse" />}
       />
     );
@@ -602,7 +637,7 @@ export default function ARIA() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="text-xs text-accent tracking-[0.1em] uppercase mb-4">PRIVATE SUPPORT</div>
+          <div className="text-xs text-accent tracking-[0.1em] uppercase mb-4">Private Reflections</div>
           <h1 className="text-3xl font-light text-text mb-2 flex items-center gap-3">
             ARIA
             <span className="text-[10px] font-normal bg-bg3 border border-border px-2 py-0.5 rounded-md text-text3">
@@ -610,7 +645,7 @@ export default function ARIA() {
             </span>
           </h1>
           <p className="text-sm text-text2">
-            Your conversational AI guide and anonymous support. Not a substitute for professional mental health care.
+            Your conversational AI companion. Safe, anonymous, and focused on helping you build self-awareness.
           </p>
         </div>
         <div className="flex gap-2.5 self-start sm:self-auto">
@@ -618,7 +653,7 @@ export default function ARIA() {
             <button
               type="button"
               onClick={handleEndConversation}
-              className="px-4 py-2 bg-rose/10 hover:bg-rose/20 border border-rose/30 text-rose rounded-xl text-xs font-medium transition-all flex items-center gap-2 smooth-hover-btn"
+              className="px-4 py-2 bg-rose/5 hover:bg-rose/15 border border-rose/20 hover:border-rose/30 text-rose rounded-full text-xs font-medium transition-all flex items-center gap-2 smooth-hover-btn"
             >
               <Lock size={14} className="text-rose" /> End & Summarize Chat
             </button>
@@ -626,12 +661,70 @@ export default function ARIA() {
           <button
             type="button"
             onClick={handleOpenSettings}
-            className="px-4 py-2 bg-bg2 hover:bg-bg3 border border-border text-text2 hover:text-text rounded-xl text-xs font-medium transition-all flex items-center gap-2 smooth-hover-btn"
+            className="px-4 py-2 bg-bg3/60 hover:bg-bg3 border border-border text-text3 hover:text-text2 rounded-full text-xs font-medium transition-all flex items-center gap-2 smooth-hover-btn"
           >
-            <Brain size={14} className="text-purple-500" /> Manage ARIA's Memory
+            <Brain size={14} className="text-purple-400" /> Manage ARIA's Memory
           </button>
         </div>
       </div>
+
+      {/* 7-Day Rolling Memory Lock Alert for Free Tier */}
+      {!isPremium && (
+        <div className="bg-accent/10 border border-accent/20 text-text rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-left animate-fadeIn">
+          <div>
+            <div className="text-xs font-semibold text-accent uppercase tracking-wider flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5" /> 7-Day Memory Archive Lock
+            </div>
+            <p className="text-xs text-text3 mt-1">
+              You are on the Free tier. Conversations older than 7 days are archived. Upgrade to Premium for a continuous, lifelong companion memory.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/billing')}
+            className="w-full sm:w-auto px-4 py-2 bg-accent hover:bg-accent2 text-white font-semibold rounded-full text-xs transition-all shadow-md shrink-0 text-center smooth-hover-btn"
+          >
+            Upgrade to Premium →
+          </button>
+        </div>
+      )}
+
+      {/* Day 3 Linguistic Shift Detected Card */}
+      {linguisticShift && (
+        <div className="bg-gradient-to-r from-indigo-500/10 to-accent/15 border border-accent/30 rounded-2xl p-6 text-left space-y-4 animate-slideIn relative">
+          <button 
+            onClick={() => {
+              localStorage.removeItem('mc_linguistic_shift');
+              setLinguisticShift(null);
+            }}
+            className="absolute top-4 right-4 text-text3 hover:text-text"
+          >
+            <X size={16} />
+          </button>
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center text-accent shrink-0">
+              <Sparkles className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-accent uppercase tracking-wider">A Message from ARIA: Your Growth Insight</div>
+              <h4 className="text-base font-medium text-text mt-1">Linguistic Shift Detected</h4>
+              <p className="text-sm text-text2 mt-2 leading-relaxed">
+                "{linguisticShift}"
+              </p>
+              <div className="mt-4 flex gap-3">
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('mc_linguistic_shift');
+                    setLinguisticShift(null);
+                  }}
+                  className="px-4 py-2 bg-accent text-white rounded-full text-xs font-semibold hover:bg-accent2 transition-all shadow-md smooth-hover-btn"
+                >
+                  Thank You, ARIA
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Crisis Helpline Banner */}
       {crisisDetected && (
@@ -641,8 +734,7 @@ export default function ARIA() {
             <div className="space-y-1">
               <div className="text-xs text-rose font-bold uppercase tracking-wider">You deserve support right now</div>
               <p className="text-sm text-text leading-relaxed">
-                I care about you, and this is above my pay grade. Please reach out to professional support.
-                You are not alone, and there are people who want to listen.
+                I am here to help you reflect, but for severe challenges, reaching out to professional support can make a big difference. You are not alone.
               </p>
             </div>
           </div>
@@ -720,30 +812,60 @@ export default function ARIA() {
           </div>
           <div>
             <h2 className="text-xl font-light text-text mb-3">
-              You're safe to share, I'm listening
+              What is on your mind? Let's reflect together.
             </h2>
+          </div>
+
+          {discovery && (
+            <div className="bg-gradient-to-r from-teal/10 via-accent/5 to-indigo/10 border border-teal/20 rounded-2xl p-5 text-left max-w-xl mx-auto space-y-3 animate-fadeIn">
+              <div className="flex items-center gap-2 text-xs font-bold text-teal uppercase tracking-wider">
+                <Sparkles size={14} className="text-accent" /> Today's Discovery
+              </div>
+              <p className="text-sm text-text font-medium leading-relaxed">
+                "{discovery.discovery_text}"
+              </p>
+              <button
+                onClick={() => sendMessage(`Let's discuss today's discovery: "${discovery.discovery_text}"`)}
+                className="px-4 py-1.5 bg-accent hover:bg-accent2 text-white rounded-lg text-xs font-semibold transition-all smooth-hover-btn"
+              >
+                Discuss with ARIA →
+              </button>
+            </div>
+          )}
+
+          <div className="bg-accent/5 border border-accent/25 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-left max-w-xl mx-auto animate-fadeIn">
+            <div>
+              <div className="text-xs font-semibold text-accent uppercase tracking-wider">ARIA's Insights Are Ready</div>
+              <p className="text-xs text-text2 mt-1">Based on your past check-ins, ARIA has compiled trends on your calmness index.</p>
+            </div>
+            <button
+              onClick={() => navigate('/insights')}
+              className="w-full sm:w-auto px-4 py-2 bg-accent hover:bg-accent2 text-white rounded-full text-xs font-semibold transition-all shadow-sm shrink-0 text-center smooth-hover-btn"
+            >
+              View My Insights →
+            </button>
           </div>
           <div className="flex flex-wrap gap-3 justify-center">
             <button
               onClick={() => handleQuickResponseClick('rough_day')}
               disabled={loading}
-              className="px-5 py-2.5 bg-bg3 border border-border text-text2 rounded-full text-sm hover:bg-bg4 hover:border-border2 transition-all disabled:opacity-40 smooth-hover-btn"
+              className="px-5 py-2.5 bg-transparent border border-border/85 text-text2 rounded-full text-sm hover:bg-accent/5 hover:border-accent/30 transition-all disabled:opacity-40 smooth-hover-btn font-light"
             >
-              I had a rough day
+              {todayMood ? `Let's discuss my feeling: "${todayMood}"` : "Let's reflect on my day"}
             </button>
             <button
               onClick={() => handleQuickResponseClick('vent')}
               disabled={loading}
-              className="px-5 py-2.5 bg-bg3 border border-border text-text2 rounded-full text-sm hover:bg-bg4 hover:border-border2 transition-all disabled:opacity-40 smooth-hover-btn"
+              className="px-5 py-2.5 bg-transparent border border-border/85 text-text2 rounded-full text-sm hover:bg-accent/5 hover:border-accent/30 transition-all disabled:opacity-40 smooth-hover-btn font-light"
             >
-              I need to vent
+              {morningCompletedToday && todayIntention ? `Discuss focus: "${todayIntention}"` : "I need to clear my thoughts"}
             </button>
             <button
               onClick={() => handleQuickResponseClick('calm')}
               disabled={loading}
-              className="px-5 py-2.5 bg-bg3 border border-border text-text2 rounded-full text-sm hover:bg-bg4 hover:border-border2 transition-all disabled:opacity-40 smooth-hover-btn"
+              className="px-5 py-2.5 bg-transparent border border-border/85 text-text2 rounded-full text-sm hover:bg-accent/5 hover:border-accent/30 transition-all disabled:opacity-40 smooth-hover-btn font-light"
             >
-              Help me calm down
+              Guide me through a breathing pause
             </button>
           </div>
           {themeFrequencies.length > 0 && (

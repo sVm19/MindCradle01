@@ -53,10 +53,10 @@ export default function ForgotPassword() {
         </div>
 
         <div className="text-xs text-accent tracking-[0.1em] uppercase mb-1">
-          Recovery
+          Password Reset
         </div>
         <h1 className="text-2xl font-light text-text mb-6">
-          Forgot Password
+          Recover Your Password
         </h1>
 
         {success ? (
@@ -80,7 +80,7 @@ export default function ForgotPassword() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             <p className="text-sm text-text3 leading-relaxed mb-2">
-              Enter your email address below and we'll send you a link to reset your password.
+              Enter your email address below and we will send you a link to securely recover your account.
             </p>
 
             {error && (

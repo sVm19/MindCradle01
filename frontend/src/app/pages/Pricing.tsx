@@ -129,10 +129,10 @@ export default function Pricing() {
       {/* Header Section */}
       <header className="text-center space-y-4 max-w-2xl mx-auto">
         <h1 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl lg:text-5xl font-light text-text leading-tight">
-          Simple, Transparent Pricing
+          Invest in Your Consistency & Calm
         </h1>
         <p className="text-sm sm:text-base text-text3 font-light leading-relaxed">
-          The plan that fits your wellness journey
+          Choose a plan to deepen your daily routines and self-awareness.
         </p>
       </header>
 
@@ -150,18 +150,18 @@ export default function Pricing() {
                 $0<span className="text-sm font-normal text-slate-500">/month</span>
               </h2>
               <p className="text-sm text-slate-600 mt-2 font-medium">
-                Perfect for getting started
+                Establish the basics of consistency
               </p>
             </div>
 
             {/* Features list */}
             <ul className="space-y-3.5 text-left border-t border-slate-200/80 pt-6">
               {[
-                "Daily mood tracking",
-                "1 ritual per day",
-                "50 ARIA messages/day",
-                "Basic journal",
-                "Dashboard insights"
+                "Daily energy check-ins",
+                "1 routine per day (Morning focus)",
+                "50 ARIA companion messages/day",
+                "Basic reflection journal",
+                "Daily rhythm dashboard insights"
               ].map((feature, i) => (
                 <li key={i} className="flex items-start gap-3 text-slate-700 text-sm">
                   <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" strokeWidth={3} />
@@ -223,7 +223,7 @@ export default function Pricing() {
                 $9.99<span className="text-sm font-normal text-text3">/month</span>
               </h2>
               <p className="text-sm text-text2 mt-2">
-                Unlock your full potential
+                Accelerate your personal growth
               </p>
             </div>
 
@@ -231,13 +231,13 @@ export default function Pricing() {
             <ul className="space-y-3.5 text-left border-t border-border pt-6">
               {[
                 "Everything in Free",
-                "Unlimited rituals",
-                "Unlimited ARIA chat",
-                "30-day emotion analytics",
-                "Recovery pattern detection",
-                "Export your data",
-                "No ads",
-                "Priority support"
+                "Unlimited daily routines (Morning & Wind Down)",
+                "Unlimited ARIA conversation",
+                "30-day calm & balance analytics",
+                "Daily rhythm pattern detection by ARIA",
+                "Export your reflections (GDPR/JSON)",
+                "Ad-free focused environment",
+                "Priority response"
               ].map((feature, i) => (
                 <li key={i} className="flex items-start gap-3 text-text2 text-sm">
                   <Check className="w-5 h-5 text-green shrink-0 mt-0.5" strokeWidth={3} />

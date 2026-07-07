@@ -72,10 +72,10 @@ export default function Reset() {
         </div>
 
         <div className="text-xs text-accent tracking-[0.1em] uppercase mb-1">
-          Recovery
+          Password Reset
         </div>
         <h1 className="text-2xl font-light text-text mb-6">
-          Reset Password
+          Set New Password
         </h1>
 
         {!token && (
@@ -84,9 +84,9 @@ export default function Reset() {
               <AlertCircle size={48} />
             </div>
             <div className="space-y-2">
-              <h2 className="text-lg font-medium text-text">Invalid reset link</h2>
+              <h2 className="text-lg font-medium text-text">Invalid recovery link</h2>
               <p className="text-sm text-text3 leading-relaxed">
-                The password reset token is missing from your link. Please check your email or request a new reset link.
+                The password reset token is missing or expired. Please check your email or request a new recovery link.
               </p>
             </div>
             <div className="pt-4">
@@ -106,9 +106,9 @@ export default function Reset() {
               <CheckCircle2 size={56} className="animate-bounce" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-lg font-medium text-text">Password updated</h2>
+              <h2 className="text-lg font-medium text-text">Password successfully updated</h2>
               <p className="text-sm text-text3 leading-relaxed">
-                Your password has been successfully reset. You can now log in using your new credentials.
+                Your password has been successfully updated. You can now log in with your new credentials.
               </p>
             </div>
             <div className="pt-4">

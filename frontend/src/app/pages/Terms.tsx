@@ -106,9 +106,9 @@ export default function Terms() {
                 ⚠️ Critical Safety Notice
               </p>
               <p className="text-text text-sm leading-relaxed">
-                <strong>MindCradle is NOT a replacement for professional mental health care, medical diagnostics, or clinical therapy</strong>. 
-                ARIA is an AI companion, not a licensed medical professional or therapist. If you are experiencing a mental health crisis, 
-                please immediately contact emergency services (<strong>911 in US</strong>) or the suicide prevention lifeline (<strong>988</strong>).
+                <strong>MindCradle is NOT a replacement for professional medical advice, diagnostics, or clinical services</strong>. 
+                ARIA is an AI companion, not a licensed medical professional. If you are experiencing acute distress, 
+                please immediately contact support services (<strong>911 in US</strong>) or the crisis lifeline (<strong>988</strong>).
               </p>
             </div>
           </section>
@@ -136,7 +136,7 @@ export default function Terms() {
               <ul className="list-disc pl-5 mt-2 text-xs space-y-1 text-text3">
                 <li>Uninterrupted or error-free operation of the Service.</li>
                 <li>Correction of minor software bugs or temporary system offline times.</li>
-                <li>Specific medical, clinical, or wellness outcomes from using MindCradle.</li>
+                <li>Specific medical, clinical, or personal growth outcomes from using MindCradle.</li>
               </ul>
               <p className="text-text text-sm mt-3">
                 To the fullest extent allowed by applicable law, <strong>MindCradle shall NOT be liable for any indirect, incidental, special, or consequential damages</strong> arising from your use of the Service.

@@ -237,7 +237,7 @@ startxref
     return (
       <GuestGate
         title="Account Settings"
-        description="Manage your profile. Setup crisis contact preferences, configure security rules, and view badge milestones."
+        description="Manage your profile. Save contact preferences, configure security rules, and view milestones."
         icon={<SettingsIcon className="w-8 h-8 text-accent" />}
       />
     );
@@ -275,11 +275,11 @@ startxref
 
         {/* Safety Settings */}
         <section className="bg-bg2 border border-border rounded-[20px] px-6 py-6 space-y-4">
-          <div className="text-xs text-accent uppercase tracking-wider mb-2">Safety & Emergency Contact</div>
+          <div className="text-xs text-accent uppercase tracking-wider mb-2">Emergency Contact</div>
           <div className="space-y-4">
             <div className="space-y-1.5">
               <label htmlFor="emergency-contact" className="text-xs text-text2 font-medium">
-                Emergency Contact (Email, Phone, or Name)
+                Emergency Contact Details (Email, Phone, or Name)
               </label>
               <input
                 id="emergency-contact"
@@ -300,10 +300,10 @@ startxref
               />
               <div className="space-y-1">
                 <label htmlFor="notify-on-crisis" className="text-xs text-text font-medium cursor-pointer">
-                  Notify emergency contact if crisis detected
+                  Notify emergency contact in case of severe distress
                 </label>
                 <p className="text-[10px] text-text3">
-                  If active self-harm or suicidal intent is detected, we will attempt to send an automated alert to your emergency contact.
+                  If severe, acute distress is indicated in your inputs, we will attempt to send an automated notification to your contact.
                 </p>
               </div>
             </div>
@@ -330,9 +330,9 @@ startxref
           <div className="flex gap-3">
             <div className="text-lg">🔒</div>
             <div>
-              <div className="text-sm text-text mb-1">Your data is private</div>
+              <div className="text-sm text-text mb-1">Your reflections are private</div>
               <div className="text-xs text-text2">
-                All journal entries, mood logs, and conversations are stored securely and are only visible to you. ARIA conversations are context-aware but not shared with third parties.
+                All journal entries, daily logs, and conversations are stored securely and are only visible to you. ARIA chats are context-aware but never shared with third parties.
               </div>
             </div>
           </div>
@@ -405,7 +405,7 @@ startxref
               <div className="flex items-start gap-3 bg-bg3/30 border border-border/40 rounded-xl p-3.5 text-xs text-text2 leading-relaxed">
                 <ShieldAlert size={16} className="text-accent flex-shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-semibold text-text">Data Collection Summary:</span> We collect mood logs, morning/evening rituals, journal logs, and chat logs with ARIA. We use this data to calculate calm scores, analyze recovery trends, and maintain custom conversational context for ARIA's reflections.
+                  <span className="font-semibold text-text">Data Collection Summary:</span> We collect daily check-ins, morning/evening routines, journal entries, and chat logs with ARIA. We use this data to calculate your calm index, highlight consistency trends, and maintain conversational context for ARIA.
                 </div>
               </div>
             </div>
@@ -465,7 +465,7 @@ startxref
           <div className="flex items-center justify-between gap-4 border-b border-border/40 pb-4">
             <div>
               <div className="text-sm text-text font-medium">Download My Data (GDPR)</div>
-              <div className="text-xs text-text3 mt-0.5">Download a complete backup of your logs, journals, and chat history as a JSON file.</div>
+              <div className="text-xs text-text3 mt-0.5">Download a complete backup of your reflections, journals, and chat history as a JSON file.</div>
             </div>
             <button
               onClick={handleExportData}

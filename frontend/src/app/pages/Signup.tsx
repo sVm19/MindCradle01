@@ -129,17 +129,17 @@ export default function Signup() {
           <ShieldAlert size={28} />
         </div>
         <h2 className="font-[family-name:var(--font-serif)] text-2xl font-light text-text">
-          Privacy Policy Acceptance Required
+          Accept Privacy Policy & Terms
         </h2>
         <p className="text-sm text-text3 leading-relaxed">
-          To create a secure account on MindCradle, you must first read and accept our Privacy Policy & Terms of Service.
+          Before creating an account on MindCradle, please read and accept our Privacy Policy & Terms of Service.
         </p>
         <button
           type="button"
           onClick={() => window.location.reload()}
           className="px-6 py-3 bg-gradient-to-r from-accent2 to-accent text-white rounded-xl font-medium text-sm hover:opacity-90 transition-all shadow-lg shadow-accent/10 cursor-pointer"
         >
-          View Privacy Policy
+          View Privacy & Terms
         </button>
       </div>
     );
@@ -153,8 +153,8 @@ export default function Signup() {
           <Logo className="h-10 w-auto text-text" />
         </div>
 
-        <div className="text-xs text-accent tracking-[0.1em] uppercase mb-1">Get started</div>
-        <h1 className="text-2xl font-light text-text mb-6">Create your account</h1>
+        <div className="text-xs text-accent tracking-[0.1em] uppercase mb-1">Join MindCradle</div>
+        <h1 className="text-2xl font-light text-text mb-6">Begin Your Daily Journey</h1>
 
         {error && (
           <div className="bg-rose/10 border border-rose/30 text-rose text-sm rounded-[12px] px-4 py-3 mb-5">

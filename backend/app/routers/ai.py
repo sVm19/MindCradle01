@@ -20,7 +20,7 @@ from app.models.schemas import (
     RecoveryPatternsResponse, RecoveryStats, RecoveryDataResponse,
     TrackEngagementRequest, TrackEngagementResponse, EngagementStatsResponse,
     ConvoTypeEngagement, ABTestResult, DetectCrisisRequest, DetectCrisisResponse,
-    AriaAgeVerifyRequest
+    AriaAgeVerifyRequest, DailyDiscoveryResponse, DiscoveryFeedbackRequest
 )
 from app.services import openrouter_ai
 from app.services.supabase import pb, JWTExpiredError, extract_user_id
@@ -2718,7 +2718,43 @@ async def chat(
         if existing_convo:
             messages = existing_convo.get("messages") or []
             if isinstance(messages, list):
-                history_messages = messages[-10:]
+                # Check user premium status for rolling memory lock
+                is_premium = False
+                try:
+                    profile_resp = await pb.list_records(
+                        "user_profiles",
+                        token=token,
+                        params={"filter": f'user_id="{user_id}"', "perPage": 1}
+                    )
+                    profile_items = profile_resp.get("items") or []
+                    if profile_items:
+                        is_premium, _ = verify_user_premium(profile_items[0], user_id)
+                except Exception as profile_err:
+                    logger.warning("Failed to fetch user profile for premium check in chat: %s", profile_err)
+
+                if is_premium:
+                    history_messages = messages[-10:]
+                else:
+                    # Filter history to last 7 days for free tier
+                    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+                    filtered_messages = []
+                    for msg in messages:
+                        ts_str = msg.get("timestamp")
+                        if ts_str:
+                            try:
+                                clean_ts = ts_str.replace("T", " ").split(".")[0].replace("Z", "")
+                                msg_time = datetime.strptime(clean_ts, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+                            except Exception:
+                                try:
+                                    msg_time = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                                except Exception:
+                                    filtered_messages.append(msg)
+                                    continue
+                            if msg_time >= cutoff:
+                                filtered_messages.append(msg)
+                        else:
+                            filtered_messages.append(msg)
+                    history_messages = filtered_messages[-10:]
 
         chosen_type = req.response_type
         if not chosen_type or chosen_type not in ["rough_day_support", "active_listening", "calm_support", "VALIDATION", "ACTION", "INSIGHT", "COMPANY", "REFLECTION", "REMINDER"]:
@@ -3376,10 +3412,47 @@ async def journal_reflection(
 ):
     """Generate structured AI analysis/reflection for a journal entry with user context."""
     # 1. Fetch user's last 3 journal entries
+    linguistic_shift_text = None
     try:
         params = {"sort": "-created", "perPage": 3, "filter": f'user_id="{req.user_id}"'}
         journals_resp = await pb.list_records("journal_entries", token=authorization, params=params)
         journals = journals_resp.get("items") or []
+
+        # Check total journal count to detect Day 3
+        total_journals = journals_resp.get("totalItems", 0)
+        if total_journals == 2:
+            # Fetch the first journal entry
+            first_resp = await pb.list_records(
+                "journal_entries", 
+                token=authorization, 
+                params={"sort": "created", "perPage": 1, "filter": f'user_id="{req.user_id}"'}
+            )
+            first_items = first_resp.get("items") or []
+            if first_items:
+                first_journal = first_items[0]
+                # Call OpenRouter for the Day 3 linguistic comparison
+                shift_sys_prompt = (
+                    "You are ARIA, a warm, validating companion in MindCradle. "
+                    "Compare the user's first journal entry and their new third journal entry. "
+                    "Look for subtle linguistic shifts (e.g. shifts from rigid, harsh constraints like 'must', 'should', or 'always' to more self-accepting, gentle language like 'can', 'allow', or 'feel', or general shifts in emotional clarity). "
+                    "Highlight this shift in a supportive, validating, non-clinical way. Keep it to 2 to 3 sentences maximum. Be specific to their actual writing style. "
+                    "Make sure you sound warm, empathetic, and supportively non-clinical. Do not diagnose or use clinical jargon."
+                )
+                shift_user_content = (
+                    f"First Journal Entry: {first_journal.get('content')}\n\n"
+                    f"Third (New) Journal Entry: {req.journal_content}"
+                )
+                try:
+                    shift_reply = await openrouter_ai.chat_completion(
+                        [{"role": "user", "content": shift_user_content}],
+                        system_prompt=shift_sys_prompt,
+                        temperature=0.7,
+                        max_tokens=250,
+                    )
+                    if shift_reply:
+                        linguistic_shift_text = shift_reply.strip()
+                except Exception as shift_err:
+                    logger.warning("Failed to generate Day 3 linguistic shift comparison: %s", shift_err)
     except Exception as e:
         logger.warning("Failed to fetch user's last 3 journal entries: %s", e)
         journals = []
@@ -3474,7 +3547,8 @@ async def journal_reflection(
         return JournalReflectionResponse(
             reflection=reflection_str,
             themes=themes,
-            emotional_tone=emotional_tone
+            emotional_tone=emotional_tone,
+            linguistic_shift=linguistic_shift_text
         )
     except Exception as e:
         logger.error("Reflection API: failed to generate or parse reflection: %s", str(e))
@@ -3482,6 +3556,109 @@ async def journal_reflection(
             status_code=502,
             detail=f"Couldn't get reflection, try again. Details: {str(e)}"
         )
+
+
+@router.get("/solstice-letter")
+async def get_solstice_letter(
+    authorization: Optional[str] = Header(None)
+):
+    """Retrieve or generate the user's monthly/seasonal Personal Solstice growth letter."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    
+    user_id = extract_user_id(token) or "unknown"
+    if user_id == "unknown":
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    # Verify if user is premium
+    try:
+        profile_resp = await pb.list_records(
+            "user_profiles",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 1}
+        )
+        profile_items = profile_resp.get("items") or []
+        is_premium = False
+        if profile_items:
+            is_premium, _ = verify_user_premium(profile_items[0], user_id)
+        if not is_premium:
+            raise HTTPException(
+                status_code=402, 
+                detail="Personal Solstice Reports require a Premium subscription."
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Solstice Letter check: failed premium check: %s", e)
+        raise HTTPException(status_code=500, detail="Database verification error")
+
+    # Fetch last 30 days of data
+    now = datetime.now(timezone.utc)
+    since_30d = (now - timedelta(days=30)).isoformat()
+    filter_30d = f'user_id="{user_id}" && created >= "{since_30d}"'
+
+    try:
+        # 1. Fetch Mood logs
+        mood_resp = await pb.list_records("mood_logs", token=token, params={"filter": filter_30d, "perPage": 100})
+        mood_items = mood_resp.get("items") or []
+
+        # 2. Fetch Journal entries
+        journal_resp = await pb.list_records("journal_entries", token=token, params={"filter": filter_30d, "perPage": 100})
+        journal_items = journal_resp.get("items") or []
+
+        # 3. Fetch Morning Rituals
+        mr_resp = await pb.list_records("morning_rituals", token=token, params={"filter": filter_30d, "perPage": 100})
+        mr_items = mr_resp.get("items") or []
+
+        # 4. Fetch Wind Down Rituals
+        wd_resp = await pb.list_records("wind_down_rituals", token=token, params={"filter": filter_30d, "perPage": 100})
+        wd_items = wd_resp.get("items") or []
+    except Exception as fetch_err:
+        logger.error("Solstice Letter: database fetch error: %s", fetch_err)
+        raise HTTPException(status_code=500, detail="Failed to fetch history logs")
+
+    if not mood_items and not journal_items:
+        return {
+            "letter": "## Keep reflecting daily\n\nYour Solstice Letter will bloom once you've logged a few entries. Start by checking in your mood or writing in your journal today!"
+        }
+
+    # Compile summary context
+    mood_levels = [int(m.get("level", 5)) for m in mood_items]
+    avg_mood = sum(mood_levels) / len(mood_levels) if mood_levels else 5.0
+    
+    intentions = [mr.get("intention") for mr in mr_items if mr.get("intention")]
+    worries_released = [wd.get("releaseItem") for wd in wd_items if wd.get("releaseItem")]
+    journal_snippets = [j.get("content")[:100] for j in journal_items if j.get("content")]
+
+    summary_context = (
+        f"User data over past 30 days:\n"
+        f"- Total journal entries: {len(journal_items)}\n"
+        f"- Journal Snippets: {'; '.join(journal_snippets[:5])}\n"
+        f"- Average mood level: {avg_mood:.1f}/10\n"
+        f"- Morning intentions set: {', '.join(intentions[:5])}\n"
+        f"- Worries released in evening: {', '.join(worries_released[:5])}\n"
+    )
+
+    sys_prompt = (
+        "You are ARIA, a warm, validating companion in MindCradle. "
+        "Your task is to write a personalized seasonal/monthly growth letter (The Personal Solstice Letter) to the user based on their past 30 days of data. "
+        "Structure the letter in clean, markdown format with headings (##). "
+        "Acknowledge their consistency, identify emotional seasons (patterns in mood, intentions, and worries), highlight private victories (worries they successfully released or intentions met), and offer one supportive, inspiring thought for the month ahead. "
+        "Make sure the letter sounds deeply personal, validating, and completely free of clinical jargon."
+    )
+
+    try:
+        letter_content = await openrouter_ai.chat_completion(
+            [{"role": "user", "content": summary_context}],
+            system_prompt=sys_prompt,
+            temperature=0.7,
+            max_tokens=600,
+        )
+        return {"letter": letter_content.strip()}
+    except Exception as e:
+        logger.error("Failed to generate Solstice Letter: %s", e)
+        raise HTTPException(status_code=502, detail="Failed to synthesize Solstice Letter")
 
 
 @router.post("/mood-analysis", response_model=MoodAnalysisResponse)
@@ -4602,3 +4779,250 @@ async def get_30day_insights(
     except Exception as e:
         logger.error("Failed in get_30day_insights: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _generate_daily_discovery_internal(token: str, user_id: str) -> Optional[dict]:
+    # 1. Fetch user discoveries in last 24h
+    now = datetime.now(timezone.utc)
+    since_24h = (now - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        disc_resp = await pb.list_records(
+            "daily_discoveries",
+            token=token,
+            params={
+                "filter": f'user_id="{user_id}" && created_at >= "{since_24h}"',
+                "sort": "-created_at",
+                "perPage": 1
+            }
+        )
+        existing = disc_resp.get("items") or []
+        if existing:
+            return existing[0]
+    except Exception as e:
+        logger.warning("Error checking existing daily discovery: %s", e)
+
+    # 2. Fetch past 30 days of data
+    since_30d = (now - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+    filter_30d = f'user_id="{user_id}" && created >= "{since_30d}"'
+    filter_30d_at = f'user_id="{user_id}" && created_at >= "{since_30d}"'
+
+    try:
+        # Moods
+        moods_resp = await pb.list_records("mood_logs", token=token, params={"filter": filter_30d, "perPage": 100})
+        moods = moods_resp.get("items") or []
+
+        # Journals
+        journals_resp = await pb.list_records("journal_entries", token=token, params={"filter": filter_30d, "perPage": 100})
+        journals = journals_resp.get("items") or []
+
+        # Morning Rituals
+        mornings_resp = await pb.list_records("morning_rituals", token=token, params={"filter": filter_30d, "perPage": 100})
+        mornings = mornings_resp.get("items") or []
+
+        # Wind Down Rituals
+        winddowns_resp = await pb.list_records("wind_down_rituals", token=token, params={"filter": filter_30d, "perPage": 100})
+        winddowns = winddowns_resp.get("items") or []
+
+        # Telemetry clickstream
+        interactions_resp = await pb.list_records("user_interactions", token=token, params={"filter": filter_30d_at, "perPage": 500})
+        interactions = interactions_resp.get("items") or []
+    except Exception as fetch_err:
+        logger.error("Daily Discovery Engine: DB fetch error: %s", fetch_err)
+        return None
+
+    # Fetch up to 10 previous discoveries to prevent repetition
+    previous_discoveries_texts = []
+    try:
+        prev_resp = await pb.list_records(
+            "daily_discoveries",
+            token=token,
+            params={
+                "filter": f'user_id="{user_id}"',
+                "sort": "-created_at",
+                "perPage": 10
+            }
+        )
+        prev_items = prev_resp.get("items") or []
+        previous_discoveries_texts = [d.get("discovery_text") for d in prev_items if d.get("discovery_text")]
+    except Exception as e:
+        logger.warning("Error fetching previous discoveries: %s", e)
+
+    # Clean data summary
+    moods_data = [{"level": m.get("level"), "emotions": m.get("emotions", []), "date": m.get("created", "")[:10]} for m in moods]
+    journals_data = [{"length": len(j.get("content", "")), "prompt": j.get("prompt"), "date": j.get("created", "")[:10]} for j in journals]
+    mornings_data = [{"intention": m.get("intention"), "forecast": m.get("forecast"), "date": m.get("created", "")[:10]} for m in mornings]
+    winddowns_data = [{"release": m.get("releaseItem"), "gratitudes": m.get("gratitudes", []), "date": m.get("created", "")[:10]} for m in winddowns]
+    interactions_data = [{"event": i.get("event_type"), "page": i.get("page_path"), "element": i.get("element_name"), "date": i.get("created_at", "")[:10]} for i in interactions]
+
+    activity_summary = {
+        "moods": moods_data,
+        "journals": journals_data,
+        "mornings": mornings_data,
+        "winddowns": winddowns_data,
+        "interactions": interactions_data
+    }
+
+    # Minimum data check to ensure confidence
+    if len(moods) < 2 and len(journals) < 2:
+        return None
+
+    system_prompt = (
+        "You are ARIA's Daily Discovery Engine in the MindCradle app.\n"
+        "Your task is to analyze the user's past 30 days of data and find exactly ONE real, high-confidence, data-backed correlation or pattern.\n"
+        "This is NOT advice, motivation, or therapy. It must be a factual observation of their own behavior.\n"
+        "Examples of valid discoveries:\n"
+        "- 'You journal longer on days you complete Morning Focus.'\n"
+        "- 'You haven't mentioned work stress in five days.'\n"
+        "- 'Your mood levels are typically higher on days you release a worry during your evening routine.'\n\n"
+        "Rules:\n"
+        "1. Never hallucinate. Every discovery MUST be supported by the provided data.\n"
+        "2. Do not repeat or closely match any of these previous discoveries:\n"
+        f"{json.dumps(previous_discoveries_texts)}\n"
+        "3. Output MUST be a valid JSON object containing exactly three fields:\n"
+        "   - 'discovery_text': the observation string.\n"
+        "   - 'confidence_score': integer from 1 to 100 based on data confidence.\n"
+        "   - 'supporting_evidence': a key-value object containing the raw numbers/comparisons.\n"
+        "4. If no high-confidence (65+) pattern can be found, set confidence_score to less than 65."
+    )
+
+    try:
+        ai_res = await openrouter_ai.chat_completion(
+            messages=[{"role": "user", "content": json.dumps(activity_summary)}],
+            system_prompt=system_prompt,
+            temperature=0.3,
+            max_tokens=400
+        )
+        data = parse_json_safely(ai_res)
+        score = int(data.get("confidence_score", 0))
+        text = data.get("discovery_text", "")
+        evidence = data.get("supporting_evidence", {})
+
+        if score >= 65 and text:
+            new_record = await pb.create_record(
+                "daily_discoveries",
+                {
+                    "user": user_id,
+                    "discovery_text": text,
+                    "confidence_score": score,
+                    "supporting_evidence": evidence,
+                    "is_dismissed": False,
+                    "is_shared": False,
+                    "is_viewed": False
+                },
+                token=token
+            )
+            return new_record
+    except Exception as ai_err:
+        logger.error("Daily Discovery generation failed: %s", ai_err)
+    
+    return None
+
+
+@router.get("/daily-discovery")
+async def get_daily_discovery(
+    authorization: Optional[str] = Header(None)
+):
+    """Retrieve today's Daily Discovery. Generates one if none exists in last 24 hours."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    
+    user_id = extract_user_id(token) or "unknown"
+    if user_id == "unknown":
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    discovery = await _generate_daily_discovery_internal(token, user_id)
+    if not discovery:
+        return {"discovery": None}
+
+    return {
+        "id": discovery.get("id"),
+        "user_id": discovery.get("user_id") or discovery.get("user"),
+        "discovery_text": discovery.get("discovery_text"),
+        "confidence_score": discovery.get("confidence_score"),
+        "supporting_evidence": discovery.get("supporting_evidence") or {},
+        "is_dismissed": discovery.get("is_dismissed", False),
+        "is_shared": discovery.get("is_shared", False),
+        "is_viewed": discovery.get("is_viewed", False),
+        "created_at": discovery.get("created_at") or discovery.get("created")
+    }
+
+
+@router.get("/daily-discovery/history")
+async def get_daily_discovery_history(
+    authorization: Optional[str] = Header(None)
+):
+    """Retrieve the user's historical discoveries."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    
+    user_id = extract_user_id(token) or "unknown"
+    if user_id == "unknown":
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    try:
+        history_resp = await pb.list_records(
+            "daily_discoveries",
+            token=token,
+            params={
+                "filter": f'user_id="{user_id}"',
+                "sort": "-created_at",
+                "perPage": 100
+            }
+        )
+        items = history_resp.get("items") or []
+        formatted = []
+        for item in items:
+            formatted.append({
+                "id": item.get("id"),
+                "user_id": item.get("user_id") or item.get("user"),
+                "discovery_text": item.get("discovery_text"),
+                "confidence_score": item.get("confidence_score"),
+                "supporting_evidence": item.get("supporting_evidence") or {},
+                "is_dismissed": item.get("is_dismissed", False),
+                "is_shared": item.get("is_shared", False),
+                "is_viewed": item.get("is_viewed", False),
+                "created_at": item.get("created_at") or item.get("created")
+            })
+        return formatted
+    except Exception as e:
+        logger.error("Failed to retrieve discoveries history: %s", e)
+        raise HTTPException(status_code=500, detail="Database retrieval failed")
+
+
+@router.patch("/daily-discovery/{discovery_id}/feedback")
+async def update_daily_discovery_feedback(
+    discovery_id: str,
+    req: DiscoveryFeedbackRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """Update feedback metrics (is_viewed, is_dismissed, is_shared) for a discovery."""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    
+    user_id = extract_user_id(token) or "unknown"
+    if user_id == "unknown":
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    update_payload = {}
+    if req.is_dismissed is not None:
+        update_payload["is_dismissed"] = req.is_dismissed
+    if req.is_shared is not None:
+        update_payload["is_shared"] = req.is_shared
+    if req.is_viewed is not None:
+        update_payload["is_viewed"] = req.is_viewed
+        update_payload["viewed_at"] = datetime.now(timezone.utc).isoformat()
+
+    try:
+        updated = await pb.update_record("daily_discoveries", discovery_id, update_payload, token=token)
+        return {
+            "id": updated.get("id"),
+            "is_dismissed": updated.get("is_dismissed", False),
+            "is_shared": updated.get("is_shared", False),
+            "is_viewed": updated.get("is_viewed", False)
+        }
+    except Exception as e:
+        logger.error("Failed to update discovery feedback: %s", e)
+        raise HTTPException(status_code=500, detail="Database update failed")

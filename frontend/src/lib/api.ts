@@ -520,6 +520,12 @@ export const ai = {
       top_page: string;
     };
   }>('GET', '/ai/30day-insights'),
+
+  getSolsticeLetter: () => request<{ letter: string }>('GET', '/ai/solstice-letter'),
+  getDailyDiscovery: () => request<any>('GET', '/ai/daily-discovery'),
+  getDailyDiscoveryHistory: () => request<any[]>('GET', '/ai/daily-discovery/history'),
+  updateDiscoveryFeedback: (id: string, feedback: { is_dismissed?: boolean; is_shared?: boolean; is_viewed?: boolean }) =>
+    request<any>('PATCH', `/ai/daily-discovery/${id}/feedback`, feedback),
 };
 
 // ─── Resources ────────────────────────────────────────────────────────────────

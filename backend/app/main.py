@@ -36,8 +36,15 @@ async def start_scheduler():
             logger.info("Checked and deactivated expired trials successfully")
         except Exception as e:
             logger.error("Failed to run check_expired_trials background job: %s", e)
-            
     scheduler.add_job(check_expired_trials_job, "interval", hours=1)
+    
+    async def pregenerate_daily_discoveries_job():
+        try:
+            logger.info("Daily Discovery background job ticked.")
+        except Exception as e:
+            logger.error("Failed to run pregenerate_daily_discoveries_job: %s", e)
+
+    scheduler.add_job(pregenerate_daily_discoveries_job, "interval", hours=24)
     scheduler.start()
     logger.info("Background AsyncIOScheduler started successfully")
 

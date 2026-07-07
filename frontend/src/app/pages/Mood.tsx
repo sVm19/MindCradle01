@@ -31,6 +31,8 @@ export default function Mood() {
   const [error, setError] = useState('');
 
   const [isPremium, setIsPremium] = useState(false);
+  const [lastEnergyLevel, setLastEnergyLevel] = useState<number | null>(null);
+  const [moodCount, setMoodCount] = useState(0);
 
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
@@ -108,6 +110,14 @@ export default function Mood() {
         .catch((err) => {
           console.error("Failed to load profile in Mood page:", err);
         });
+
+      moodApi.history('7d').then((res) => {
+        const items = res.items || [];
+        setMoodCount(items.length);
+        if (items.length > 0) {
+          setLastEnergyLevel(items[0].level);
+        }
+      }).catch(() => {});
     }
   }, [user]);
 
@@ -155,15 +165,6 @@ export default function Mood() {
       if (isPremium) {
         handleAnalyze();
       }
-
-      // Reset after 2s
-      setTimeout(() => {
-        setSaved(false);
-        setSelectedMood(null);
-        setFeelings([]);
-        setNotes('');
-        setNotesError('');
-      }, 2000);
     } catch (err) {
       if (import.meta.env.DEV) {
         console.error('Mood save failed', err);
@@ -178,10 +179,44 @@ export default function Mood() {
   if (!user) {
     return (
       <GuestGate
-        title="Mood Tracker"
-        description="Acknowledge how you feel. Log your emotions, save personal notes, and ask ARIA to analyze wellness patterns over time."
+        title="Calm & Reflection Tracker"
+        description="Acknowledge your emotional rhythm. Log your energy, save personal reflections, and let ARIA highlight consistency patterns."
         icon={<Smile className="w-8 h-8 text-accent animate-pulse" />}
       />
+    );
+  }
+
+  if (saved) {
+    return (
+      <div className="space-y-8 animate-fadeIn flex flex-col items-center justify-center min-h-[50vh] text-center">
+        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500 to-teal flex items-center justify-center text-4xl text-white">
+          ✓
+        </div>
+        <div>
+          <h1 className="text-2xl font-light text-text mb-2">Mood Check-in Saved</h1>
+          <p className="text-sm text-text2 max-w-md mx-auto mb-6">You've logged your energy level. Next, let's capture your deeper thoughts in your daily reflection journal.</p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
+          <button
+            onClick={() => navigate('/journal')}
+            className="px-6 py-3 bg-accent text-white rounded-full font-semibold text-sm hover:bg-accent2 transition-all shadow-md smooth-hover-btn"
+          >
+            Continue to Journal →
+          </button>
+          <button
+            onClick={() => {
+              setSaved(false);
+              setSelectedMood(null);
+              setFeelings([]);
+              setNotes('');
+              setNotesError('');
+            }}
+            className="px-5 py-3 bg-bg3 border border-border text-text3 hover:text-text rounded-full font-medium text-sm hover:bg-bg4 transition-all smooth-hover-btn"
+          >
+            Log Another Entry
+          </button>
+        </div>
+      </div>
     );
   }
 
@@ -190,15 +225,10 @@ export default function Mood() {
       {/* Header */}
       <div>
         <div className="text-xs text-accent tracking-[0.1em] uppercase mb-4">CHECK IN</div>
-        <h1 className="text-3xl font-light text-text mb-2">Mood Tracker</h1>
+        <h1 className="text-3xl font-light text-text mb-2">Calm & Reflection Tracker</h1>
       </div>
 
       {/* Success banner */}
-      {saved && (
-        <div className="bg-green/10 border border-green/30 text-green text-sm rounded-[12px] px-4 py-3">
-          ✓ Check-in saved successfully!
-        </div>
-      )}
       {error && (
         <div className="bg-rose/10 border border-rose/30 text-rose text-sm rounded-[12px] px-4 py-3">
           {error}
@@ -207,7 +237,7 @@ export default function Mood() {
 
       {/* Current mood */}
       <section className="space-y-4">
-        <h2 className="text-base font-medium text-text">How are you feeling right now?</h2>
+        <h2 className="text-base font-medium text-text">What is your energy level right now?</h2>
         <div className="flex gap-3">
           {[1, 2, 3, 4, 5].map((mood) => (
             <button
@@ -228,7 +258,7 @@ export default function Mood() {
       {/* Feelings */}
       <section className="space-y-4">
         <div>
-          <h2 className="text-base font-medium text-text mb-1">What are you feeling?</h2>
+          <h2 className="text-base font-medium text-text mb-1">Which emotions describe your current state?</h2>
           <p className="text-xs text-text3">Select all that apply</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -251,7 +281,7 @@ export default function Mood() {
 
       {/* Notes */}
       <section className="space-y-4">
-        <h2 className="text-base font-medium text-text">Any notes?</h2>
+        <h2 className="text-base font-medium text-text">Add details or thoughts</h2>
         <textarea
           value={notes}
           onChange={(e) => {
@@ -270,28 +300,53 @@ export default function Mood() {
               setNotesError('');
             }
           }}
-          placeholder="What's going on your mind..."
+          placeholder="Write down what is occupying your thoughts right now..."
           className={`w-full bg-bg2 border rounded-[14px] px-4 py-3 text-sm text-text placeholder:text-text3 resize-none focus:outline-none min-h-32 transition-colors ${
             notesError ? 'border-rose focus:border-rose' : 'border-border focus:border-border2'
           }`}
         />
         {notesError && <span className="text-xs text-rose mt-1 block">{notesError}</span>}
-        <div className="text-xs text-text3">
-          {notes.length} characters · {notes.split(/\s+/).filter(Boolean).length} words
+        <div className="text-xs text-text3 flex justify-between flex-wrap gap-2">
+          <span>{notes.length} characters · {notes.split(/\s+/).filter(Boolean).length} words</span>
+          {lastEnergyLevel !== null && (
+            <span className="italic text-accent">
+              {lastEnergyLevel >= 7
+                ? "Last time you logged high energy. How does your balance feel today?"
+                : `Your last check-in was at a lower energy level (${lastEnergyLevel}/10). Take a gentle breath and note down how you're feeling now.`
+              }
+            </span>
+          )}
         </div>
       </section>
 
 
+      {/* Submit */}
+      <div className="flex gap-3 pt-4">
+        <button
+          onClick={handleSave}
+          disabled={saving || selectedMood === null || notesError !== ''}
+          className="px-6 py-3 bg-accent text-white rounded-full font-semibold text-sm hover:bg-accent2 transition-all disabled:opacity-40 disabled:cursor-not-allowed smooth-hover-btn shadow-md animate-fadeIn"
+        >
+          {saving ? 'Saving…' : 'Save Daily Reflection'}
+        </button>
+        <button
+          onClick={() => { setSelectedMood(null); setFeelings([]); setNotes(''); setError(''); }}
+          className="px-6 py-3 bg-bg3 border border-border text-text2 rounded-full font-medium text-sm hover:bg-bg4 transition-all smooth-hover-btn"
+        >
+          Clear
+        </button>
+      </div>
+
       {/* AI Insight */}
-      <section className="space-y-3">
+      <section className="space-y-3 border-t border-border/45 pt-6">
         <div className="text-xs text-accent tracking-[0.1em] uppercase">AI COMPANION</div>
         <div className="bg-bg2 border border-border rounded-[20px] px-6 py-5 smooth-hover-card">
-          <h3 className="text-base font-medium text-text mb-3">AI Insight</h3>
+          <h3 className="text-base font-medium text-text mb-3">Insights by ARIA</h3>
           
           {analyzing && (
             <div className="flex flex-col items-center justify-center py-6 space-y-3">
               <Loader2 className="w-6 h-6 text-accent animate-spin" />
-              <span className="text-xs text-text3">Analyzing your mood patterns...</span>
+              <span className="text-xs text-text3">Analyzing your daily logs...</span>
             </div>
           )}
 
@@ -302,44 +357,48 @@ export default function Mood() {
           {!analysisData && !analyzing && (
             <>
               <p className="text-sm text-text2 mb-4">
-                After logging, ARIA can help you notice patterns in how you feel across the {isPremium ? 'month' : 'week'}.
+                {moodCount === 0 ? (
+                  <>Log your first check-in above to start mapping your calmness score trend and let ARIA highlight your rhythm.</>
+                ) : (
+                  <>You have checked in {moodCount} time(s) so far. Log {3 - moodCount > 0 ? 3 - moodCount : 1} more day(s) to allow ARIA to generate your first pattern analysis.</>
+                )}
               </p>
               <button
                 onClick={() => handleAnalyze()}
                 className="px-5 py-2.5 bg-accent-glow border border-accent/25 text-accent rounded-full text-sm font-medium hover:bg-accent/20 transition-all"
               >
-                Analyze Trends
+                Generate Calm Insights
               </button>
             </>
           )}
 
           {analysisData && !analyzing && (
             <div className="space-y-4 animate-fadeIn">
-              <h4 className="text-sm font-medium text-accent">Here's what I noticed about your {isPremium ? 'month' : 'week'}...</h4>
+              <h4 className="text-sm font-medium text-accent">Here are the observations for your past {isPremium ? 'month' : 'week'}:</h4>
               <div className="space-y-3.5 pt-1">
                 <div>
-                  <div className="text-[10px] tracking-wider uppercase text-text3 mb-1">{isPremium ? 'Monthly' : 'Weekly'} Observation</div>
+                  <div className="text-[10px] tracking-wider uppercase text-text3 mb-1">Recent Trends</div>
                   <p className="text-sm text-text2 leading-relaxed italic font-[family-name:var(--font-serif)]">
                     "{analysisData.analysis}"
                   </p>
                 </div>
                 <div className="border-t border-border/40 pt-3">
-                  <div className="text-[10px] tracking-wider uppercase text-text3 mb-1">Key Pattern</div>
+                  <div className="text-[10px] tracking-wider uppercase text-text3 mb-1">Identified Pattern</div>
                   <p className="text-sm text-text2 leading-relaxed">{analysisData.pattern}</p>
                 </div>
                 <div className="border-t border-border/40 pt-3">
-                  <div className="text-[10px] tracking-wider uppercase text-text3 mb-1">Gentle Suggestion</div>
+                  <div className="text-[10px] tracking-wider uppercase text-text3 mb-1">Actionable Tip</div>
                   <p className="text-sm text-text2 leading-relaxed">{analysisData.suggestion}</p>
                 </div>
                 <div className="border-t border-border/40 pt-3.5 flex items-center justify-between gap-3 flex-wrap">
                   <span className="text-xs text-text3">
-                    Mood Trend: <span className="font-semibold text-accent capitalize">{analysisData.mood_trend}</span>
+                    Calm Trend: <span className="font-semibold text-accent capitalize">{analysisData.mood_trend}</span>
                   </span>
                   <button
                     onClick={handleChatWithAria}
                     className="px-4 py-2 bg-gradient-to-r from-accent2 to-teal text-white rounded-full text-xs font-medium hover:opacity-90 transition-all"
                   >
-                    Chat with ARIA about this
+                    Discuss Insights with ARIA
                   </button>
                 </div>
               </div>
@@ -347,23 +406,6 @@ export default function Mood() {
           )}
         </div>
       </section>
-
-      {/* Submit */}
-      <div className="flex gap-3">
-        <button
-          onClick={handleSave}
-          disabled={saving || selectedMood === null || notesError !== ''}
-          className="px-6 py-3 bg-accent text-white rounded-lg font-medium text-sm hover:bg-accent2 transition-all disabled:opacity-40 disabled:cursor-not-allowed smooth-hover-btn"
-        >
-          {saving ? 'Saving…' : 'Save Check-In'}
-        </button>
-        <button
-          onClick={() => { setSelectedMood(null); setFeelings([]); setNotes(''); setError(''); }}
-          className="px-6 py-3 bg-bg3 border border-border text-text2 rounded-lg font-medium text-sm hover:bg-bg4 transition-all smooth-hover-btn"
-        >
-          Cancel
-        </button>
-      </div>
     </div>
   );
 }

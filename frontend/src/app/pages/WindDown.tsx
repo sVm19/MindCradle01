@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Check, Moon, Leaf, HandHelping, Lightbulb, Book, Sparkles, CloudRain } from 'lucide-react';
 import { sanitizeForInput } from '@/lib/sanitize';
 import { rituals as ritualsApi } from '@/lib/api';
@@ -7,6 +8,7 @@ import GuestGate from '@/app/components/GuestGate';
 
 export default function WindDown() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   // Checklist
   const [release, setRelease] = useState('');
   const [gratitudes, setGratitudes] = useState(['', '', '']);
@@ -38,6 +40,7 @@ export default function WindDown() {
         audioChoice,
         timer: '3m',
       });
+      localStorage.setItem('winddown_completed_at', new Date().toISOString());
       setStep('done');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save wind-down ritual');
@@ -50,18 +53,26 @@ export default function WindDown() {
     return (
       <div className="space-y-8 animate-fadeIn flex flex-col items-center justify-center min-h-[50vh] text-center">
         <div className="w-20 h-20 rounded-full bg-gradient-to-br from-teal to-accent flex items-center justify-center text-4xl">
-          <Moon className="text-4xl" />
+          <Moon className="text-4xl text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-light text-text mb-2">Wind-down complete</h1>
-          <p className="text-sm text-text2">You've put the day down gently. Sleep well. <Moon className="inline-block align-text-bottom" /></p>
+          <h1 className="text-2xl font-light text-text mb-2">Evening Reflection Completed</h1>
+          <p className="text-sm text-text2 max-w-md mx-auto mb-6">You've cleared your mind and set a calm tone for the night. Sleep well. <Moon className="inline-block align-text-bottom" /></p>
         </div>
-        <button
-          onClick={() => { setStep('checklist'); setRelease(''); setGratitudes(['', '', '']); setAudioChoice(''); }}
-          className="px-5 py-2.5 bg-bg3 border border-border text-text2 rounded-full text-sm hover:bg-bg4 transition-all"
-        >
-          Start over
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="px-6 py-3 bg-accent text-white rounded-full font-semibold text-sm hover:bg-accent2 transition-all shadow-md smooth-hover-btn"
+          >
+            Back to Dashboard →
+          </button>
+          <button
+            onClick={() => { setStep('checklist'); setRelease(''); setGratitudes(['', '', '']); setAudioChoice(''); }}
+            className="px-5 py-3 bg-bg3 border border-border text-text3 hover:text-text rounded-full font-medium text-sm hover:bg-bg4 transition-all smooth-hover-btn"
+          >
+            Reset Routine
+          </button>
+        </div>
       </div>
     );
   }
@@ -70,7 +81,7 @@ export default function WindDown() {
     return (
       <GuestGate
         title="Evening Wind Down"
-        description="Close the day gently. Reflect on your gratitudes, release what no longer serves you, and listen to calming soundscapes."
+        description="End your day with intention. Clear your mind, list your gratitudes, and select a calming sleep companion."
         icon={<Moon className="w-8 h-8 text-accent animate-pulse" />}
       />
     );
@@ -82,10 +93,10 @@ export default function WindDown() {
       <div>
         <div className="flex items-center gap-2.5 text-[10px] tracking-[0.12em] uppercase text-teal mb-6">
           <Moon size={14} className="text-teal" />
-          EVENING RITUAL
+          EVENING ROUTINE
         </div>
-        <h1 className="text-3xl font-light text-text mb-2">Wind Down</h1>
-        <p className="text-sm text-text2">The day is ending. Let's put it down gently.</p>
+        <h1 className="text-3xl font-light text-text mb-2">Evening Wind Down</h1>
+        <p className="text-sm text-text2">Release the day's tasks and prepare your mind for restful sleep.</p>
       </div>
 
       {error && (
@@ -96,14 +107,20 @@ export default function WindDown() {
 
       {/* Leave something behind */}
       <section className="space-y-3">
-        <div className="bg-bg2 border border-border rounded-[14px] px-5 py-4">
+        <div className={`border rounded-[14px] px-5 py-4 transition-all ${leaveChecked ? 'bg-bg2/40 border-green/30' : 'bg-bg2 border-border'}`}>
           <div className="flex items-center gap-4 mb-3">
             <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${leaveChecked ? 'bg-green border-green' : 'border-border'}`}>
               {leaveChecked && <Check className="w-4 h-4 text-white" />}
             </div>
             <div className="flex-1">
-              <div className="text-sm text-text font-medium">Leave something behind</div>
-              <div className="text-xs text-text3">What will you consciously release tonight?</div>
+              <div className="text-sm text-text font-medium">Clear Your Mind</div>
+              <div className="text-xs text-text3">
+                {leaveChecked ? (
+                  <span className="text-green font-medium">Left behind: "{release}"</span>
+                ) : (
+                  <span>Write down one thought or concern you wish to let go of tonight.</span>
+                )}
+              </div>
             </div>
             <div className="text-lg"><Leaf /></div>
           </div>
@@ -111,20 +128,26 @@ export default function WindDown() {
             type="text"
             value={release}
             onChange={(e) => setRelease(sanitizeForInput(e.target.value))}
-            placeholder="e.g. The argument from this morning…"
+            placeholder="e.g., An unfinished task, a minor frustration, or tomorrow's to-do list…"
             className="w-full bg-bg3 border border-border rounded-[10px] px-3.5 py-2.5 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent/30 transition-colors"
           />
         </div>
 
         {/* Three gratitudes */}
-        <div className="bg-bg2 border border-border rounded-[14px] px-5 py-4">
+        <div className={`border rounded-[14px] px-5 py-4 transition-all ${gratitudesChecked ? 'bg-bg2/40 border-green/30' : 'bg-bg2 border-border'}`}>
           <div className="flex items-center gap-4 mb-3">
             <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${gratitudesChecked ? 'bg-green border-green' : 'border-border'}`}>
               {gratitudesChecked && <Check className="w-4 h-4 text-white" />}
             </div>
             <div className="flex-1">
-              <div className="text-sm text-text font-medium">Three gratitudes</div>
-              <div className="text-xs text-text3">Name three things you're thankful for today</div>
+              <div className="text-sm text-text font-medium">Reflect on Gratitude</div>
+              <div className="text-xs text-text3">
+                {gratitudesChecked ? (
+                  <span className="text-green font-medium">Today's Appreciations: "{gratitudes.filter(Boolean).join(', ')}"</span>
+                ) : (
+                  <span>Identify three simple moments or things you appreciated today.</span>
+                )}
+              </div>
             </div>
             <div className="text-lg"><HandHelping /></div>
           </div>
@@ -143,14 +166,20 @@ export default function WindDown() {
         </div>
 
         {/* Sleep story */}
-        <div className="bg-bg2 border border-border rounded-[14px] px-5 py-4">
+        <div className={`border rounded-[14px] px-5 py-4 transition-all ${audioChecked ? 'bg-bg2/40 border-green/30' : 'bg-bg2 border-border'}`}>
           <div className="flex items-center gap-4 mb-3">
             <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${audioChecked ? 'bg-green border-green' : 'border-border'}`}>
               {audioChecked && <Check className="w-4 h-4 text-white" />}
             </div>
             <div className="flex-1">
-              <div className="text-sm text-text font-medium">Drift into sleep</div>
-              <div className="text-xs text-text3">Choose your sleep companion</div>
+              <div className="text-sm text-text font-medium">Select a Soundscape</div>
+              <div className="text-xs text-text3">
+                {audioChecked ? (
+                  <span className="text-green font-medium">Selected Soundscape: "{audioChoice}"</span>
+                ) : (
+                  <span>Choose a calming background audio to help you rest.</span>
+                )}
+              </div>
             </div>
             <div className="text-lg text-teal"><Moon size={18} /></div>
           </div>
@@ -179,20 +208,26 @@ export default function WindDown() {
 
         {/* Progress */}
         <div className="text-xs text-text3 text-center pt-2">
-          {[leaveChecked, gratitudesChecked, audioChecked].filter(Boolean).length} / 3 completed
+          {[leaveChecked, gratitudesChecked, audioChecked].filter(Boolean).length} of 3 sections completed
         </div>
       </section>
 
       {/* Begin button */}
-      <section className="bg-bg2 border border-border rounded-[20px] px-6 py-6 text-center space-y-4">
+      <section className={`border rounded-[20px] px-6 py-6 text-center space-y-4 transition-all ${allChecked ? 'bg-bg2 border-accent/40 shadow-[0_0_20px_rgba(108,92,231,0.08)]' : 'bg-bg2 border-border'}`}>
         <button
           onClick={handleBegin}
           disabled={!allChecked || saving}
-          className="px-8 py-3 bg-gradient-to-r from-teal to-accent text-white rounded-lg font-medium text-sm hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+          className={`px-8 py-3 rounded-full font-semibold text-sm transition-all flex items-center gap-2 mx-auto shadow-md ${
+            allChecked
+              ? 'bg-gradient-to-r from-teal to-accent text-white hover:opacity-95 cursor-pointer scale-105 shadow-[0_0_15px_rgba(108,92,231,0.2)]'
+              : 'bg-bg3 border border-border text-text3 disabled:opacity-50 disabled:cursor-not-allowed'
+          }`}
         >
-          {saving ? 'Saving…' : 'Begin Wind Down →'}
+          {saving ? 'Saving…' : 'Save Reflections & Complete →'}
         </button>
-        <p className="text-xs text-text3">Fill all three sections to complete your ritual</p>
+        <p className="text-xs text-text3">
+          {allChecked ? 'Beautiful work. All 3 evening steps are complete. Ready to log your reflections?' : 'Complete all sections above to save your routine.'}
+        </p>
       </section>
 
       {/* Tips */}
@@ -200,9 +235,9 @@ export default function WindDown() {
         <div className="flex gap-3">
           <div className="text-lg"><Lightbulb /></div>
           <div>
-            <div className="text-sm text-text mb-1">Wind Down Tip</div>
+            <div className="text-sm text-text mb-1">Evening Tip</div>
             <div className="text-xs text-text2">
-              Consider dimming your screen brightness and putting away devices 30 minutes before bed for better sleep quality.
+              Dim your screen and set aside devices 30 minutes before resting to build a consistent sleep rhythm.
             </div>
           </div>
         </div>

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { useAuth } from '@/lib/auth';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi, rituals as ritualsApi, journal as journalApi, payments as paymentsApi } from '@/lib/api';
 import type { ResourceItem } from '@/lib/api';
-import { Lock, Award, Moon, Wind, PenTool, CheckCircle2, TrendingUp, Brain, Star, Flame, BookOpen, Target, Sparkles } from 'lucide-react';
+import { Lock, Award, Moon, Wind, PenTool, CheckCircle2, TrendingUp, Brain, Star, Flame, BookOpen, Target, Sparkles, X } from 'lucide-react';
 import GuestGate from '@/app/components/GuestGate';
 import { WellnessInsightCard } from '@/app/components/WellnessInsightCard';
 
@@ -120,10 +120,39 @@ export default function Dashboard() {
   const [ariaInsight, setAriaInsight] = useState('');
   const [ariaLoading, setAriaLoading] = useState(true);
 
+  // Daily Discovery
+  const [discovery, setDiscovery] = useState<any | null>(null);
+  const [discoveryLoading, setDiscoveryLoading] = useState(true);
+  const [discoveryShared, setDiscoveryShared] = useState(false);
+
+  const handleDismissDiscovery = async () => {
+    if (!discovery) return;
+    try {
+      await aiApi.updateDiscoveryFeedback(discovery.id, { is_dismissed: true });
+      setDiscovery(prev => prev ? { ...prev, is_dismissed: true } : null);
+    } catch (err) {
+      console.error("Failed to dismiss discovery:", err);
+    }
+  };
+
+  const handleShareDiscovery = async () => {
+    if (!discovery) return;
+    try {
+      await navigator.clipboard.writeText(discovery.discovery_text);
+      setDiscoveryShared(true);
+      setTimeout(() => setDiscoveryShared(false), 3000);
+      await aiApi.updateDiscoveryFeedback(discovery.id, { is_shared: true });
+      setDiscovery(prev => prev ? { ...prev, is_shared: true } : null);
+    } catch (err) {
+      console.error("Failed to share discovery:", err);
+    }
+  };
+
   // Wellness stats
   const [ritualsCompleted, setRitualsCompleted] = useState<number | null>(null);
   const [insightPatternsCount, setInsightPatternsCount] = useState<number | null>(null);
   const [journalCount, setJournalCount] = useState<number | null>(null);
+  const [journals, setJournals] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -191,8 +220,23 @@ export default function Dashboard() {
 
     // Fetch journal entries count
     journalApi.list().then((res) => {
-      setJournalCount(res.items.length);
+      setJournals(res.items || []);
+      setJournalCount((res.items || []).length);
     }).catch(() => {});
+
+    // Fetch today's discovery
+    aiApi.getDailyDiscovery().then((res) => {
+      if (res && res.id) {
+        setDiscovery(res);
+        if (!res.is_viewed) {
+          aiApi.updateDiscoveryFeedback(res.id, { is_viewed: true }).catch(() => {});
+        }
+      }
+    }).catch((err) => {
+      console.error("Failed to load daily discovery:", err);
+    }).finally(() => {
+      setDiscoveryLoading(false);
+    });
   }, [user]);
 
   const getMoodTrend = () => {
@@ -228,10 +272,10 @@ export default function Dashboard() {
             
             <div className="relative z-10 flex-1 space-y-4 text-left">
               <h1 className="font-[family-name:var(--font-serif)] text-2xl sm:text-3xl font-light text-text leading-tight">
-                What will you discover today?
+                Build a calmer day, one small step at a time.
               </h1>
               <p className="text-sm text-text3 leading-relaxed max-w-2xl">
-                Your <span className="text-rose font-medium">mood</span> tells a story. Your <span className="text-amber font-medium">rituals</span> create patterns. Your <span className="text-teal font-medium">journal</span> holds wisdom. <span className="text-text font-semibold">ARIA</span> connects the dots.
+                Your <span className="text-rose font-medium">reflections</span> build clarity. Your <span className="text-amber font-medium">routines</span> build consistency. Your <span className="text-teal font-medium">journal</span> holds wisdom. <span className="text-text font-semibold">ARIA</span> connects the dots.
               </p>
               <div>
                 <button
@@ -239,7 +283,7 @@ export default function Dashboard() {
                   onClick={() => setAuthModalOpen(true)}
                   className="inline-flex items-center justify-center px-6 py-3 bg-accent hover:opacity-90 rounded-full text-xs font-semibold tracking-wider transition-all cursor-pointer"
                 >
-                  Start here →
+                  Begin Today's Journey →
                 </button>
               </div>
 
@@ -251,7 +295,7 @@ export default function Dashboard() {
                 </div>
                 <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-border" />
                 <div className="italic">
-                  "This app saved my mental health" <span className="text-text2 not-italic font-medium">— Sarah, 23</span>
+                  "This app helped me build a daily routine that brings me calm and focus" <span className="text-text2 not-italic font-medium">— Sarah, 23</span>
                 </div>
               </div>
             </div>
@@ -389,18 +433,115 @@ export default function Dashboard() {
         <WellnessInsightCard />
 
         <GuestGate
-          title="Your Wellness Dashboard"
-          description="Create a secure account or sign in to track your rituals, monitor your calm index, and see AI-guided wellness recommendations."
+          title="Your Personal Progress Dashboard"
+          description="Create a free account to track your daily routines, measure your calm index, and see AI-guided suggestions."
           icon={<Lock size={28} />}
         />
       </div>
     );
   }
 
-  const dashDots = (226 * calmScore) / 100;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+  const didCheckInToday = moodItems.some((item) => item.created.slice(0, 10) === todayStr);
+  const didCheckInYesterday = moodItems.some((item) => item.created.slice(0, 10) === yesterdayStr);
+
+  const morningCompletedToday = localStorage.getItem('morning_completed_at')?.slice(0, 10) === todayStr;
+  const morningCompletedYesterday = localStorage.getItem('morning_completed_at')?.slice(0, 10) === yesterdayStr;
+
+  let heroTitle = "Build a calmer day, one small step at a time.";
+  let heroDesc: React.ReactNode = (
+    <>
+      Your <span className="text-rose font-medium">reflections</span> build clarity. Your <span className="text-amber font-medium">routines</span> build consistency. Your <span className="text-teal font-medium">journal</span> holds wisdom. <span className="text-text font-semibold">ARIA</span> connects the dots.
+    </>
+  );
+
+  if (morningCompletedToday) {
+    heroTitle = `You're building momentum today, ${user?.name?.split(' ')[0] || 'guest'}.`;
+    heroDesc = (
+      <>
+        Your morning focus is complete. Let's keep this rhythm going tonight with your evening reflection, or write down any thoughts in your journal.
+      </>
+    );
+  } else if (didCheckInToday) {
+    heroTitle = "You logged your mood today. Now let's anchor your day.";
+    heroDesc = (
+      <>
+        Taking two minutes for your Morning Routine helps establish calm and consistency. Let's start today's focus.
+      </>
+    );
+  } else if (morningCompletedYesterday) {
+    heroTitle = "Continue building yesterday's momentum.";
+    heroDesc = (
+      <>
+        Yesterday you focused on your morning ritual. Let's keep your self-awareness consistent today.
+      </>
+    );
+  } else if (didCheckInYesterday) {
+    heroTitle = "Welcome back. Continue yesterday's progress.";
+    heroDesc = (
+      <>
+        Yesterday you logged your mood and took a step toward self-awareness. Let's start today's morning focus.
+      </>
+    );
+  } else if (moodItems.length === 0) {
+    heroTitle = "Begin today's journey with a single small step.";
+    heroDesc = (
+      <>
+        MindCradle works best when you start small. Start by logging your current energy level and mood. It takes less than 30 seconds.
+      </>
+    );
+  }
+
+  const dashDots = (calmScore / 100) * 226;
 
   return (
     <div className="space-y-8 animate-fadeIn">
+      {discovery && !discovery.is_dismissed && (
+        <div className="bg-gradient-to-r from-teal/15 via-accent/10 to-indigo/15 border-2 border-teal/20 rounded-3xl p-6 text-left shadow-2xl relative overflow-hidden animate-slideIn">
+          <div className="absolute top-4 right-4 flex items-center gap-2">
+            <button
+              onClick={handleShareDiscovery}
+              className="p-2 hover:bg-bg3 rounded-full text-text3 hover:text-text transition-all smooth-hover-btn"
+              title="Share Discovery"
+            >
+              {discoveryShared ? <span className="text-[10px] text-teal font-semibold">Copied!</span> : <Star size={15} className="text-accent" />}
+            </button>
+            <button
+              onClick={handleDismissDiscovery}
+              className="p-2 hover:bg-bg3 rounded-full text-text3 hover:text-text transition-all smooth-hover-btn"
+              title="Dismiss"
+            >
+              <X size={15} />
+            </button>
+          </div>
+          
+          <div className="flex items-start gap-4 pr-16">
+            <div className="w-12 h-12 rounded-full bg-teal-dim flex items-center justify-center text-teal shrink-0 shadow-lg">
+              <Brain className="w-6 h-6 animate-pulse" />
+            </div>
+            <div className="space-y-2">
+              <div className="text-[10px] font-bold text-teal uppercase tracking-widest flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-accent" /> ARIA's Daily Discovery
+              </div>
+              <p className="text-sm text-text font-medium leading-relaxed">
+                "{discovery.discovery_text}"
+              </p>
+              <div className="flex items-center gap-4 pt-1.5 text-xs text-text3 font-light border-t border-border/20">
+                <span>Confidence: <span className="font-semibold text-teal">{discovery.confidence_score}%</span></span>
+                <span className="w-1 h-1 rounded-full bg-border" />
+                <Link to="/discoveries" className="text-accent hover:underline flex items-center gap-0.5">
+                  View Discovery Archive →
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {trialActive && trialDays !== null && trialDays > 0 && (
         <div className="bg-accent/10 border border-accent/20 text-text rounded-2xl p-4 flex items-center justify-between gap-4 shadow-lg animate-fadeIn text-left">
           <div className="flex items-center gap-3">
@@ -409,12 +550,18 @@ export default function Dashboard() {
             </div>
             <div>
               <h4 className="font-semibold text-sm">🎁 Premium Free Trial Active</h4>
-              <p className="text-xs text-text3">Enjoy full access to all features! You have {trialDays} {trialDays === 1 ? 'day' : 'days'} remaining.</p>
+              <p className="text-xs text-text3">
+                {moodItems.length > 0 || (ritualsCompleted || 0) > 0 ? (
+                  <>You've logged {moodItems.length} check-in(s) and {ritualsCompleted || 0} routine(s) in your trial. Enjoy full access for {trialDays} more days!</>
+                ) : (
+                  <>Your 7-day premium pass is active. Get started by taking a morning focus or checking in.</>
+                )}
+              </p>
             </div>
           </div>
           <Link 
             to="/billing" 
-            className="px-4 py-2 bg-accent hover:bg-accent2 text-white text-xs font-semibold rounded-xl transition-all shadow-md shrink-0"
+            className="px-4 py-2 bg-accent hover:bg-accent2 text-white text-xs font-semibold rounded-full transition-all shadow-md shrink-0"
           >
             Manage Subscription
           </Link>
@@ -429,17 +576,17 @@ export default function Dashboard() {
           
           <div className="relative z-10 flex-1 space-y-4 text-left">
             <h1 className="font-[family-name:var(--font-serif)] text-2xl sm:text-3xl font-light text-text leading-tight">
-              What will you discover today?
+              {heroTitle}
             </h1>
             <p className="text-sm text-text3 leading-relaxed max-w-2xl">
-              Your <span className="text-rose font-medium">mood</span> tells a story. Your <span className="text-amber font-medium">rituals</span> create patterns. Your <span className="text-teal font-medium">journal</span> holds wisdom. <span className="text-text font-semibold">ARIA</span> connects the dots.
+              {heroDesc}
             </p>
             <div>
               <Link
                 to="/mood"
                 className="inline-flex items-center justify-center px-6 py-3 bg-accent hover:opacity-90 rounded-full text-xs font-semibold tracking-wider transition-all"
               >
-                Start here →
+                Begin Today's Journey →
               </Link>
             </div>
 
@@ -451,7 +598,7 @@ export default function Dashboard() {
               </div>
               <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-border" />
               <div className="italic">
-                "This app saved my mental health" <span className="text-text2 not-italic font-medium">— Sarah, 23</span>
+                "This app helped me build a daily routine that brings me calm and focus" <span className="text-text2 not-italic font-medium">— Sarah, 23</span>
               </div>
             </div>
           </div>
@@ -575,8 +722,9 @@ export default function Dashboard() {
                           Unlocked
                         </span>
                       ) : (
-                        <span className="text-[10px] font-semibold text-text3 bg-bg4 border border-border px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <Lock className="w-2.5 h-2.5" /> Locked
+                        <span className="text-[10px] font-semibold text-text3 bg-bg4 border border-border px-2 py-0.5 rounded-full flex flex-col items-end gap-0.5">
+                          <span className="flex items-center gap-1"><Lock className="w-2.5 h-2.5" /> Locked</span>
+                          <span className="text-[9px] font-light text-text3 opacity-90">{streak}/7 days</span>
                         </span>
                       )}
                     </div>
@@ -594,8 +742,9 @@ export default function Dashboard() {
                           Unlocked
                         </span>
                       ) : (
-                        <span className="text-[10px] font-semibold text-text3 bg-bg4 border border-border px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <Lock className="w-2.5 h-2.5" /> Locked
+                        <span className="text-[10px] font-semibold text-text3 bg-bg4 border border-border px-2 py-0.5 rounded-full flex flex-col items-end gap-0.5">
+                          <span className="flex items-center gap-1"><Lock className="w-2.5 h-2.5" /> Locked</span>
+                          <span className="text-[9px] font-light text-text3 opacity-90">{journalCount || 0}/3 entries</span>
                         </span>
                       )}
                     </div>
@@ -613,8 +762,9 @@ export default function Dashboard() {
                           Unlocked
                         </span>
                       ) : (
-                        <span className="text-[10px] font-semibold text-text3 bg-bg4 border border-border px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <Lock className="w-2.5 h-2.5" /> Locked
+                        <span className="text-[10px] font-semibold text-text3 bg-bg4 border border-border px-2 py-0.5 rounded-full flex flex-col items-end gap-0.5">
+                          <span className="flex items-center gap-1"><Lock className="w-2.5 h-2.5" /> Locked</span>
+                          <span className="text-[9px] font-light text-text3 opacity-90">{ritualsCompleted || 0}/7 steps</span>
                         </span>
                       )}
                     </div>
@@ -648,7 +798,7 @@ export default function Dashboard() {
             <div>
               <div className="text-[10px] text-text3 uppercase tracking-wider mb-1 flex items-center justify-center gap-1.5 select-none">
                 <Moon className="w-3.5 h-3.5 text-purple-400" />
-                Sleep Tracker
+                Sleep Rhythm Tracker
               </div>
               {sleepStartTime ? (
                 <div className="text-sm font-light text-text2 mt-1 animate-pulse">
@@ -656,7 +806,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="text-[11px] font-light text-text3 mt-1.5 leading-tight">
-                  Aria will know how much you slept last night.
+                  Log your sleep to let ARIA personalize your daily rhythm suggestions.
                 </div>
               )}
             </div>
@@ -667,14 +817,14 @@ export default function Dashboard() {
                   onClick={handleWokeUp}
                   className="w-full h-8 px-4 bg-teal-dim hover:bg-teal/20 text-teal border border-teal/30 hover:border-teal/50 rounded-full text-[11px] font-semibold tracking-wider transition-all cursor-pointer"
                 >
-                  Woke Up
+                  Log Wake Time
                 </button>
               ) : (
                 <button
                   onClick={handleGoingToSleep}
                   className="w-full h-8 px-4 bg-rose-dim hover:bg-rose/25 text-rose border border-rose/30 hover:border-rose/50 rounded-full text-[11px] font-semibold tracking-wider transition-all cursor-pointer"
                 >
-                  Going to Sleep
+                  Log Sleep Start
                 </button>
               )}
             </div>
@@ -685,44 +835,44 @@ export default function Dashboard() {
       {/* Today's Rituals */}
       <section>
         <div className="text-[10.5px] tracking-[0.14em] uppercase text-accent font-medium mb-4">
-          Today's Rituals
+          Today's Routines
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Link
             to="/morning"
-            className="bg-bg2 border border-border rounded-[20px] px-6 py-5 cursor-pointer relative overflow-hidden"
+            className="bg-bg2 border-2 border-accent/40 shadow-[0_0_15px_rgba(108,92,231,0.1)] rounded-[20px] px-6 py-5 cursor-pointer relative overflow-hidden"
           >
             <div className="text-[10px] tracking-[0.12em] uppercase text-text3 mb-2.5 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_8px_var(--accent)]" /> Ritual
+              <span className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_8px_var(--accent)]" /> Routine
             </div>
             <div className="font-[family-name:var(--font-serif)] text-xl font-light text-text mb-3">
-              Morning Ritual
+              Morning Routine
             </div>
-            <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-amber-dim text-amber border border-amber/20 mb-4">
-              Pending
+            <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-accent text-white mb-4">
+              Ready
             </div>
-            <div className="flex items-center gap-1.5 text-[12.5px] text-accent font-medium mt-1">
-              Begin →
+            <div className="inline-flex items-center gap-1.5 text-xs px-4 py-2 bg-accent hover:opacity-90 text-white rounded-full font-semibold tracking-wider transition-all mt-1 shadow-md">
+              Start Morning Routine →
             </div>
           </Link>
 
           <Link
             to="/wind-down"
-            className="bg-bg2 border border-border rounded-[20px] px-6 py-5 cursor-pointer relative overflow-hidden"
+            className="bg-bg2/60 border border-border rounded-[20px] px-6 py-5 cursor-pointer relative overflow-hidden opacity-70"
           >
             <div className="text-[10px] tracking-[0.12em] uppercase text-text3 mb-2.5 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-teal shadow-[0_0_8px_var(--teal)]" /> Evening Ritual
+              <span className="w-1.5 h-1.5 rounded-full bg-text3" /> Evening Routine
             </div>
-            <div className="font-[family-name:var(--font-serif)] text-xl font-light text-text mb-3">
+            <div className="font-[family-name:var(--font-serif)] text-xl font-light text-text3 mb-3">
               Wind Down
             </div>
-            <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-amber-dim text-amber border border-amber/20 mb-4">
-              Pending
+            <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-bg3 text-text3 border border-border mb-4">
+              Locked
             </div>
-            <div className="flex items-center gap-1.5 text-[12.5px] text-accent font-medium">
-              Begin →
+            <div className="flex items-center gap-1.5 text-[12.5px] text-text3 font-medium">
+              Start Wind Down →
             </div>
-            <div className="text-[11px] text-text3 mt-1.5">Available at 9:00 PM</div>
+            <div className="text-[11px] text-text3 mt-1.5">Unlocks at 9:00 PM</div>
           </Link>
         </div>
       </section>
@@ -734,7 +884,7 @@ export default function Dashboard() {
             <div className="w-2 h-2 rounded-full bg-green shadow-[0_0_8px_var(--green)] flex-shrink-0" />
             <div className="text-[13px]">
               <div className="text-text mb-0.5">Morning</div>
-              <div className="text-[11px] text-text3">Still available today</div>
+              <div className="text-[11px] text-text3">Morning Routine: Active</div>
             </div>
           </div>
           <div className="hidden sm:block w-px h-8 bg-border" />
@@ -743,7 +893,7 @@ export default function Dashboard() {
             <div className="w-2 h-2 rounded-full bg-amber shadow-[0_0_8px_var(--amber)] flex-shrink-0" />
             <div className="text-[13px]">
               <div className="text-text mb-0.5">Wind Down</div>
-              <div className="text-[11px] text-text3">Unlocks at 9:00 PM</div>
+              <div className="text-[11px] text-text3">Evening Routine: Unlocks at 9:00 PM</div>
             </div>
           </div>
           <div className="hidden sm:block w-px h-8 bg-border" />
@@ -759,7 +909,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <section>
           <div className="text-[10.5px] tracking-[0.14em] uppercase text-accent font-medium mb-4">
-            Weekly Calm Score
+            Weekly Calm & Balance
           </div>
           <div className="bg-bg2 border border-border rounded-[20px] p-5 sm:p-6 flex flex-col sm:flex-row gap-5 sm:gap-6 items-center sm:items-start text-center sm:text-left w-full">
             <div className="w-[90px] h-[90px] flex-shrink-0 relative">
@@ -789,9 +939,9 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="flex-1 w-full">
-              <div className="text-[15px] font-medium text-text mb-1">Your Weekly Score</div>
+              <div className="text-[15px] font-medium text-text mb-1">Your Calm Index</div>
               <div className="text-[12.5px] text-text2 mb-3.5">
-                {moodItems.length === 0 ? 'Complete rituals to build your score' : `Based on ${moodItems.length} check-in${moodItems.length !== 1 ? 's' : ''}`}
+                {moodItems.length === 0 ? 'Build consistency to increase your calm index' : `Based on ${moodItems.length} daily check-in${moodItems.length !== 1 ? 's' : ''}`}
               </div>
               <div className="flex gap-1.5 items-end h-10 justify-center sm:justify-start">
                 {weekBars.map((bar, i) => (
@@ -813,7 +963,7 @@ export default function Dashboard() {
 
         <section>
           <div className="text-[10.5px] tracking-[0.14em] uppercase text-accent font-medium mb-4">
-            AI Companion
+            AI Companion (ARIA)
           </div>
           <div className="bg-bg2 border border-border rounded-[20px] p-5 sm:p-6 relative overflow-hidden flex flex-col justify-between h-full text-center sm:text-left">
             <div className="absolute top-0 left-0 right-0 bottom-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,124,248,0.06),transparent_60%)] pointer-events-none" />
@@ -824,11 +974,11 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="text-xs font-semibold text-green mb-2.5">
-                Your mood is trending up this week
+                Your momentum is building this week
               </div>
               <div className="font-[family-name:var(--font-serif)] text-base font-light text-text leading-relaxed italic mb-4 min-h-[50px]">
                 {ariaLoading ? (
-                  <span className="text-text3 text-sm not-italic">ARIA is thinking…</span>
+                  <span className="text-text3 text-sm not-italic">ARIA is compiling your daily reflection…</span>
                 ) : (
                   `"${ariaInsight}"`
                 )}
@@ -838,7 +988,7 @@ export default function Dashboard() {
               to="/aria"
               className="inline-flex items-center gap-1.5 text-[12.5px] text-accent font-medium bg-accent-glow border border-accent/25 px-4 py-2 rounded-full hover:bg-accent/20 transition-all self-center sm:self-start"
             >
-              Explore Toolkit →
+              See What's Recommended →
             </Link>
           </div>
         </section>
@@ -847,7 +997,7 @@ export default function Dashboard() {
       {/* Recommended */}
       <section>
         <div className="text-[10.5px] tracking-[0.14em] uppercase text-accent font-medium mb-4">
-          Recommended For You
+          Today's Recommendations
         </div>
         <div className="flex flex-col gap-2.5">
           {recResources.length > 0 ? (
@@ -864,7 +1014,7 @@ export default function Dashboard() {
                   <div className="text-[10px] uppercase tracking-wider text-text3 mb-0.5">{item.category}</div>
                   <div className="text-sm text-text">{item.title}</div>
                 </div>
-                <div className="text-sm text-text3">→ Open</div>
+                <div className="text-sm text-text3">Open Now</div>
               </div>
             ))
           ) : (
@@ -885,7 +1035,7 @@ export default function Dashboard() {
                   <div className="text-sm text-text">{item.name}</div>
                 </div>
                 <div className="text-sm text-text3">
-                  {i === 0 ? 'Play' : i === 1 ? '→ Start' : '→ Write'}
+                  {i === 0 ? 'Play Now' : i === 1 ? 'Start Now' : 'Write Now'}
                 </div>
               </div>
             ))
@@ -896,16 +1046,16 @@ export default function Dashboard() {
       {/* Milestones */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <div className="text-[10.5px] tracking-[0.14em] uppercase text-accent font-medium">Milestones</div>
-          <a href="#" className="text-xs text-text3 no-underline">View All →</a>
+          <div className="text-[10.5px] tracking-[0.14em] uppercase text-accent font-medium">Your Milestones</div>
+          <a href="#" className="text-xs text-text3 no-underline">View All Achievements →</a>
         </div>
         <div className="grid grid-cols-3 gap-3">
           {[
-            { name: 'First Light', unlocked: moodItems.length >= 1 },
-            { name: '7-Day Grounded', unlocked: streak >= 7 },
+            { name: 'First Reflection', unlocked: moodItems.length >= 1 },
+            { name: '7-Day Consistency', unlocked: streak >= 7 },
             { name: 'Night Owl', unlocked: false },
             { name: 'Pattern Seeker', unlocked: false },
-            { name: '30-Day Observer', unlocked: false },
+            { name: '30-Day Self-Awareness', unlocked: false },
             { name: 'Clarity Seeker', unlocked: false },
           ].slice(0, 3).map((badge, i) => (
             <div

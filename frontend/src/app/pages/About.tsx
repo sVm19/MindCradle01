@@ -20,15 +20,15 @@ export default function About() {
           About MindCradle
         </h1>
         <p className="text-sm text-text3 mb-8 font-light">
-          A Sanctuary for Your Mind & Heart
+          A Sanctuary for Your Rhythm & Self-Awareness
         </p>
 
         <div className="space-y-8 text-text2">
           <section className="bg-bg/40 border border-border/80 rounded-2xl p-6 mb-6">
             <p className="text-[15px] sm:text-base font-light leading-relaxed">
-              MindCradle is a personal wellness app designed to help you understand your emotional 
-              health through mood tracking, journaling, and daily rituals. We offer a calming digital sanctuary 
-              where self-discovery meets habit-building.
+              MindCradle is a personal growth app designed to help you build calm, self-awareness, and consistency 
+              through daily check-ins, reflection journaling, and daily routines. We offer a calming digital space 
+              where self-reflection meets habit-building.
             </p>
           </section>
 
@@ -37,9 +37,9 @@ export default function About() {
               <Sparkles className="w-5 h-5 text-rose animate-pulse" /> Our Mission
             </h2>
             <p className="text-[15px] sm:text-base font-light">
-              Our mission is to empower people to take control of their mental wellness through self-discovery, 
-              habit building, and meaningful reflection. We believe wellness is a gentle, ongoing path rather than a 
-              destination, and we walk alongside you with calming audio, validating prompts, and compassionate AI support.
+              Our mission is to empower people to build calm, self-awareness, and consistency through daily routines, 
+              reflection, and habit building. We believe personal growth is a gentle, ongoing path rather than a 
+              destination, and we walk alongside you with calming audio, grounding prompts, and supportive AI companion features.
             </p>
           </section>
 
@@ -51,31 +51,31 @@ export default function About() {
               <li className="p-4 bg-bg/50 border border-border rounded-xl flex items-start gap-3">
                 <span className="text-rose font-bold text-lg">•</span>
                 <div>
-                  <strong>Daily mood tracking:</strong> Record mood shifts and check-in streaks with a weekly Calm Score.
+                  <strong>Daily check-ins:</strong> Record energy levels and routine streaks with a weekly Calm Index.
                 </div>
               </li>
               <li className="p-4 bg-bg/50 border border-border rounded-xl flex items-start gap-3">
                 <span className="text-rose font-bold text-lg">•</span>
                 <div>
-                  <strong>Guided Morning Rituals:</strong> Set daily intentions, check-in with your body, and stretch.
+                  <strong>Guided Morning Routines:</strong> Set daily focuses, check-in with your goals, and choose grounding habits.
                 </div>
               </li>
               <li className="p-4 bg-bg/50 border border-border rounded-xl flex items-start gap-3">
                 <span className="text-rose font-bold text-lg">•</span>
                 <div>
-                  <strong>Guided Evening Wind Downs:</strong> Let go of stressful items and reflect with gratitude timers.
+                  <strong>Guided Evening Wind Downs:</strong> Clear your mind, list your gratitudes, and select relaxing sleep soundscapes.
                 </div>
               </li>
               <li className="p-4 bg-bg/50 border border-border rounded-xl flex items-start gap-3">
                 <span className="text-rose font-bold text-lg">•</span>
                 <div>
-                  <strong>Reflective Journaling:</strong> Write with ambient backing sounds like rain or ocean waves.
+                  <strong>Reflection Journaling:</strong> Write with ambient soundscapes like rain or quiet libraries.
                 </div>
               </li>
               <li className="p-4 bg-bg/50 border border-border rounded-xl flex items-start gap-3">
                 <span className="text-rose font-bold text-lg">•</span>
                 <div>
-                  <strong>ARIA AI Companion:</strong> Receive warm, validating responses and structural insights.
+                  <strong>ARIA AI Companion:</strong> Receive warm, validating responses and daily rhythm suggestions.
                 </div>
               </li>
               <li className="p-4 bg-bg/50 border border-border rounded-xl flex items-start gap-3">
@@ -92,9 +92,9 @@ export default function About() {
               <ShieldCheck className="w-5 h-5 text-rose" /> Guardrails & Safety
             </h2>
             <p className="text-[14px] text-text3 leading-relaxed">
-              MindCradle is built with safety in mind. Our AI companion features integrated crisis keyword detection, 
-              safety handover links, age verification gates (18+), and off-topic filters to ensure it remains a helpful 
-              mental wellness space rather than a replacement for clinical therapy.
+              MindCradle is built with your support in mind. Our AI companion features integrated safety keyword detection, 
+              helpful contacts, age verification gates (18+), and off-topic filters to ensure it remains a supportive 
+              personal growth space rather than a replacement for professional guidance.
             </p>
           </section>
         </div>

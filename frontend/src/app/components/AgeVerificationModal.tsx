@@ -88,7 +88,7 @@ export default function AgeVerificationModal({ isOpen, onVerified, onDeclined }:
                 </div>
               </div>
               <span className="text-xs text-text2 leading-relaxed">
-                I understand ARIA is **not** a substitute for professional mental health care or crisis intervention.
+                I understand ARIA is **not** a substitute for professional clinical services or emergency response.
               </span>
             </label>
 
@@ -122,7 +122,7 @@ export default function AgeVerificationModal({ isOpen, onVerified, onDeclined }:
                 ARIA is only available for users 18+.
               </p>
               <p className="text-xs text-text2 leading-relaxed">
-                If you are feeling distressed or need someone to talk to, please contact a trusted adult, counselor, or reach out to one of these free support services immediately:
+                If you need assistance or someone to talk to, please reach out to a trusted professional, supporter, or one of these free services:
               </p>
             </div>
 

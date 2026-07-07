@@ -19,71 +19,71 @@ const INSIGHTS = [
   {
     icon: BookOpen,
     iconColor: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
-    text: "People who journal 3x/week report 40% less anxiety",
-    cta: "Start journaling",
+    text: "Journaling three times a week builds 40% greater mental clarity",
+    cta: "Start reflection journal",
     path: "/journal"
   },
   {
     icon: Heart,
     iconColor: "text-rose-400 bg-rose-500/10 border-rose-500/20",
-    text: "5 minutes of meditation daily reduces stress by 25%",
-    cta: "Try meditation",
+    text: "Taking a 5-minute pause daily increases self-awareness and focus",
+    cta: "Try a morning pause",
     path: "/morning"
   },
   {
     icon: Moon,
     iconColor: "text-purple-400 bg-purple-500/10 border-purple-500/20",
-    text: "Consistent sleep schedules improve mood by 35%",
-    cta: "Set bedtime",
+    text: "Consistent sleep schedules improve daily rhythm and balance by 35%",
+    cta: "Log evening routine",
     path: "/wind-down"
   },
   {
     icon: Activity,
     iconColor: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-    text: "15-minute walks boost mental clarity and mood",
-    cta: "Take a walk",
+    text: "A 15-minute walk boosts focus, energy, and overall clarity",
+    cta: "Start morning walk",
     path: "/morning"
   },
   {
     icon: Users,
     iconColor: "text-teal-400 bg-teal-500/10 border-teal-500/20",
-    text: "Meaningful connections reduce anxiety by 40%",
-    cta: "Reach out",
+    text: "Reflecting on your interactions helps build connection and balance",
+    cta: "Chat with ARIA",
     path: "/aria"
   },
   {
     icon: Clock,
     iconColor: "text-accent bg-accent-glow border-accent/20",
-    text: "Morning rituals increase productivity by 50%",
-    cta: "Start ritual",
+    text: "Morning routines increase productivity and focus by 50%",
+    cta: "Start morning routine",
     path: "/morning"
   },
   {
     icon: Droplet,
     iconColor: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-    text: "Staying hydrated increases energy levels and improves cognitive function by 15%",
+    text: "Staying hydrated increases energy levels and focus by 15%",
     cta: "Drink water",
     path: "/morning"
   },
   {
     icon: Palette,
     iconColor: "text-pink-400 bg-pink-500/10 border-pink-500/20",
-    text: "Expressive art or creative expression for 45 minutes reduces cortisol levels",
+    text: "Expressive art or creative writing for 45 minutes builds calm and focus",
     cta: "Be creative",
     path: "/journal"
   },
   {
     icon: Leaf,
     iconColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-    text: "Spending 20 minutes in nature significantly lowers stress hormone levels",
-    cta: "Go outside",
+    text: "Spending 20 minutes in nature significantly raises calmness and awareness",
+    cta: "Spend time outside",
     path: "/morning"
   },
   {
     icon: Wind,
     iconColor: "text-sky-400 bg-sky-500/10 border-sky-500/20",
-    text: "Deep breathing exercises for 2 minutes can lower heart rate and reduce stress",
-    cta: "Do breathing",
+    text: "Deep breathing exercises for 2 minutes help lower heart rate and restore calm",
+    cta: "Start breathwork",
     path: "/morning"
   }
 ];
@@ -124,7 +124,7 @@ export const WellnessInsightCard = () => {
         </div>
         <h3 className="font-[family-name:var(--font-serif)] text-[13px] tracking-[0.14em] uppercase text-rose font-medium flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-          Wellness Insight
+          Daily Rhythm Insight
         </h3>
       </div>
       

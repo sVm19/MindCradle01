@@ -20,10 +20,10 @@ export default function BillingSuccess() {
       
       <div className="space-y-2">
         <h1 className="font-[family-name:var(--font-serif)] text-3xl font-light text-text">
-          Payment Successful!
+          Upgrade Successful!
         </h1>
         <p className="text-sm text-text3 font-light leading-relaxed">
-          Welcome to MindCradle Premium. Your subscription is now active and unlimited features are unlocked.
+          Welcome to MindCradle Premium. Your premium pass is now active, unlocking unlimited routines and ARIA support.
         </p>
       </div>
 

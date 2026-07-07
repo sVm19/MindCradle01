@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Play, Pause, Loader2, BookOpen, Music, Lock } from 'lucide-react';
 import { sanitizeForInput } from '@/lib/sanitize';
-import { journal as journalApi, ai as aiApi } from '@/lib/api';
+import { journal as journalApi, ai as aiApi, mood as moodApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import GuestGate from '@/app/components/GuestGate';
 import { validateJournal } from '@/lib/validation';
@@ -10,6 +11,7 @@ const TODAY_PROMPT = "What felt lighter today than it did a week ago?";
 
 export default function Journal() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [journalText, setJournalText] = useState('');
   const [journalError, setJournalError] = useState('');
   const [activeTrack, setActiveTrack] = useState<number | null>(null);
@@ -17,6 +19,30 @@ export default function Journal() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState('');
+
+  const [todayMood, setTodayMood] = useState<string | null>(null);
+  const [yesterdayMood, setYesterdayMood] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    moodApi.history('7d').then((res) => {
+      const items = res.items || [];
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+      const todayItem = items.find(item => item.created.slice(0, 10) === todayStr);
+      if (todayItem) {
+        setTodayMood(todayItem.emotions?.[0] || 'Neutral');
+      } else {
+        const yesterdayItem = items.find(item => item.created.slice(0, 10) === yesterdayStr);
+        if (yesterdayItem) {
+          setYesterdayMood(yesterdayItem.emotions?.[0] || 'Neutral');
+        }
+      }
+    }).catch(() => {});
+  }, [user]);
 
   const [reflecting, setReflecting] = useState(false);
   const [reflectionData, setReflectionData] = useState<{
@@ -63,7 +89,6 @@ export default function Journal() {
 
       setSaved(true);
       setJournalError('');
-      setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save entry');
     } finally {
@@ -95,7 +120,6 @@ export default function Journal() {
 
       setSaved(true);
       setJournalError('');
-      setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save entry');
     } finally {
@@ -115,6 +139,9 @@ export default function Journal() {
     try {
       const res = await aiApi.reflect(journalText, user?.userId || '');
       setReflectionData(res);
+      if (res && res.linguistic_shift) {
+        localStorage.setItem('mc_linguistic_shift', res.linguistic_shift);
+      }
     } catch (err) {
       setReflectError("Couldn't get reflection, try again");
     } finally {
@@ -129,10 +156,45 @@ export default function Journal() {
   if (!user) {
     return (
       <GuestGate
-        title="Guided Journal"
-        description="Release your thoughts. Save daily entries, play calming ambient loops, and ask ARIA for insightful reflections."
+        title="Guided Reflection Journal"
+        description="Clear your thoughts. Write daily reflections with relaxing ambient sounds, and receive immediate insights from ARIA."
         icon={<BookOpen className="w-8 h-8 text-accent animate-pulse" />}
       />
+    );
+  }
+
+  if (saved) {
+    return (
+      <div className="space-y-8 animate-fadeIn flex flex-col items-center justify-center min-h-[50vh] text-center">
+        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 to-accent flex items-center justify-center text-4xl text-white">
+          ✍
+        </div>
+        <div>
+          <h1 className="text-2xl font-light text-text mb-2">Journal Entry Saved</h1>
+          <p className="text-sm text-text2 max-w-md mx-auto mb-6">Your daily reflection is safely locked. Now, let's explore deeper patterns with your AI companion, ARIA.</p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
+          <button
+            onClick={() => navigate('/aria')}
+            className="px-6 py-3 bg-accent text-white rounded-full font-semibold text-sm hover:bg-accent2 transition-all shadow-md smooth-hover-btn"
+          >
+            Chat with ARIA →
+          </button>
+          <button
+            onClick={() => {
+              setSaved(false);
+              setJournalText('');
+              setReflectionData(null);
+              setSaveError('');
+              setReflectError('');
+              setJournalError('');
+            }}
+            className="px-5 py-3 bg-bg3 border border-border text-text3 hover:text-text rounded-full font-medium text-sm hover:bg-bg4 transition-all smooth-hover-btn"
+          >
+            Write Another Entry
+          </button>
+        </div>
+      </div>
     );
   }
 
@@ -141,7 +203,7 @@ export default function Journal() {
       {/* Header */}
       <div>
         <div className="text-xs text-accent tracking-[0.1em] uppercase mb-4">REFLECTION</div>
-        <h1 className="text-3xl font-light text-text mb-2">Guided Journal</h1>
+        <h1 className="text-3xl font-light text-text mb-2">Reflection Journal</h1>
       </div>
 
       {/* Prompt */}
@@ -157,8 +219,8 @@ export default function Journal() {
 
       {/* Ambient Music */}
       <section className="space-y-3">
-        <div className="text-xs text-accent tracking-[0.1em] uppercase">AMBIENT LAYER</div>
-        <div className="text-sm text-text2 mb-3">Play ambient while you write</div>
+        <div className="text-xs text-accent tracking-[0.1em] uppercase">Ambient Soundscape</div>
+        <div className="text-sm text-text2 mb-3">Select a calming soundscape to help you focus while writing</div>
 
         <div className="space-y-2">
           {ambientTracks.map((track, index) => (
@@ -191,7 +253,7 @@ export default function Journal() {
 
       {/* Writing Area */}
       <section className="space-y-3">
-        <div className="text-sm text-text2 italic">Let your thoughts flow freely...</div>
+        <div className="text-sm text-text2 italic">Write your thoughts below...</div>
         <textarea
           value={journalText}
           onChange={(e) => {
@@ -212,7 +274,13 @@ export default function Journal() {
               setJournalError('');
             }
           }}
-          placeholder="Start writing..."
+          placeholder={
+            todayMood 
+              ? `You logged feeling '${todayMood}' today. Elaborate on what is contributing to that feeling, or reflect on your day here...` 
+              : yesterdayMood 
+                ? `Yesterday you logged feeling '${yesterdayMood}'. Write down your reflections for today...` 
+                : "Write down anything on your mind. Aim for at least 11 words to get ARIA's reflection insights..."
+          }
           className={`w-full bg-bg2 border rounded-[20px] px-5 py-4 text-sm text-text placeholder:text-text3 resize-none focus:outline-none min-h-64 transition-colors ${
             journalError ? 'border-rose focus:border-rose' : 'border-border focus:border-accent/30'
           }`}
@@ -225,14 +293,50 @@ export default function Journal() {
         </div>
       </section>
 
+      {/* Actions */}
+      <div className="flex flex-wrap gap-3 pt-4">
+        {reflectionData ? (
+          <button
+            onClick={handleSaveWithReflection}
+            disabled={saving || !journalText.trim() || journalError !== ''}
+            className="px-6 py-3 bg-gradient-to-r from-accent2 to-teal text-white rounded-full font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
+          >
+            {saving ? 'Saving…' : 'Save Entry & AI Insights'}
+          </button>
+        ) : null}
+        <button
+          onClick={handleSave}
+          disabled={saving || !journalText.trim() || journalError !== ''}
+          className={`px-6 py-3 rounded-full font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+            reflectionData
+              ? 'bg-bg3 border border-border text-text2 hover:bg-bg4'
+              : 'bg-accent text-white hover:bg-accent2 shadow-md'
+          }`}
+        >
+          {saving ? 'Saving…' : reflectionData ? 'Save Reflection Only' : 'Save Entry'}
+        </button>
+        <button
+          onClick={() => {
+            setJournalText('');
+            setReflectionData(null);
+            setSaveError('');
+            setReflectError('');
+            setJournalError('');
+          }}
+          className="px-6 py-3 bg-bg3 border border-border text-text2 rounded-full font-medium text-sm hover:bg-bg4 transition-all"
+        >
+          Discard
+        </button>
+      </div>
+
       {/* AI Reflection */}
-      <section className="space-y-3">
-        <div className="text-xs text-accent tracking-[0.1em] uppercase">AI REFLECTION</div>
+      <section className="space-y-3 border-t border-border/45 pt-6">
+        <div className="text-xs text-accent tracking-[0.1em] uppercase">Reflections by ARIA</div>
         <div className="bg-bg2 border border-border rounded-[20px] px-6 py-5">
           {reflecting && (
             <div className="flex flex-col items-center justify-center py-6 space-y-3">
               <Loader2 className="w-6 h-6 text-accent animate-spin" />
-              <span className="text-xs text-text3">ARIA is analyzing your thoughts…</span>
+              <span className="text-xs text-text3">ARIA is synthesizing your reflection…</span>
             </div>
           )}
 
@@ -242,7 +346,11 @@ export default function Journal() {
 
           {!reflectionData && !reflecting && !reflectError && (
             <p className="text-sm text-text2 mb-4">
-              After writing, ARIA can help you notice patterns or ask gentle questions.
+              {wordCount === 0 ? (
+                <>Start writing above. Once you reach 11 words, ARIA will analyze your entry's key themes and emotional tone.</>
+              ) : (
+                <>You've written {wordCount} words. Write {11 - wordCount > 0 ? 11 - wordCount : 0} more words to unlock AI reflection themes.</>
+              )}
             </p>
           )}
 
@@ -251,7 +359,7 @@ export default function Journal() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-full bg-gradient-to-br from-accent2 to-teal flex items-center justify-center text-xs text-white">✦</div>
-                  <span className="text-sm font-medium text-text">ARIA's Reflection</span>
+                  <span className="text-sm font-medium text-text">ARIA's Insights</span>
                 </div>
                 <button
                   onClick={handleClearReflection}
@@ -294,7 +402,7 @@ export default function Journal() {
                 disabled={wordCount <= 10 || reflecting || journalError !== ''}
                 className="px-5 py-2.5 bg-accent-glow border border-accent/25 text-accent rounded-full text-sm font-medium hover:bg-accent/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Get Reflection
+                Generate AI Insights
               </button>
               {wordCount <= 10 && (
                 <span className="text-xs text-text3 ml-3">Write at least 11 words to get reflection ({wordCount}/11)</span>
@@ -303,42 +411,6 @@ export default function Journal() {
           )}
         </div>
       </section>
-
-      {/* Actions */}
-      <div className="flex flex-wrap gap-3 pt-4">
-        {reflectionData ? (
-          <button
-            onClick={handleSaveWithReflection}
-            disabled={saving || !journalText.trim() || journalError !== ''}
-            className="px-6 py-3 bg-gradient-to-r from-accent2 to-teal text-white rounded-lg font-medium text-sm hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {saving ? 'Saving…' : 'Save Entry with Reflection'}
-          </button>
-        ) : null}
-        <button
-          onClick={handleSave}
-          disabled={saving || !journalText.trim() || journalError !== ''}
-          className={`px-6 py-3 rounded-lg font-medium text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-            reflectionData
-              ? 'bg-bg3 border border-border text-text2 hover:bg-bg4'
-              : 'bg-accent text-white hover:bg-accent2'
-          }`}
-        >
-          {saving ? 'Saving…' : reflectionData ? 'Save Entry Only' : 'Save Entry'}
-        </button>
-        <button
-          onClick={() => {
-            setJournalText('');
-            setReflectionData(null);
-            setSaveError('');
-            setReflectError('');
-            setJournalError('');
-          }}
-          className="px-6 py-3 bg-bg3 border border-border text-text2 rounded-lg font-medium text-sm hover:bg-bg4 transition-all"
-        >
-          Discard
-        </button>
-      </div>
     </div>
   );
 }

@@ -12,10 +12,10 @@ export default function BillingCancel() {
       
       <div className="space-y-2">
         <h1 className="font-[family-name:var(--font-serif)] text-3xl font-light text-text">
-          Payment Cancelled
+          Checkout Cancelled
         </h1>
         <p className="text-sm text-text3 font-light leading-relaxed">
-          Your subscription was not completed. You can still enjoy our free tier or try again anytime.
+          Your upgrade was not completed. You can still enjoy our free tier or complete your purchase later.
         </p>
       </div>
 

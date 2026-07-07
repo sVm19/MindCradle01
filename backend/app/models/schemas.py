@@ -296,6 +296,7 @@ class JournalReflectionResponse(BaseModel):
     reflection: str
     themes: list[str]
     emotional_tone: str
+    linguistic_shift: Optional[str] = None
 
 
 class MoodAnalysisRequest(BaseModel):
@@ -549,4 +550,23 @@ class DeviceRegister(BaseModel):
     push_token: str
     platform: str
     device_id: str
+
+
+# --- Daily Discoveries ---
+class DailyDiscoveryResponse(BaseModel):
+    id: str
+    user_id: str
+    discovery_text: str
+    confidence_score: int
+    supporting_evidence: dict
+    is_dismissed: bool
+    is_shared: bool
+    is_viewed: bool
+    created_at: str
+
+
+class DiscoveryFeedbackRequest(BaseModel):
+    is_dismissed: Optional[bool] = None
+    is_shared: Optional[bool] = None
+    is_viewed: Optional[bool] = None
 

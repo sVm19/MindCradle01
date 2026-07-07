@@ -17,6 +17,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { user, authModalOpen, setAuthModalOpen, verifyModalOpen, setVerifyModalOpen } = useAuth();
   const [streak, setStreak] = useState(0);
+  const [didCheckInToday, setDidCheckInToday] = useState(false);
+  const [didCheckInYesterday, setDidCheckInYesterday] = useState(false);
   const [hasCriticalCrisis, setHasCriticalCrisis] = useState(false);
   const [showCrisisModal, setShowCrisisModal] = useState(false);
 
@@ -33,11 +35,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) {
       setStreak(0);
+      setDidCheckInToday(false);
+      setDidCheckInYesterday(false);
       return;
     }
     moodApi.history('7d').then((res) => {
       const uniqueDates = new Set(res.items.map((item) => item.created.slice(0, 10)));
       setStreak(uniqueDates.size);
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+      setDidCheckInToday(res.items.some((item) => item.created.slice(0, 10) === todayStr));
+      setDidCheckInYesterday(res.items.some((item) => item.created.slice(0, 10) === yesterdayStr));
     }).catch(() => {/* silently ignore if API is unavailable */ });
   }, [user]);
 
@@ -109,8 +121,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: <LayoutDashboard size={15} /> },
-    { path: '/morning', label: 'Morning', icon: <Sun size={15} /> },
-    { path: '/mood', label: 'Mood', icon: <Smile size={15} /> },
+    { path: '/morning', label: 'Morning Focus', icon: <Sun size={15} /> },
+    { path: '/mood', label: 'Reflections', icon: <Smile size={15} /> },
     { path: '/journal', label: 'Journal', icon: <BookOpen size={15} /> },
     { path: '/aria', label: 'ARIA', icon: <Brain size={15} /> },
     { path: '/insights', label: 'AI Insights', icon: <Sparkles size={15} /> },
@@ -134,7 +146,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           className="w-full bg-rose/20 backdrop-blur-md border-b border-rose/30 py-2.5 px-4 text-center text-rose text-xs font-semibold tracking-wider hover:bg-rose/30 transition-all cursor-pointer flex items-center justify-center gap-2 relative z-50 animate-slideDown"
         >
           <AlertTriangle size={14} className="animate-pulse text-rose" />
-          <span>Crisis support is available. Click here for help.</span>
+          <span>Distress support is available. Click here for resources.</span>
         </div>
       )}
 
@@ -155,11 +167,29 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 {formatDate(new Date())}
               </div>
               <div className="font-[family-name:var(--font-serif)] text-xs sm:text-base md:text-lg font-light text-text italic leading-tight truncate">
-                Good {greeting}, <span className="not-italic text-accent">{user?.name?.split(' ')[0] || 'guest'}</span>
+                {user ? (
+                  didCheckInToday ? (
+                    <>Welcome back, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Today's check-in is complete.</>
+                  ) : didCheckInYesterday ? (
+                    <>Welcome back, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Let's check in for today.</>
+                  ) : streak > 0 ? (
+                    <>Good {greeting}, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Let's rebuild your streak.</>
+                  ) : (
+                    <>Good {greeting}, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Let's pause to check in.</>
+                  )
+                ) : (
+                  <>Good {greeting}, <span className="not-italic text-accent">guest</span></>
+                )}
               </div>
               {streak > 0 && (
                 <div className="text-xs text-amber font-medium mt-1.5 animate-fadeIn">
-                  {streak} Days | Keep it going!
+                  {streak === 1 ? (
+                    <>1 Day Streak | Off to a great start! ✦</>
+                  ) : streak >= 2 && streak < 5 ? (
+                    <>{streak} Day Streak | You're building momentum! ✦</>
+                  ) : (
+                    <>{streak} Day Streak | Incredible rhythm, keep it up! ✦</>
+                  )}
                 </div>
               )}
             </div>

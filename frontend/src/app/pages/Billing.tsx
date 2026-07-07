@@ -116,8 +116,8 @@ export default function Billing() {
   if (!user) {
     return (
       <GuestGate
-        title="Billing & Upgrade"
-        description="Access premium features, unlimited AI reflections with ARIA, and advanced monthly emotion analytics."
+        title="Billing & Subscription"
+        description="Upgrade your plan to unlock unlimited daily routines, unlimited ARIA conversation, and 30-day calm index analytics."
         icon={<ShieldCheck className="w-8 h-8 text-accent animate-pulse" />}
       />
     );
@@ -193,8 +193,8 @@ export default function Billing() {
                   <ShieldCheck className="w-5 h-5 text-green" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-text text-sm">MindCradle Premium Active</h3>
-                  <p className="text-xs text-text3">Thank you for supporting MindCradle! You have full unlimited access.</p>
+                  <h3 className="font-semibold text-text text-sm">Premium Plan Active</h3>
+                  <p className="text-xs text-text3">Thank you for supporting MindCradle! You have full unlimited access to daily routines and ARIA.</p>
                 </div>
               </div>
             )}
