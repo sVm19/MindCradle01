@@ -213,6 +213,141 @@ export interface JournalListResponse {
   total: number;
 }
 
+export interface TimelineEvent {
+  id: string;
+  user_id: string;
+  event_type: 'morning' | 'mood' | 'journal' | 'discovery' | 'milestone' | 'wind_down' | 'letter';
+  source_id?: string;
+  event_date: string;
+  event_ts: string;
+  title?: string;
+  summary?: string;
+  emotion?: string;
+  mood_level?: number;
+  metadata: Record<string, any>;
+  created_at: string;
+}
+
+export interface TimelinePage {
+  events: TimelineEvent[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_more: boolean;
+  date_span?: { earliest: string; latest: string };
+  types_present: string[];
+}
+
+export interface SearchResultItem {
+  id: string;
+  user_id: string;
+  event_type: string;
+  source_id?: string;
+  event_date: string;
+  event_ts: string;
+  title?: string;
+  summary?: string;
+  emotion?: string;
+  mood_level?: number;
+  metadata: Record<string, any>;
+  rank_score: number;
+  similarity?: number;
+}
+
+export interface SearchPage {
+  results: SearchResultItem[];
+  total: number;
+  query: string;
+  search_mode: 'semantic' | 'keyword' | 'hybrid';
+  has_embeddings: boolean;
+}
+
+export interface KnowledgeNode {
+  id: string;
+  label: string;
+  node_type: string;
+  confidence: number;
+  importance: number;
+  valence: number;
+  mention_count: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  source_reason?: string;
+  is_confirmed: boolean;
+  is_archived: boolean;
+  metadata: Record<string, any>;
+}
+
+export interface KnowledgeEdge {
+  id: string;
+  source_node_id: string;
+  target_node_id: string;
+  edge_type: string;
+  weight: number;
+  evidence_count: number;
+  last_reinforced_at: string;
+}
+
+export interface KnowledgeGraphResponse {
+  nodes: KnowledgeNode[];
+  edges: KnowledgeEdge[];
+}
+
+export interface GrowthMetricItem {
+  metric_type: string;
+  period: string;
+  value: number;
+  previous_value?: number;
+  delta?: number;
+  computed_at: string;
+}
+
+export interface GrowthMetricsResponse {
+  metrics: GrowthMetricItem[];
+}
+
+export interface KnowledgeChapter {
+  id: string;
+  user_id: string;
+  title: string;
+  chapter_number: number;
+  start_date: string;
+  end_date?: string;
+  is_current: boolean;
+  theme_summary?: string;
+  dominant_emotion?: string;
+  mood_average?: number;
+  growth_score?: number;
+  key_events: any[];
+  dominant_themes: string[];
+  goals_started: string[];
+  goals_achieved: string[];
+  node_ids: string[];
+  detected_by: string;
+  confidence: number;
+}
+
+export interface KnowledgeChaptersListResponse {
+  chapters: KnowledgeChapter[];
+}
+
+export interface KnowledgeComparisonItem {
+  metric_type: string;
+  current_value: number;
+  previous_value: number;
+  delta: number;
+}
+
+export interface KnowledgeComparisonResponse {
+  current_chapter_title: string;
+  previous_chapter_title: string;
+  improvements: string[];
+  challenge: string;
+  comparison_metrics: KnowledgeComparisonItem[];
+}
+
+
+
 export interface CrisisResource {
   name: string;
   phone?: string;
@@ -359,6 +494,12 @@ export const rituals = {
 
   getStats: () =>
     request<{ completed: number; total: number }>('GET', '/rituals/stats'),
+
+  getMorningPrompt: () =>
+    request<{ prompt: string }>('GET', '/rituals/morning/prompt'),
+
+  getWindDownPrompt: () =>
+    request<{ prompt: string }>('GET', '/rituals/winddown/prompt'),
 };
 
 // ─── AI ───────────────────────────────────────────────────────────────────────
@@ -526,6 +667,109 @@ export const ai = {
   getDailyDiscoveryHistory: () => request<any[]>('GET', '/ai/daily-discovery/history'),
   updateDiscoveryFeedback: (id: string, feedback: { is_dismissed?: boolean; is_shared?: boolean; is_viewed?: boolean }) =>
     request<any>('PATCH', `/ai/daily-discovery/${id}/feedback`, feedback),
+
+  // ─── Timeline ───────────────────────────────────────────────────────────────
+  getTimeline: (params?: {
+    page?: number;
+    page_size?: number;
+    types?: string;       // comma-separated: "mood,journal,discovery"
+    start_date?: string;  // YYYY-MM-DD
+    end_date?: string;    // YYYY-MM-DD
+    q?: string;           // keyword search
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.page_size) qs.set('page_size', String(params.page_size));
+    if (params?.types) qs.set('types', params.types);
+    if (params?.start_date) qs.set('start_date', params.start_date);
+    if (params?.end_date) qs.set('end_date', params.end_date);
+    if (params?.q) qs.set('q', params.q);
+    const queryStr = qs.toString() ? `?${qs.toString()}` : '';
+    return request<TimelinePage>('GET', `/ai/timeline${queryStr}`);
+  },
+
+  rebuildTimeline: () => request<{ success: boolean; events_cached: number }>('POST', '/ai/timeline/rebuild'),
+
+  // ─── Predictive Intelligence ───────────────────────────────────────────────
+  getPredictions: () => request<{
+    active_predictions: {
+      id: string;
+      user_id: string;
+      prediction_type: string;
+      prediction_text: string;
+      target_date: string;
+      confidence_score: number;
+      is_correct: boolean | null;
+      metadata: Record<string, any>;
+      created_at: string;
+    }[];
+    stats: {
+      total_evaluated: number;
+      correct_count: number;
+      accuracy_rate: number;
+    };
+  }>('GET', '/ai/predictions'),
+
+  rebuildPredictions: () => request<{ success: boolean; message: string }>('POST', '/ai/predictions/rebuild'),
+
+  submitPredictionFeedback: (id: string, isCorrect: boolean) =>
+    request<{ success: boolean }>('PATCH', `/ai/predictions/${id}/feedback`, { isCorrect }),
+
+  // ─── Semantic Search ─────────────────────────────────────────────────────────
+  semanticSearch: (params: {
+    q: string;
+    types?: string;
+    start_date?: string;
+    end_date?: string;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    qs.set('q', params.q);
+    if (params.types) qs.set('types', params.types);
+    if (params.start_date) qs.set('start_date', params.start_date);
+    if (params.end_date) qs.set('end_date', params.end_date);
+    if (params.limit) qs.set('limit', String(params.limit));
+    return request<SearchPage>('GET', `/ai/search?${qs.toString()}`);
+  },
+
+  getSearchSuggestions: () =>
+    request<{ suggestions: string[] }>('GET', '/ai/search/suggestions'),
+
+  generateEmbeddings: () =>
+    request<{ total: number; embedded: number; failed: number; skipped: number }>(
+      'POST', '/ai/embeddings/generate'
+    ),
+
+  // ─── Knowledge Graph / CIE ──────────────────────────────────────────────────
+  processKnowledge: (sourceType: string, sourceId: string, text: string) =>
+    request<{ success: boolean; nodes_processed: number }>('POST', '/aria/knowledge/process', {
+      source_type: sourceType,
+      source_id: sourceId,
+      text,
+    }),
+
+  getKnowledgeGraph: () =>
+    request<KnowledgeGraphResponse>('GET', '/aria/knowledge/graph'),
+
+  getKnowledgeContext: (topic?: string) => {
+    const qs = topic ? `?topic=${encodeURIComponent(topic)}` : '';
+    return request<{ context_packet: string }>('GET', `/aria/knowledge/context${qs}`);
+  },
+
+  getGrowthMetrics: () =>
+    request<GrowthMetricsResponse>('GET', '/aria/knowledge/growth'),
+
+  deleteKnowledgeNode: (nodeId: string) =>
+    request<{ success: boolean; message: string }>('DELETE', `/aria/knowledge/nodes/${nodeId}`),
+
+  getLifeChapters: () =>
+    request<KnowledgeChaptersListResponse>('GET', '/aria/knowledge/chapters'),
+
+  updateKnowledgeNode: (nodeId: string, updates: { label?: string; is_confirmed?: boolean; is_archived?: boolean; valence?: number }) =>
+    request<KnowledgeNode>('PATCH', `/aria/knowledge/nodes/${nodeId}`, updates),
+
+  getChapterComparison: () =>
+    request<KnowledgeComparisonResponse>('GET', '/aria/knowledge/comparison'),
 };
 
 // ─── Resources ────────────────────────────────────────────────────────────────

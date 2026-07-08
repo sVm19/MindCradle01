@@ -1,11 +1,16 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Header, HTTPException, status
 
 from app.models.schemas import MorningRitualCreate, WindDownRitualCreate
 from app.services.supabase import pb, extract_user_id
 from app.core.security import verify_user_premium
+from app.services import openrouter_ai
 
 router = APIRouter()
 
@@ -144,3 +149,118 @@ async def get_rituals_stats(
         return {"completed": completed, "total": 7}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/morning/prompt")
+async def get_dynamic_morning_prompt(
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Generate a dynamic focus prompt for the user's morning based on active life chapters and goals.
+    """
+    token = authorization.removeprefix("Bearer ").strip() if authorization else None
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    fallback_prompt = "Focus on your breath and find small moments of peace today."
+
+    try:
+        # 1. Fetch current chapter
+        ch_resp = await pb.list_records(
+            "user_life_chapters",
+            token=token,
+            params={"filter": f'user_id="{user_id}" && is_current=true', "perPage": 1}
+        )
+        ch_items = ch_resp.get("items") or []
+        current_ch = ch_items[0] if ch_items else None
+
+        # 2. Fetch active goal threads
+        goal_resp = await pb.list_records(
+            "user_goal_threads",
+            token=token,
+            params={"filter": f'user_id="{user_id}" && status="growing"', "perPage": 5}
+        )
+        active_goals = goal_resp.get("items") or []
+
+        if not current_ch and not active_goals:
+            return {"prompt": fallback_prompt}
+
+        # 3. Formulate LLM input
+        context_str = ""
+        if current_ch:
+            context_str += f"Current Chapter: '{current_ch.get('title')}' ({current_ch.get('theme_summary')})\n"
+        if active_goals:
+            goal_labels = [g.get("target_node_label") for g in active_goals if g.get("target_node_label")]
+            goal_strs = ", ".join(f"'{lbl}'" for lbl in goal_labels)
+            context_str += f"Active Goals: {goal_strs}\n"
+
+        sys_prompt = (
+            "You are ARIA's ritual assistant in MindCradle.\n"
+            "Write a short, highly personalized morning focus recommendation (1 sentence, max 15 words) based on the user's active life chapter and goal threads.\n"
+            "Keep it encouraging, specific, and actionable. Frame it as a suggested anchor focus. Do not quote or prefix."
+        )
+
+        prompt_val = await openrouter_ai.chat_completion(
+            messages=[{"role": "user", "content": context_str}],
+            system_prompt=sys_prompt,
+            temperature=0.7,
+            max_tokens=100
+        )
+        return {"prompt": prompt_val.strip().strip('"').strip("'")}
+
+    except Exception as exc:
+        logger.warning("Failed to generate dynamic morning prompt: %s", exc)
+        return {"prompt": fallback_prompt}
+
+
+@router.get("/winddown/prompt")
+async def get_dynamic_winddown_prompt(
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Generate a dynamic letting-go question based on the user's active stressors.
+    """
+    token = authorization.removeprefix("Bearer ").strip() if authorization else None
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    fallback_prompt = "Write down one thought or concern you wish to let go of tonight."
+
+    try:
+        # Fetch active stressors
+        nodes_resp = await pb.list_records(
+            "user_knowledge_nodes",
+            token=token,
+            params={"filter": f'user_id="{user_id}" && node_type="stressor" && is_archived=false && confidence>=0.4', "perPage": 3, "sort": "-confidence"}
+        )
+        stressors = nodes_resp.get("items") or []
+
+        if not stressors:
+            return {"prompt": fallback_prompt}
+
+        selected_stressor = stressors[0].get("label")
+
+        sys_prompt = (
+            "You are ARIA's wind down assistant in MindCradle.\n"
+            "The user is coping with this stressor: '" + selected_stressor + "'.\n"
+            "Write a warm, non-judgmental question (1 sentence, max 20 words) for their evening wind-down to help them reflect on and let go of this stressor tonight."
+        )
+
+        prompt_val = await openrouter_ai.chat_completion(
+            messages=[{"role": "user", "content": "Generate evening letting go question."}],
+            system_prompt=sys_prompt,
+            temperature=0.7,
+            max_tokens=100
+        )
+        return {"prompt": prompt_val.strip().strip('"').strip("'")}
+
+    except Exception as exc:
+        logger.warning("Failed to generate dynamic winddown prompt: %s", exc)
+        return {"prompt": fallback_prompt}
+

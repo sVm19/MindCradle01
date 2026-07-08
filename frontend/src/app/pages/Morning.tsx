@@ -32,6 +32,7 @@ export default function Morning() {
   const [forecast, setForecast] = useState<number | null>(null);
   const [intention, setIntention] = useState('');
   const [activity, setActivity] = useState('');
+  const [suggestedPrompt, setSuggestedPrompt] = useState('');
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -47,6 +48,14 @@ export default function Morning() {
       const uniqueDates = new Set(res.items.map((item) => item.created.slice(0, 10)));
       setStreak(uniqueDates.size);
     }).catch(() => {});
+
+    ritualsApi.getMorningPrompt()
+      .then((res) => {
+        if (res.prompt) {
+          setSuggestedPrompt(res.prompt);
+        }
+      })
+      .catch(() => {});
   }, [user]);
 
   const handleComplete = async () => {
@@ -182,6 +191,22 @@ export default function Morning() {
         <div className="space-y-6">
           <h1 className="text-[32px] font-light text-text">Set Your Daily Focus</h1>
           <p className="text-[15px] text-text2">Write down a single focus to anchor your day.</p>
+
+          {suggestedPrompt && (
+            <div className="bg-accent/10 border border-accent/20 rounded-[14px] p-4 text-xs text-text flex items-center justify-between gap-4">
+              <div>
+                <span className="font-semibold text-accent2 block mb-0.5">ARIA's Suggested Anchor Focus:</span>
+                <span className="italic">"{suggestedPrompt}"</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIntention(suggestedPrompt)}
+                className="shrink-0 bg-accent hover:bg-accent2 text-bg text-[10px] font-semibold px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+              >
+                Use Suggestion
+              </button>
+            </div>
+          )}
 
           <textarea
             value={intention}

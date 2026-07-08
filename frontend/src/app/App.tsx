@@ -28,6 +28,8 @@ const BillingSuccess = lazy(() => import('./pages/BillingSuccess'));
 const BillingCancel = lazy(() => import('./pages/BillingCancel'));
 const Insights = lazy(() => import('./pages/Insights'));
 const Discoveries = lazy(() => import('./pages/Discoveries'));
+const Timeline = lazy(() => import('./pages/Timeline'));
+const Understanding = lazy(() => import('./pages/Understanding'));
 
 
 
@@ -97,6 +99,7 @@ function AppRoutes() {
                 <Route path="/aria" element={<ARIA />} />
                 <Route path="/wind-down" element={<WindDown />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/settings/understanding" element={<Understanding />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/privacy" element={<Privacy />} />
@@ -110,6 +113,7 @@ function AppRoutes() {
                 <Route path="/billing/cancel" element={<BillingCancel />} />
                 <Route path="/insights" element={<Insights />} />
                 <Route path="/discoveries" element={<Discoveries />} />
+                <Route path="/timeline" element={<Timeline />} />
               </Routes>
             </Suspense>
           </Layout>

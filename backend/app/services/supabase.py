@@ -257,6 +257,32 @@ class SupabaseService:
             return res.data[0]
         return await asyncio.to_thread(_call)
 
+    async def upsert_records(
+        self,
+        collection: str,
+        records: List[dict],
+        token: Optional[str] = None,
+        on_conflict: Optional[str] = None,
+    ) -> List[dict]:
+        """
+        Bulk upsert multiple records.  When `on_conflict` is provided (comma-separated
+        column names) it is passed directly to Supabase's upsert ignore-duplicates logic.
+        Falls back to a regular insert if on_conflict is not supported.
+        """
+        def _call():
+            client = _get_client(token)
+            query = client.table(collection).upsert(records, ignore_duplicates=True)
+            if on_conflict:
+                # supabase-py >=2.0 supports `on_conflict` kwarg in upsert()
+                try:
+                    query = client.table(collection).upsert(records, on_conflict=on_conflict)
+                except TypeError:
+                    # older SDK — fall back to ignore_duplicates
+                    query = client.table(collection).upsert(records, ignore_duplicates=True)
+            res = _execute_query(query)
+            return res.data or []
+        return await asyncio.to_thread(_call)
+
     async def delete_record(
         self, collection: str, record_id: str, token: Optional[str] = None
     ) -> None:
@@ -265,7 +291,25 @@ class SupabaseService:
             client.table(collection).delete().eq("id", record_id).execute()
         return await asyncio.to_thread(_call)
 
+    async def call_rpc(
+        self,
+        function_name: str,
+        params: dict,
+        token: Optional[str] = None,
+    ) -> Any:
+        """
+        Call a Supabase PostgreSQL function via the PostgREST RPC endpoint.
+        Returns the raw data from the response (list for set-returning functions).
+        """
+        def _call():
+            client = _get_client(token)
+            res = client.rpc(function_name, params).execute()
+            return res.data
+        return await asyncio.to_thread(_call)
+
     async def upsert_user_profile(self, token: str, payload: dict) -> dict:
+
+
         auth_token = token.removeprefix("Bearer ").strip()
         if not auth_token:
             raise ValueError("Missing auth token for profile sync")

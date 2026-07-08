@@ -6,6 +6,7 @@ import type { ResourceItem } from '@/lib/api';
 import { Lock, Award, Moon, Wind, PenTool, CheckCircle2, TrendingUp, Brain, Star, Flame, BookOpen, Target, Sparkles, X } from 'lucide-react';
 import GuestGate from '@/app/components/GuestGate';
 import { WellnessInsightCard } from '@/app/components/WellnessInsightCard';
+import AriaTerminalCard from '@/app/components/AriaTerminalCard';
 
 const SHORT_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -263,168 +264,197 @@ export default function Dashboard() {
 
   if (!user) {
     return (
-      <div className="space-y-8 animate-fadeIn">
-        {/* Welcome & Discovery Hero Card */}
+      <div className="space-y-10 animate-fadeIn">
+        {/* Redesigned Hero Section */}
         <section className="animate-fadeIn">
-          <div className="bg-bg2 border border-border rounded-[20px] p-6 relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-            {/* Ambient Glow */}
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,124,248,0.1),transparent_60%)] pointer-events-none" />
+          <div className="bg-[#0c081c]/45 border border-white/5 rounded-[32px] p-8 md:p-12 relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-12 shadow-[0_30px_80px_rgba(0,0,0,0.5)]">
+            {/* Ambient Glows */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(139,124,248,0.18),transparent_60%)] pointer-events-none" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(20,184,166,0.06),transparent_50%)] pointer-events-none" />
             
-            <div className="relative z-10 flex-1 space-y-4 text-left">
-              <h1 className="font-[family-name:var(--font-serif)] text-2xl sm:text-3xl font-light text-text leading-tight">
-                Build a calmer day, one small step at a time.
+            {/* Left Column: Headline, Subheadline & CTAs */}
+            <div className="relative z-10 flex-1 space-y-6 text-left max-w-2xl">
+              <h1 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl md:text-5xl font-light text-text leading-[1.1] tracking-tight">
+                MindCradle remembers your personal growth.
               </h1>
-              <p className="text-sm text-text3 leading-relaxed max-w-2xl">
-                Your <span className="text-rose font-medium">reflections</span> build clarity. Your <span className="text-amber font-medium">routines</span> build consistency. Your <span className="text-teal font-medium">journal</span> holds wisdom. <span className="text-text font-semibold">ARIA</span> connects the dots.
+              <p className="text-[15px] sm:text-base text-text3 font-light leading-relaxed max-w-xl whitespace-pre-line">
+                An AI companion that quietly learns from your days,{"\n"}
+                connects moments across time,{"\n"}
+                and helps you understand how you're changing.
               </p>
-              <div>
+              
+              <div className="flex flex-wrap gap-4 pt-2">
                 <button
                   type="button"
                   onClick={() => setAuthModalOpen(true)}
-                  className="inline-flex items-center justify-center px-6 py-3 bg-accent hover:opacity-90 rounded-full text-xs font-semibold tracking-wider transition-all cursor-pointer"
+                  className="inline-flex items-center justify-center px-7 py-3.5 bg-accent hover:bg-accent2 text-white rounded-full text-xs font-semibold tracking-wider transition-all cursor-pointer shadow-lg shadow-accent/15 hover:shadow-accent/25 hover:translate-y-[-1px] active:translate-y-[0px]"
                 >
-                  Begin Today's Journey →
+                  Start Your Journey
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const card = document.getElementById('aria-hero-terminal');
+                    if (card) {
+                      card.style.transform = 'scale(1.03) translateY(-10px)';
+                      card.style.borderColor = 'rgba(139, 124, 248, 0.4)';
+                      card.style.boxShadow = '0 30px 80px rgba(139, 124, 248, 0.25)';
+                      setTimeout(() => {
+                        card.style.transform = '';
+                        card.style.borderColor = '';
+                        card.style.boxShadow = '';
+                      }, 1000);
+                    }
+                  }}
+                  className="inline-flex items-center justify-center px-7 py-3.5 bg-white/5 hover:bg-white/10 text-text border border-white/10 hover:border-white/25 rounded-full text-xs font-semibold tracking-wider transition-all cursor-pointer"
+                >
+                  Watch ARIA Think
                 </button>
               </div>
 
-              {/* Testimonial Box */}
-              <div className="pt-4 border-t border-border flex flex-col sm:flex-row sm:items-center gap-4 text-[11.5px] text-text3">
+              {/* Trust Badge */}
+              <div className="pt-6 border-t border-white/5 flex flex-col sm:flex-row sm:items-center gap-4 text-[11.5px] text-text3 font-mono">
                 <div className="flex items-center gap-2">
                   <span className="flex h-2 w-2 rounded-full bg-green shadow-[0_0_8px_var(--green)] animate-pulse" />
                   <span className="font-semibold text-text2">12,547</span> people found calm today
                 </div>
-                <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-border" />
-                <div className="italic">
-                  "This app helped me build a daily routine that brings me calm and focus" <span className="text-text2 not-italic font-medium">— Sarah, 23</span>
+                <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-white/10" />
+                <div className="italic text-text2 font-light font-[family-name:var(--font-serif)]">
+                  "Quietly discovering patterns I didn't see myself."
                 </div>
               </div>
             </div>
 
-            {/* Right Stack of Cards */}
-            <div className="flex flex-col sm:flex-row lg:flex-col gap-4 flex-shrink-0 w-full lg:w-auto">
-              {/* This Week's Wellness Card */}
-              <div className="relative z-10 w-full sm:w-[320px] bg-bg3 border border-border2 rounded-[16px] p-5 backdrop-blur-md shadow-2xl space-y-4">
-                <div className="flex items-center justify-between border-b border-border pb-2">
-                  <span className="font-[family-name:var(--font-serif)] text-[15px] font-light text-text">
-                    This Week's Wellness
+            {/* Right Column: Floating Terminal Component */}
+            <div id="aria-hero-terminal" className="relative flex-shrink-0 w-full lg:w-auto flex justify-center transition-all duration-700">
+              <AriaTerminalCard />
+            </div>
+          </div>
+        </section>
+
+        {/* Guest Preview Grid */}
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* This Week's Wellness Card */}
+          <div className="bg-bg2 border border-border rounded-[20px] p-6 space-y-4 text-left">
+            <div className="flex items-center justify-between border-b border-border pb-2">
+              <span className="font-[family-name:var(--font-serif)] text-[16px] font-light text-text">
+                This Week's Wellness
+              </span>
+              <span className="w-2 h-2 rounded-full bg-accent animate-pulse shadow-[0_0_8px_var(--accent)]" />
+            </div>
+
+            <div className="space-y-4">
+              {/* Rituals Row */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-full bg-green-dim flex items-center justify-center text-green shadow-[0_0_8px_var(--green-dim)]">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                    <span className="text-text2 font-medium">Rituals Completed</span>
+                  </div>
+                  <span className="font-semibold text-green bg-green-dim border border-green/20 px-2 py-0.5 rounded-full">
+                    5/7
                   </span>
-                  <span className="w-2 h-2 rounded-full bg-accent animate-pulse shadow-[0_0_8px_var(--accent)]" />
                 </div>
-
-                <div className="space-y-3.5 text-left">
-                  {/* Rituals Row */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-green-dim flex items-center justify-center text-green shadow-[0_0_8px_var(--green-dim)]">
-                          <CheckCircle2 className="w-4 h-4" />
-                        </div>
-                        <span className="text-xs text-text2 font-medium">Rituals Completed</span>
-                      </div>
-                      <span className="text-xs font-semibold text-green bg-green-dim border border-green/20 px-2 py-0.5 rounded-full">
-                        5/7
-                      </span>
-                    </div>
-                    <div className="w-full bg-border h-1 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-green to-teal rounded-full" 
-                        style={{ width: '71.4%' }} 
-                      />
-                    </div>
-                  </div>
-
-                  {/* Mood Trend Row */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-teal-dim flex items-center justify-center text-teal shadow-[0_0_8px_var(--teal-dim)]">
-                        <TrendingUp className="w-4 h-4" />
-                      </div>
-                      <span className="text-xs text-text2 font-medium">Mood Trend</span>
-                    </div>
-                    <span className="text-xs font-semibold text-teal bg-teal-dim border border-teal/20 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                      ↗ Getting Better
-                    </span>
-                  </div>
-
-                  {/* ARIA Insights Row */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-rose-dim flex items-center justify-center text-rose shadow-[0_0_8px_var(--rose-dim)]">
-                        <Brain className="w-4 h-4" />
-                      </div>
-                      <span className="text-xs text-text2 font-medium">ARIA Insights</span>
-                    </div>
-                    <span className="text-xs font-semibold text-rose bg-rose-dim border border-rose/20 px-2.5 py-0.5 rounded-full">
-                      3 New Patterns
-                    </span>
-                  </div>
+                <div className="w-full bg-border h-1.5 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-green to-teal rounded-full" 
+                    style={{ width: '71.4%' }} 
+                  />
                 </div>
               </div>
 
-              {/* Your Achievements Card */}
-              <div className="relative z-10 w-full sm:w-[320px] bg-bg3 border border-border2 rounded-[16px] p-5 backdrop-blur-md shadow-2xl space-y-4">
-                <div className="flex items-center justify-between border-b border-border pb-2">
-                  <span className="font-[family-name:var(--font-serif)] text-[15px] font-light text-text flex items-center gap-2">
-                    🏆 Your Achievements
-                  </span>
-                  <span className="text-[10px] text-text3 uppercase tracking-wider">
-                    2 / 4 Unlocked
-                  </span>
+              {/* Mood Trend Row */}
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-teal-dim flex items-center justify-center text-teal shadow-[0_0_8px_var(--teal-dim)]">
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                  <span className="text-text2 font-medium">Mood Trend</span>
                 </div>
+                <span className="font-semibold text-teal bg-teal-dim border border-teal/20 px-2.5 py-0.5 rounded-full">
+                  ↗ Getting Better
+                </span>
+              </div>
 
-                <div className="space-y-3 text-left">
-                  {/* First Check-in */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-amber-dim flex items-center justify-center text-amber shadow-[0_0_8px_var(--amber-dim)]">
-                        <Star className="w-4 h-4" fill="currentColor" />
-                      </div>
-                      <span className="text-xs text-text2 font-medium">First Check-in</span>
-                    </div>
-                    <span className="text-[10px] font-semibold text-green bg-green-dim border border-green/20 px-2 py-0.5 rounded-full">
-                      Unlocked
-                    </span>
+              {/* ARIA Insights Row */}
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-rose-dim flex items-center justify-center text-rose shadow-[0_0_8px_var(--rose-dim)]">
+                    <Brain className="w-4 h-4" />
                   </div>
-
-                  {/* 7-Day Streak */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-rose-dim flex items-center justify-center text-rose shadow-[0_0_8px_var(--rose-dim)]">
-                        <Flame className="w-4 h-4" fill="currentColor" />
-                      </div>
-                      <span className="text-xs text-text2 font-medium">7-Day Streak</span>
-                    </div>
-                    <span className="text-[10px] font-semibold text-text3 bg-bg4 border border-border px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <Lock className="w-2.5 h-2.5" /> Locked
-                    </span>
-                  </div>
-
-                  {/* Journal Enthusiast */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-teal-dim flex items-center justify-center text-teal shadow-[0_0_8px_var(--teal-dim)]">
-                        <BookOpen className="w-4 h-4" />
-                      </div>
-                      <span className="text-xs text-text2 font-medium">Journal Enthusiast</span>
-                    </div>
-                    <span className="text-[10px] font-semibold text-green bg-green-dim border border-green/20 px-2 py-0.5 rounded-full">
-                      Unlocked
-                    </span>
-                  </div>
-
-                  {/* Ritual Master */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-accent-glow flex items-center justify-center text-text shadow-[0_0_8px_var(--accent-glow)]">
-                        <Target className="w-4 h-4" />
-                      </div>
-                      <span className="text-xs text-text2 font-medium">Ritual Master</span>
-                    </div>
-                    <span className="text-[10px] font-semibold text-text3 bg-bg4 border border-border px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <Lock className="w-2.5 h-2.5" /> Locked
-                    </span>
-                  </div>
+                  <span className="text-text2 font-medium">ARIA Insights</span>
                 </div>
+                <span className="font-semibold text-rose bg-rose-dim border border-rose/20 px-2.5 py-0.5 rounded-full">
+                  3 New Patterns
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Your Achievements Card */}
+          <div className="bg-bg2 border border-border rounded-[20px] p-6 space-y-4 text-left">
+            <div className="flex items-center justify-between border-b border-border pb-2">
+              <span className="font-[family-name:var(--font-serif)] text-[16px] font-light text-text flex items-center gap-2">
+                🏆 Your Achievements
+              </span>
+              <span className="text-[10px] text-text3 uppercase tracking-wider">
+                2 / 4 Unlocked
+              </span>
+            </div>
+
+            <div className="space-y-3.5">
+              {/* First Check-in */}
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-amber-dim flex items-center justify-center text-amber shadow-[0_0_8px_var(--amber-dim)]">
+                    <Star className="w-4 h-4" fill="currentColor" />
+                  </div>
+                  <span className="text-text2 font-medium">First Check-in</span>
+                </div>
+                <span className="font-semibold text-green bg-green-dim border border-green/20 px-2 py-0.5 rounded-full">
+                  Unlocked
+                </span>
+              </div>
+
+              {/* 7-Day Streak */}
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-rose-dim flex items-center justify-center text-rose shadow-[0_0_8px_var(--rose-dim)]">
+                    <Flame className="w-4 h-4" fill="currentColor" />
+                  </div>
+                  <span className="text-text2 font-medium">7-Day Streak</span>
+                </div>
+                <span className="font-semibold text-text3 bg-bg4 border border-border px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Lock className="w-2.5 h-2.5" /> Locked
+                </span>
+              </div>
+
+              {/* Journal Enthusiast */}
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-teal-dim flex items-center justify-center text-teal shadow-[0_0_8px_var(--teal-dim)]">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <span className="text-text2 font-medium">Journal Enthusiast</span>
+                </div>
+                <span className="font-semibold text-green bg-green-dim border border-green/20 px-2 py-0.5 rounded-full">
+                  Unlocked
+                </span>
+              </div>
+
+              {/* Ritual Master */}
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-accent-glow flex items-center justify-center text-text shadow-[0_0_8px_var(--accent-glow)]">
+                    <Target className="w-4 h-4" />
+                  </div>
+                  <span className="text-text2 font-medium">Ritual Master</span>
+                </div>
+                <span className="font-semibold text-text3 bg-bg4 border border-border px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Lock className="w-2.5 h-2.5" /> Locked
+                </span>
               </div>
             </div>
           </div>
@@ -848,9 +878,6 @@ export default function Dashboard() {
             <div className="font-[family-name:var(--font-serif)] text-xl font-light text-text mb-3">
               Morning Routine
             </div>
-            <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-accent text-white mb-4">
-              Ready
-            </div>
             <div className="inline-flex items-center gap-1.5 text-xs px-4 py-2 bg-accent hover:opacity-90 text-white rounded-full font-semibold tracking-wider transition-all mt-1 shadow-md">
               Start Morning Routine →
             </div>
@@ -1071,6 +1098,24 @@ export default function Dashboard() {
           ))}
         </div>
       </section>
+
+      {/* Timeline CTA */}
+      <Link
+        to="/timeline"
+        className="flex items-center justify-between w-full bg-bg2/60 border border-border rounded-2xl px-6 py-4 hover:border-accent/40 hover:bg-accent/5 transition-all group"
+      >
+        <div>
+          <p className="text-sm font-medium text-text group-hover:text-accent transition-colors">
+            View Your Growth Timeline
+          </p>
+          <p className="text-xs text-text3 mt-0.5">
+            Every mood, journal, discovery and milestone in one place
+          </p>
+        </div>
+        <span className="text-text3 group-hover:text-accent transition-colors text-xs font-medium">
+          Explore →
+        </span>
+      </Link>
     </div>
   );
 }

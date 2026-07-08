@@ -101,6 +101,15 @@ async def export_user_data(authorization: Optional[str] = Header(None)):
         engagement_metrics = await fetch_all("engagement_metrics")
         crisis_flags = await fetch_all("crisis_flags")
 
+        # Personal Knowledge Graph / CIE tables
+        knowledge_nodes = await fetch_all("user_knowledge_nodes")
+        knowledge_edges = await fetch_all("user_knowledge_edges")
+        life_chapters = await fetch_all("user_life_chapters")
+        behavioral_patterns = await fetch_all("user_behavioral_patterns")
+        growth_metrics = await fetch_all("user_growth_metrics")
+        entity_mentions = await fetch_all("user_entity_mentions")
+        goal_threads = await fetch_all("user_goal_threads")
+
         data = {
             "user": user_info,
             "mood_logs": [
@@ -145,6 +154,15 @@ async def export_user_data(authorization: Optional[str] = Header(None)):
             "recovery_data": recovery_data,
             "engagement_metrics": engagement_metrics,
             "crisis_flags": crisis_flags,
+            "personal_knowledge_graph": {
+                "nodes": knowledge_nodes,
+                "edges": knowledge_edges,
+                "chapters": life_chapters,
+                "behavioral_patterns": behavioral_patterns,
+                "growth_metrics": growth_metrics,
+                "entity_mentions": entity_mentions,
+                "goal_threads": goal_threads
+            }
         }
 
         return {

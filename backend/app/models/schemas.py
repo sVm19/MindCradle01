@@ -570,3 +570,201 @@ class DiscoveryFeedbackRequest(BaseModel):
     is_shared: Optional[bool] = None
     is_viewed: Optional[bool] = None
 
+
+# --- Predictive Intelligence ---
+class PredictionResponse(BaseModel):
+    id: str
+    user_id: str
+    prediction_type: str
+    prediction_text: str
+    target_date: str
+    confidence_score: int
+    is_correct: Optional[bool] = None
+    metadata: dict = {}
+    created_at: str
+
+
+class PredictionStats(BaseModel):
+    total_evaluated: int
+    correct_count: int
+    accuracy_rate: float
+
+
+class PredictionsPage(BaseModel):
+    active_predictions: list[PredictionResponse]
+    stats: PredictionStats
+
+
+class PredictionFeedbackRequest(BaseModel):
+    is_correct: bool = Field(alias="isCorrect")
+
+
+# --- Semantic Search ---
+class SearchResultItem(BaseModel):
+    id: str
+    user_id: str
+    event_type: str
+    source_id: Optional[str] = None
+    event_date: str
+    event_ts: str
+    title: Optional[str] = None
+    summary: Optional[str] = None
+    emotion: Optional[str] = None
+    mood_level: Optional[int] = None
+    metadata: dict = {}
+    rank_score: float
+    similarity: Optional[float] = None
+
+
+class SemanticSearchResponse(BaseModel):
+    answer: str
+    results: list[SearchResultItem]
+
+
+# Updated richer search response
+class SearchPage(BaseModel):
+    results: list[SearchResultItem]
+    total: int
+    query: str
+    search_mode: str   # "semantic" | "keyword" | "hybrid"
+    has_embeddings: bool
+
+
+class SearchSuggestionsResponse(BaseModel):
+    suggestions: list[str]
+
+
+class EmbeddingGenerateResponse(BaseModel):
+    total: int
+    embedded: int
+    failed: int
+    skipped: int
+
+
+# --- Knowledge Graph / CIE ---
+class KnowledgeNodeResponse(BaseModel):
+    id: str
+    label: str
+    node_type: str
+    confidence: float
+    importance: int
+    valence: float
+    mention_count: int
+    first_seen_at: str
+    last_seen_at: str
+    source_reason: Optional[str] = None
+    is_confirmed: bool
+    is_archived: bool
+    metadata: dict = {}
+
+class KnowledgeEdgeResponse(BaseModel):
+    id: str
+    source_node_id: str
+    target_node_id: str
+    edge_type: str
+    weight: float
+    evidence_count: int
+    last_reinforced_at: str
+
+class KnowledgeGraphResponse(BaseModel):
+    nodes: list[KnowledgeNodeResponse]
+    edges: list[KnowledgeEdgeResponse]
+
+class KnowledgeProcessRequest(BaseModel):
+    source_type: str  # 'journal' | 'mood' | 'morning' | 'wind_down'
+    source_id: str
+    text: str
+
+class KnowledgeProcessResponse(BaseModel):
+    success: bool
+    nodes_processed: int
+
+class KnowledgeContextResponse(BaseModel):
+    context_packet: str
+
+class GrowthMetricItem(BaseModel):
+    metric_type: str
+    period: str
+    value: float
+    previous_value: Optional[float] = None
+    delta: Optional[float] = None
+    computed_at: str
+
+class GrowthMetricsResponse(BaseModel):
+    metrics: list[GrowthMetricItem]
+
+
+class KnowledgeChapterResponse(BaseModel):
+    id: str
+    user_id: str
+    title: str
+    chapter_number: int
+    start_date: str
+    end_date: Optional[str] = None
+    is_current: bool
+    theme_summary: Optional[str] = None
+    dominant_emotion: Optional[str] = None
+    mood_average: Optional[float] = None
+    growth_score: Optional[float] = None
+    key_events: list = []
+    dominant_themes: list[str] = []
+    goals_started: list[str] = []
+    goals_achieved: list[str] = []
+    node_ids: list[str] = []
+    detected_by: str
+    confidence: float
+
+class KnowledgeChaptersListResponse(BaseModel):
+    chapters: list[KnowledgeChapterResponse]
+
+
+class KnowledgeNodeUpdateRequest(BaseModel):
+    label: Optional[str] = None
+    is_confirmed: Optional[bool] = None
+    is_archived: Optional[bool] = None
+    valence: Optional[float] = None
+
+
+class KnowledgeComparisonItem(BaseModel):
+    metric_type: str
+    current_value: float
+    previous_value: float
+    delta: float
+
+class KnowledgeComparisonResponse(BaseModel):
+    current_chapter_title: str
+    previous_chapter_title: str
+    improvements: list[str]
+    challenge: str
+    comparison_metrics: list[KnowledgeComparisonItem]
+
+
+class TimelineEventResponse(BaseModel):
+    id: str
+    user_id: str
+    event_type: str
+    source_id: Optional[str] = None
+    event_date: str
+    event_ts: str
+    title: Optional[str] = None
+    summary: Optional[str] = None
+    emotion: Optional[str] = None
+    mood_level: Optional[int] = None
+    metadata: dict = {}
+    created_at: str
+
+class TimelinePage(BaseModel):
+    events: list[TimelineEventResponse]
+    total: int
+    page: int
+    page_size: int
+    has_more: bool
+    date_span: Optional[dict] = None
+    types_present: list[str]
+
+
+
+
+
+
+

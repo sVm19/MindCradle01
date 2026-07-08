@@ -5,11 +5,12 @@ import { ai as aiApi, resources as resourcesApi, mood as moodApi, journal as jou
 import type { ResourceItem, MoodItem, JournalItem } from '@/lib/api';
 import { useAuth, getInitials, getAvatarGradient, UserSketchAvatar } from '@/lib/auth';
 import { useARIA } from '@/context/ARIAContext';
-import { Lock, Heart, Brain, Target, Lightbulb, Sparkles, Phone, MessageSquare, ThumbsUp, ThumbsDown, Meh, Wind, PhoneCall, X, Zap, Flower2, AlignLeft, HeartHandshake } from 'lucide-react';
+import { Lock, Heart, Brain, Target, Lightbulb, Sparkles, Phone, MessageSquare, ThumbsUp, ThumbsDown, Meh, Wind, PhoneCall, X, Zap, Flower2, AlignLeft, HeartHandshake, Search } from 'lucide-react';
 import AgeVerificationModal from '@/app/components/AgeVerificationModal';
 import { auth as authApi } from '@/lib/api';
 import GuestGate from '@/app/components/GuestGate';
 import Logo from '@/app/components/Logo';
+import SemanticSearch from '@/app/components/SemanticSearch';
 
 interface Message {
   role: 'user' | 'aria';
@@ -69,6 +70,7 @@ export default function ARIA() {
   const [isPremium, setIsPremium] = useState(false);
   const [linguisticShift, setLinguisticShift] = useState<string | null>(null);
   const [discovery, setDiscovery] = useState<any | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -1475,6 +1477,25 @@ export default function ARIA() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Semantic Search overlay */}
+      <SemanticSearch
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+      />
+
+      {/* Floating search button — subtle, bottom-right of the page */}
+      {user && (
+        <button
+          onClick={() => setSearchOpen(true)}
+          title="Search your history (⌘K)"
+          className="fixed bottom-24 right-6 z-40 flex items-center gap-2 px-4 py-2.5 bg-bg2/90 border border-border/70 rounded-full text-xs text-text3 hover:text-text hover:border-accent/50 hover:bg-accent/5 transition-all shadow-lg shadow-black/30 backdrop-blur-sm cursor-pointer group"
+        >
+          <Search size={13} className="group-hover:text-accent transition-colors" />
+          <span>Search history</span>
+          <span className="text-[9px] opacity-50 ml-1">⌘K</span>
+        </button>
       )}
     </div>
   );

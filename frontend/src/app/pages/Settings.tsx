@@ -443,6 +443,29 @@ startxref
           </div>
         </section>
 
+        {/* ARIA's Understanding */}
+        <section className="bg-bg2 border border-border rounded-[20px] px-6 py-6 space-y-4">
+          <div className="text-xs text-accent uppercase tracking-wider mb-2">Personal Knowledge Graph</div>
+          <div className="space-y-3">
+            <div>
+              <div className="text-base font-medium text-text">How ARIA Understands You</div>
+              <div className="text-xs text-text3 mt-1 leading-relaxed">
+                As you journal and log your mood, ARIA builds a dynamic model of your life chapters, goals, habits, and stressors. 
+                You can review this model, delete misconceptions, or download a full report.
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/settings/understanding')}
+              className="px-5 py-2.5 bg-accent hover:bg-accent2 text-bg border border-transparent rounded-[10px] text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5"
+            >
+              <span>Explore My ARIA Profile</span>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </section>
+
         {/* Danger Zone */}
         <section className="bg-bg2 border border-rose/30 rounded-[20px] px-6 py-6 space-y-6">
           <div className="text-xs text-rose uppercase tracking-wider">Danger Zone</div>

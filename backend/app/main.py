@@ -45,6 +45,32 @@ async def start_scheduler():
             logger.error("Failed to run pregenerate_daily_discoveries_job: %s", e)
 
     scheduler.add_job(pregenerate_daily_discoveries_job, "interval", hours=24)
+
+    async def nightly_pkg_job():
+        try:
+            from app.services.supabase import pb
+            from app.services import knowledge_graph as kg_svc
+            # Query all user profiles to perform PKG decay/recalculation
+            profile_res = await pb.list_records("user_profiles", params={"perPage": 1000})
+            profiles = profile_res.get("items") or []
+            for p in profiles:
+                u_id = p.get("user_id")
+                if u_id:
+                    # Decay confidence of inactive nodes
+                    await kg_svc.decay_confidence(u_id)
+                    # Recompute 10 dimensions of growth metrics
+                    await kg_svc.compute_growth_metrics(u_id)
+                    # Scan and update active goal threads
+                    await kg_svc.update_goal_threads(u_id)
+                    # Detect behavioral routines and cycles
+                    await kg_svc.detect_behavioral_patterns(u_id)
+                    # Evaluate and detect life chapter boundary shifts
+                    await kg_svc.detect_life_chapters(u_id)
+            logger.info("Nightly PKG maintenance completed successfully")
+        except Exception as err:
+            logger.error("Failed to run nightly_pkg_job: %s", err)
+
+    scheduler.add_job(nightly_pkg_job, "cron", hour=2) # run every night at 2 AM
     scheduler.start()
     logger.info("Background AsyncIOScheduler started successfully")
 

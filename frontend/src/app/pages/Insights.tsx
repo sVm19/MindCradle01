@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, Link } from 'react-router';
 import { useAuth } from '@/lib/auth';
 import { ai as aiApi, profile as profileApi } from '@/lib/api';
 import GuestGate from '@/app/components/GuestGate';
-import { Loader2, Sparkles, Smile, Compass, Flame, Activity, TrendingUp, Heart } from 'lucide-react';
+import {
+  Loader2, Sparkles, Smile, Compass, Flame, Activity, TrendingUp, Heart,
+  Brain, ThumbsUp, ThumbsDown, RefreshCw, Lock
+} from 'lucide-react';
 
 export default function Insights() {
   const { user } = useAuth();
@@ -31,6 +34,16 @@ export default function Insights() {
   const [isPremium, setIsPremium] = useState(false);
   const [solsticeLetter, setSolsticeLetter] = useState<string | null>(null);
   const [loadingSolstice, setLoadingSolstice] = useState(false);
+
+  const [predictions, setPredictions] = useState<{
+    active_predictions: any[];
+    stats: {
+      total_evaluated: number;
+      correct_count: number;
+      accuracy_rate: number;
+    };
+  } | null>(null);
+  const [loadingPredictions, setLoadingPredictions] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -62,6 +75,17 @@ export default function Insights() {
         } catch (profileErr) {
           console.error("Failed to fetch profile/solstice letter in Insights page:", profileErr);
         }
+
+        // Fetch predictions
+        try {
+          setLoadingPredictions(true);
+          const predRes = await aiApi.getPredictions();
+          setPredictions(predRes);
+        } catch (predErr) {
+          console.error("Failed to fetch predictions:", predErr);
+        } finally {
+          setLoadingPredictions(false);
+        }
       } catch (err: any) {
         setError(err.message || 'An error occurred while analyzing wellness report.');
       } finally {
@@ -72,6 +96,29 @@ export default function Insights() {
 
     fetchInsights();
   }, [user]);
+
+  const handleFeedback = async (id: string, isCorrect: boolean) => {
+    try {
+      await aiApi.submitPredictionFeedback(id, isCorrect);
+      const predRes = await aiApi.getPredictions();
+      setPredictions(predRes);
+    } catch (err) {
+      console.error("Failed to submit prediction feedback:", err);
+    }
+  };
+
+  const handleRebuildPredictions = async () => {
+    try {
+      setLoadingPredictions(true);
+      await aiApi.rebuildPredictions();
+      const predRes = await aiApi.getPredictions();
+      setPredictions(predRes);
+    } catch (err) {
+      console.error("Failed to rebuild predictions:", err);
+    } finally {
+      setLoadingPredictions(false);
+    }
+  };
 
   if (!user) {
     return (
@@ -162,7 +209,129 @@ export default function Insights() {
             The tool you used most to build consistency.
           </p>
         </div>
+      </div>
 
+      {/* ARIA's Predictive Forecasts Widget */}
+      <div className="bg-bg2 border border-border rounded-[24px] p-6 sm:p-8 space-y-6 relative overflow-hidden shadow-xl">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.06),transparent_60%)] pointer-events-none" />
+        
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/80 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+              <Brain className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-text text-base">ARIA's Predictive Forecasts</h3>
+              <p className="text-xs text-text3">Behavioral predictions and growth forecasts based on your history.</p>
+            </div>
+          </div>
+          <button
+            onClick={handleRebuildPredictions}
+            disabled={loadingPredictions}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-text2 border border-border rounded-lg text-xs transition-all cursor-pointer font-medium disabled:opacity-50"
+          >
+            <RefreshCw size={12} className={loadingPredictions ? "animate-spin" : ""} />
+            Rebuild Forecasts
+          </button>
+        </div>
+
+        {loadingPredictions && !predictions ? (
+          <div className="py-8 flex flex-col items-center justify-center gap-2">
+            <Loader2 className="w-6 h-6 text-accent animate-spin" />
+            <p className="text-xs text-text3">Generating future predictions...</p>
+          </div>
+        ) : !predictions ? (
+          <div className="py-4 text-center text-xs text-text3">
+            Predictive forecasts loading...
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Accuracy Rate and Stats Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white/5 border border-border/40 rounded-xl p-4">
+              <div className="text-center sm:text-left">
+                <div className="text-[10px] text-text3 uppercase font-medium">ARIA Accuracy Rate</div>
+                <div className="text-2xl font-light text-indigo-400 mt-1">
+                  {predictions.stats.total_evaluated > 0
+                    ? `${Math.round(predictions.stats.accuracy_rate * 100)}%`
+                    : "100%"}
+                </div>
+              </div>
+              <div className="text-center sm:text-left border-y sm:border-y-0 sm:border-x border-border/40 py-2 sm:py-0 sm:px-4">
+                <div className="text-[10px] text-text3 uppercase font-medium">Predictions Evaluated</div>
+                <div className="text-2xl font-light text-text mt-1">
+                  {predictions.stats.total_evaluated}
+                </div>
+              </div>
+              <div className="text-center sm:text-left sm:pl-4">
+                <div className="text-[10px] text-text3 uppercase font-medium">Correct Forecasts</div>
+                <div className="text-2xl font-light text-text mt-1">
+                  {predictions.stats.correct_count}
+                </div>
+              </div>
+            </div>
+
+            {/* Active Predictions List */}
+            <div>
+              <h4 className="text-xs font-semibold text-text3 uppercase tracking-wider mb-3">Active Forecasts</h4>
+              {predictions.active_predictions.length === 0 ? (
+                <div className="py-6 text-center border border-dashed border-border/60 rounded-xl bg-white/2">
+                  <p className="text-xs text-text2">No active behavioral forecasts.</p>
+                  <p className="text-[11px] text-text3 font-light mt-1">
+                    Continue logging your morning intentions, daily moods, and rituals so ARIA can spot patterns!
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {predictions.active_predictions.map((pred) => (
+                    <div key={pred.id} className="bg-bg3 border border-border2 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all hover:border-indigo-500/25">
+                      <div className="space-y-1.5 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full font-medium capitalize">
+                            {pred.prediction_type.replace(/_/g, ' ')}
+                          </span>
+                          <span className="text-[10px] text-text3">
+                            Target: {new Date(pred.target_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
+                        <p className="text-sm font-medium text-text">{pred.prediction_text}</p>
+                        
+                        {/* Confidence score progress bar */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-text3 min-w-[75px]">Confidence: {pred.confidence_score}%</span>
+                          <div className="h-1.5 flex-1 max-w-[150px] bg-white/10 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-indigo-400 rounded-full transition-all duration-500" 
+                              style={{ width: `${pred.confidence_score}%` }} 
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Manual Feedback Loop Buttons */}
+                      <div className="flex items-center gap-2 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 w-full sm:w-auto justify-end">
+                        <span className="text-[10px] text-text3 mr-1">Is this accurate?</span>
+                        <button
+                          onClick={() => handleFeedback(pred.id, true)}
+                          className="w-8 h-8 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 flex items-center justify-center transition-all cursor-pointer"
+                          title="Accurate"
+                        >
+                          <ThumbsUp size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleFeedback(pred.id, false)}
+                          className="w-8 h-8 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 flex items-center justify-center transition-all cursor-pointer"
+                          title="Inaccurate"
+                        >
+                          <ThumbsDown size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Main AI Advisory Panel */}
@@ -308,6 +477,24 @@ export default function Insights() {
           Begin Evening Wind Down →
         </button>
       </div>
+
+      {/* Timeline CTA */}
+      <Link
+        to="/timeline"
+        className="flex items-center justify-between w-full bg-bg2/60 border border-border rounded-2xl px-6 py-4 hover:border-accent/40 hover:bg-accent/5 transition-all group mt-2"
+      >
+        <div>
+          <p className="text-sm font-medium text-text group-hover:text-accent transition-colors">
+            View Your Full Timeline
+          </p>
+          <p className="text-xs text-text2 mt-0.5">
+            Scroll through years of mood, journal, discovery and milestone history
+          </p>
+        </div>
+        <span className="text-text3 group-hover:text-accent transition-colors text-xs font-medium">
+          Open Timeline →
+        </span>
+      </Link>
     </div>
   );
 }

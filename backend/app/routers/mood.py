@@ -1,10 +1,11 @@
 import logging
 
-from fastapi import APIRouter, Header, Query, Request, Depends
+from fastapi import APIRouter, Header, Query, Request, Depends, BackgroundTasks
 from typing import Optional
 from fastapi_csrf_protect import CsrfProtect
 from app.models.schemas import MoodCreate, MoodOut
 from app.services.supabase import pb, extract_user_id
+from app.services import knowledge_graph as kg_svc
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 async def log_mood(
     req: MoodCreate,
     request: Request,
+    background_tasks: BackgroundTasks,
     authorization: Optional[str] = Header(None),
     csrf_protect: CsrfProtect = Depends(),
 ):
@@ -46,6 +48,15 @@ async def log_mood(
         token=authorization,
     )
     logger.info("Mood record created: id=%s", record.get("id"))
+    if user_id and sanitized_note:
+        background_tasks.add_task(
+            kg_svc.process_source,
+            user_id,
+            "mood",
+            record["id"],
+            sanitized_note,
+            authorization
+        )
     return {"id": record["id"], "saved": True}
 
 

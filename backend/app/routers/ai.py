@@ -1,9 +1,11 @@
+import asyncio
 import hashlib
 import json
 import logging
 from datetime import datetime, timedelta, timezone
 from fastapi.responses import StreamingResponse
 from typing import Optional
+
 
 from fastapi import APIRouter, Header, HTTPException, BackgroundTasks, Depends
 
@@ -20,9 +22,23 @@ from app.models.schemas import (
     RecoveryPatternsResponse, RecoveryStats, RecoveryDataResponse,
     TrackEngagementRequest, TrackEngagementResponse, EngagementStatsResponse,
     ConvoTypeEngagement, ABTestResult, DetectCrisisRequest, DetectCrisisResponse,
-    AriaAgeVerifyRequest, DailyDiscoveryResponse, DiscoveryFeedbackRequest
+    AriaAgeVerifyRequest, DailyDiscoveryResponse, DiscoveryFeedbackRequest,
+    TimelineEventResponse, TimelinePage,
+    SearchResultItem, SearchPage, SearchSuggestionsResponse, EmbeddingGenerateResponse,
+    KnowledgeNodeResponse, KnowledgeEdgeResponse, KnowledgeGraphResponse,
+    KnowledgeProcessRequest, KnowledgeProcessResponse, KnowledgeContextResponse,
+    GrowthMetricItem, GrowthMetricsResponse,
+    KnowledgeChapterResponse, KnowledgeChaptersListResponse,
+    KnowledgeNodeUpdateRequest,
+    KnowledgeComparisonResponse, KnowledgeComparisonItem
 )
 from app.services import openrouter_ai
+from app.services.relationship_memory import (
+    format_relationship_memory_context,
+    rank_relationship_memories,
+)
+from app.services import embeddings as embedding_svc
+from app.services import knowledge_graph as kg_svc
 from app.services.supabase import pb, JWTExpiredError, extract_user_id
 from app.core.security import verify_user_premium
 import os
@@ -3067,6 +3083,28 @@ async def chat(
         except Exception as e:
             logger.warning("Failed to build memory insight prompt addition: %s", e)
 
+        # Inject Personal Knowledge Graph (PKG) Context Packet
+        try:
+            pkg_context = await kg_svc.get_context_packet(user_id=user_id, topic=req.message, token=token)
+            if pkg_context:
+                system_prompt += f"\n\n{pkg_context}\n"
+        except Exception as e:
+            logger.warning("Failed to inject PKG context packet: %s", e)
+
+
+        # Inject active predictions context block into the system prompt
+        try:
+            from app.services.prediction_engine import get_active_predictions_context
+            prediction_context = await get_active_predictions_context(user_id, token)
+            if prediction_context:
+                system_prompt += (
+                    f"\n\nACTIVE PREDICTIVE FORECASTS FOR THIS USER:\n{prediction_context}\n"
+                    "ARIA can proactively reference these patterns when appropriate (e.g. 'I notice you usually skip Wind Down on Fridays' or 'I notice walking tends to lift your mood'). "
+                    "Make sure to raise them naturally, supportively, and in a conversational manner."
+                )
+        except Exception as e:
+            logger.warning("Failed to inject predictive insights prompt addition: %s", e)
+
         # Inject safety instructions for LEVEL 2 (moderate concern)
         if severity_level == 2:
             system_prompt += (
@@ -3614,6 +3652,18 @@ async def get_solstice_letter(
         # 4. Fetch Wind Down Rituals
         wd_resp = await pb.list_records("wind_down_rituals", token=token, params={"filter": filter_30d, "perPage": 100})
         wd_items = wd_resp.get("items") or []
+
+        # 5. Fetch Life Chapters
+        chapter_items = []
+        try:
+            ch_resp = await pb.list_records(
+                "user_life_chapters",
+                token=token,
+                params={"filter": f'user_id="{user_id}"', "sort": "-chapter_number", "perPage": 5}
+            )
+            chapter_items = ch_resp.get("items") or []
+        except Exception as ch_err:
+            logger.warning("Solstice Letter: chapters fetch error: %s", ch_err)
     except Exception as fetch_err:
         logger.error("Solstice Letter: database fetch error: %s", fetch_err)
         raise HTTPException(status_code=500, detail="Failed to fetch history logs")
@@ -3631,6 +3681,13 @@ async def get_solstice_letter(
     worries_released = [wd.get("releaseItem") for wd in wd_items if wd.get("releaseItem")]
     journal_snippets = [j.get("content")[:100] for j in journal_items if j.get("content")]
 
+    chapters_str = ""
+    if chapter_items:
+        chapters_str = "\n".join(
+            f"  * Chapter {c.get('chapter_number')}: '{c.get('title')}' - {c.get('theme_summary')} (Current: {c.get('is_current')})"
+            for c in chapter_items
+        )
+
     summary_context = (
         f"User data over past 30 days:\n"
         f"- Total journal entries: {len(journal_items)}\n"
@@ -3638,11 +3695,13 @@ async def get_solstice_letter(
         f"- Average mood level: {avg_mood:.1f}/10\n"
         f"- Morning intentions set: {', '.join(intentions[:5])}\n"
         f"- Worries released in evening: {', '.join(worries_released[:5])}\n"
+        f"- Personal Narrative Chapters:\n{chapters_str}\n"
     )
 
     sys_prompt = (
         "You are ARIA, a warm, validating companion in MindCradle. "
         "Your task is to write a personalized seasonal/monthly growth letter (The Personal Solstice Letter) to the user based on their past 30 days of data. "
+        "Use their Personal Narrative Chapters as the narrative spine of the letter. Focus on their progression, triumphs, and struggles within those chapters. "
         "Structure the letter in clean, markdown format with headings (##). "
         "Acknowledge their consistency, identify emotional seasons (patterns in mood, intentions, and worries), highlight private victories (worries they successfully released or intentions met), and offer one supportive, inspiring thought for the month ahead. "
         "Make sure the letter sounds deeply personal, validating, and completely free of clinical jargon."
@@ -3655,7 +3714,40 @@ async def get_solstice_letter(
             temperature=0.7,
             max_tokens=600,
         )
-        return {"letter": letter_content.strip()}
+        letter_stripped = letter_content.strip()
+        
+        # Cache the generated letter in timeline_events
+        try:
+            import uuid
+            TIMELINE_NAMESPACE = uuid.UUID('12345678-1234-5678-1234-567812345678')
+            now_iso = datetime.now(timezone.utc).isoformat()
+            year_month = datetime.now(timezone.utc).strftime("%Y-%m")
+            month_name = datetime.now(timezone.utc).strftime("%B %Y")
+            deterministic_id = str(uuid.uuid5(TIMELINE_NAMESPACE, f"solstice-{user_id}-{year_month}"))
+            
+            evt = {
+                "user_id": user_id,
+                "event_type": "letter",
+                "source_id": deterministic_id,
+                "event_date": year_month + "-01", # standard start of month date
+                "event_ts": now_iso,
+                "title": f"Solstice Letter · {month_name}",
+                "summary": letter_stripped[:250] + ("..." if len(letter_stripped) > 250 else ""),
+                "search_text": f"solstice letter report seasonal monthly {letter_stripped}".strip(),
+                "metadata": {"letter_content": letter_stripped},
+            }
+            
+            # Upsert into timeline_events cache
+            await pb.upsert_records(
+                "timeline_events",
+                records=[evt],
+                token=token,
+                on_conflict="user_id,event_type,source_id"
+            )
+        except Exception as cache_err:
+            logger.warning("Failed to cache generated Solstice letter in timeline_events: %s", cache_err)
+
+        return {"letter": letter_stripped}
     except Exception as e:
         logger.error("Failed to generate Solstice Letter: %s", e)
         raise HTTPException(status_code=502, detail="Failed to synthesize Solstice Letter")
@@ -4066,6 +4158,18 @@ async def schedule_checkin(
         )
         conversation_themes = theme_resp.get("items") or []
 
+        # Behavioral patterns (CIE Phase 4)
+        behavioral_patterns = []
+        try:
+            pat_resp = await pb.list_records(
+                "user_behavioral_patterns",
+                token=token,
+                params={"filter": f'user_id="{user_id}" && is_active=true', "perPage": 10}
+            )
+            behavioral_patterns = pat_resp.get("items") or []
+        except Exception as pat_err:
+            logger.warning("Proactive schedule: failed to fetch behavioral patterns: %s", pat_err)
+
         # 4. Check past ignored check-ins in the last 7 days (engagement filter)
         since_7d = (now - timedelta(days=7)).isoformat()
         past_checkins_resp = await pb.list_records(
@@ -4242,9 +4346,47 @@ async def schedule_checkin(
         candidates.sort(key=get_priority)
         selected = candidates[0]
 
+        # Optimize scheduled time based on user behavioral patterns (CIE Phase 4)
+        scheduled_time = selected["scheduled_time"]
+        
+        # 1. Parse reflection routine hour if exists
+        reflection_hour = None
+        has_sunday_dread = False
+        for pat in behavioral_patterns:
+            p_label = str(pat.get("label") or "").lower()
+            p_type = str(pat.get("pattern_type") or "").lower()
+            if "reflection_routine" in p_label or "routine" in p_type:
+                # Check for "hour X" format
+                if "hour" in p_label:
+                    try:
+                        parts = p_label.split("hour")
+                        if len(parts) > 1:
+                            reflection_hour = int(parts[1].strip().split()[0])
+                    except Exception:
+                        pass
+                if reflection_hour is None:
+                    meta = pat.get("metadata") or {}
+                    if meta.get("avg_hour") is not None:
+                        reflection_hour = int(meta["avg_hour"])
+            if "sunday dread" in p_label or "sunday_dread" in p_label:
+                has_sunday_dread = True
+
+        # 2. Adjust hour for reminder actions to user's habitual reflection hour
+        if reflection_hour is not None and selected["reason"] in ["journal_reminder", "ritual_reminder"]:
+            scheduled_time = scheduled_time.replace(hour=reflection_hour, minute=0, second=0, microsecond=0)
+            if scheduled_time < now:
+                scheduled_time += timedelta(days=1)
+
+        # 3. Schedule prep for Sunday Dread specifically on Sunday evenings
+        if has_sunday_dread and "anxiety" in selected["reason"]:
+            days_ahead = (6 - now.weekday()) % 7
+            scheduled_time = (now + timedelta(days=days_ahead)).replace(hour=18, minute=0, second=0, microsecond=0)
+            if scheduled_time < now:
+                scheduled_time += timedelta(days=7)
+
         payload = {
             "user_id": user_id,
-            "scheduled_time": selected["scheduled_time"].isoformat(),
+            "scheduled_time": scheduled_time.isoformat(),
             "reason": selected["reason"],
             "suggested_message": selected["suggested_message"],
             "actual_response": None,
@@ -4854,12 +4996,26 @@ async def _generate_daily_discovery_internal(token: str, user_id: str) -> Option
     winddowns_data = [{"release": m.get("releaseItem"), "gratitudes": m.get("gratitudes", []), "date": m.get("created", "")[:10]} for m in winddowns]
     interactions_data = [{"event": i.get("event_type"), "page": i.get("page_path"), "element": i.get("element_name"), "date": i.get("created_at", "")[:10]} for i in interactions]
 
+    # Fetch active PKG nodes for user context
+    pkg_nodes_str = ""
+    try:
+        nodes_res = await pb.list_records(
+            "user_knowledge_nodes",
+            token=token,
+            params={"filter": f'user_id="{user_id}" && is_archived=false && confidence>=0.4', "perPage": 20}
+        )
+        nodes = nodes_res.get("items") or []
+        pkg_nodes_str = ", ".join(f"{n.get('label')} ({n.get('node_type')})" for n in nodes)
+    except Exception as e:
+        logger.warning("Daily Discovery PKG nodes fetch failed: %s", e)
+
     activity_summary = {
         "moods": moods_data,
         "journals": journals_data,
         "mornings": mornings_data,
         "winddowns": winddowns_data,
-        "interactions": interactions_data
+        "interactions": interactions_data,
+        "active_personal_knowledge_graph_themes": pkg_nodes_str
     }
 
     # Minimum data check to ensure confidence
@@ -4870,9 +5026,11 @@ async def _generate_daily_discovery_internal(token: str, user_id: str) -> Option
         "You are ARIA's Daily Discovery Engine in the MindCradle app.\n"
         "Your task is to analyze the user's past 30 days of data and find exactly ONE real, high-confidence, data-backed correlation or pattern.\n"
         "This is NOT advice, motivation, or therapy. It must be a factual observation of their own behavior.\n"
+        "You also have their active personal knowledge graph themes: " + pkg_nodes_str + ". Tie your observations to these themes if possible.\n"
         "Examples of valid discoveries:\n"
         "- 'You journal longer on days you complete Morning Focus.'\n"
         "- 'You haven't mentioned work stress in five days.'\n"
+
         "- 'Your mood levels are typically higher on days you release a worry during your evening routine.'\n\n"
         "Rules:\n"
         "1. Never hallucinate. Every discovery MUST be supported by the provided data.\n"
@@ -5026,3 +5184,1418 @@ async def update_daily_discovery_feedback(
     except Exception as e:
         logger.error("Failed to update discovery feedback: %s", e)
         raise HTTPException(status_code=500, detail="Database update failed")
+
+
+# ─── Personal Growth Timeline ─────────────────────────────────────────────────
+
+def _safe_str(val) -> str:
+    """Return a trimmed string or empty string."""
+    if val is None:
+        return ""
+    return str(val).strip()
+
+
+def _timeline_row_to_event(row: dict) -> dict:
+    """Convert a raw timeline_events DB row to the response schema."""
+    return {
+        "id": _safe_str(row.get("id")),
+        "user_id": _safe_str(row.get("user_id")),
+        "event_type": _safe_str(row.get("event_type")),
+        "source_id": row.get("source_id"),
+        "event_date": _safe_str(row.get("event_date")),
+        "event_ts": _safe_str(row.get("event_ts")),
+        "title": row.get("title"),
+        "summary": row.get("summary"),
+        "emotion": row.get("emotion"),
+        "mood_level": row.get("mood_level"),
+        "metadata": row.get("metadata") or {},
+        "created_at": _safe_str(row.get("created_at")),
+    }
+
+
+async def _rebuild_timeline_for_user(user_id: str, token: str) -> int:
+    """
+    Populate timeline_events cache for a user by aggregating events from all
+    source tables: mood_logs, journal_entries, morning_rituals,
+    wind_down_rituals, daily_discoveries, user_profiles (badges/milestones).
+    Returns the number of events upserted.
+    """
+    events_to_upsert = []
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    # ── 1. Mood logs ────────────────────────────────────────────────────────
+    try:
+        moods = await pb.list_records(
+            "mood_logs",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 500, "sort": "-created_at"}
+        )
+        for m in (moods.get("items") or []):
+            ts = m.get("created_at") or m.get("created") or now_iso
+            emotions = m.get("emotions") or []
+            note = _safe_str(m.get("note"))
+            level = m.get("level")
+            emotion_str = ", ".join(emotions) if emotions else None
+            events_to_upsert.append({
+                "user_id": user_id,
+                "event_type": "mood",
+                "source_id": m.get("id"),
+                "event_date": ts[:10],
+                "event_ts": ts,
+                "title": f"Mood · {level}/10" if level else "Mood Check-in",
+                "summary": note[:200] if note else None,
+                "emotion": emotion_str,
+                "mood_level": level,
+                "search_text": f"mood check-in {note} {emotion_str or ''}".strip(),
+                "metadata": {"emotions": emotions, "note": note},
+            })
+    except Exception as exc:
+        logger.warning("Timeline rebuild: failed to fetch mood_logs: %s", exc)
+
+    # ── 2. Journal entries ──────────────────────────────────────────────────
+    try:
+        journals = await pb.list_records(
+            "journal_entries",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 500, "sort": "-created_at"}
+        )
+        for j in (journals.get("items") or []):
+            ts = j.get("created_at") or j.get("created") or now_iso
+            content = _safe_str(j.get("content") or j.get("entry") or "")
+            prompt = _safe_str(j.get("prompt") or "")
+            events_to_upsert.append({
+                "user_id": user_id,
+                "event_type": "journal",
+                "source_id": j.get("id"),
+                "event_date": ts[:10],
+                "event_ts": ts,
+                "title": prompt[:80] if prompt else "Journal Entry",
+                "summary": content[:250] if content else None,
+                "search_text": f"journal {prompt} {content}".strip(),
+                "metadata": {"word_count": len(content.split()) if content else 0},
+            })
+    except Exception as exc:
+        logger.warning("Timeline rebuild: failed to fetch journal_entries: %s", exc)
+
+    # ── 3. Morning rituals ──────────────────────────────────────────────────
+    try:
+        mornings = await pb.list_records(
+            "morning_rituals",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 500, "sort": "-created_at"}
+        )
+        for mr in (mornings.get("items") or []):
+            ts = mr.get("created_at") or mr.get("created") or now_iso
+            intention = _safe_str(mr.get("intention") or mr.get("focus") or "")
+            forecast = _safe_str(mr.get("forecast") or mr.get("prediction") or "")
+            events_to_upsert.append({
+                "user_id": user_id,
+                "event_type": "morning",
+                "source_id": mr.get("id"),
+                "event_date": ts[:10],
+                "event_ts": ts,
+                "title": "Morning Focus",
+                "summary": intention[:200] if intention else None,
+                "search_text": f"morning focus intention {intention} {forecast}".strip(),
+                "metadata": {"intention": intention, "forecast": forecast},
+            })
+    except Exception as exc:
+        logger.warning("Timeline rebuild: failed to fetch morning_rituals: %s", exc)
+
+    # ── 4. Wind-down rituals ────────────────────────────────────────────────
+    try:
+        winddowns = await pb.list_records(
+            "wind_down_rituals",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 500, "sort": "-created_at"}
+        )
+        for wd in (winddowns.get("items") or []):
+            ts = wd.get("created_at") or wd.get("created") or now_iso
+            gratitudes = wd.get("gratitudes") or []
+            release = _safe_str(wd.get("release") or wd.get("let_go") or "")
+            events_to_upsert.append({
+                "user_id": user_id,
+                "event_type": "wind_down",
+                "source_id": wd.get("id"),
+                "event_date": ts[:10],
+                "event_ts": ts,
+                "title": "Wind Down",
+                "summary": release[:200] if release else None,
+                "search_text": f"wind down evening gratitude {' '.join(gratitudes)} {release}".strip(),
+                "metadata": {"gratitudes": gratitudes, "release": release},
+            })
+    except Exception as exc:
+        logger.warning("Timeline rebuild: failed to fetch wind_down_rituals: %s", exc)
+
+    # ── 5. Daily discoveries ────────────────────────────────────────────────
+    try:
+        discoveries = await pb.list_records(
+            "daily_discoveries",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 500, "sort": "-created_at"}
+        )
+        for d in (discoveries.get("items") or []):
+            ts = d.get("created_at") or now_iso
+            text = _safe_str(d.get("discovery_text") or "")
+            conf = d.get("confidence_score") or 0
+            events_to_upsert.append({
+                "user_id": user_id,
+                "event_type": "discovery",
+                "source_id": d.get("id"),
+                "event_date": ts[:10],
+                "event_ts": ts,
+                "title": "ARIA Discovery",
+                "summary": text[:250] if text else None,
+                "search_text": f"aria discovery insight {text}".strip(),
+                "metadata": {"confidence_score": conf},
+            })
+    except Exception as exc:
+        logger.warning("Timeline rebuild: failed to fetch daily_discoveries: %s", exc)
+
+    # ── 6. Milestones/Badges & Achievements ─────────────────────────────────
+    try:
+        import uuid
+        TIMELINE_NAMESPACE = uuid.UUID('12345678-1234-5678-1234-567812345678')
+        profiles = await pb.list_records(
+            "user_profiles",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 1}
+        )
+        profile_items = profiles.get("items") or []
+        if profile_items:
+            prof = profile_items[0]
+            badge_history = prof.get("badge_history") or []
+            for bh in badge_history:
+                badge_id = _safe_str(bh.get("id") or bh.get("badge_id") or "")
+                badge_name = _safe_str(bh.get("name") or bh.get("label") or badge_id)
+                ts = bh.get("unlocked_at") or bh.get("created_at") or now_iso
+                
+                # Classify as either milestone or achievement
+                is_milestone = any(x in badge_id.lower() for x in ["consistency", "streak", "reflection", "awareness", "first"])
+                evt_type = "milestone" if is_milestone else "achievement"
+                label = "Milestone" if is_milestone else "Achievement"
+                
+                # Use deterministic UUID for milestones/achievements to avoid duplicate caching
+                deterministic_id = str(uuid.uuid5(TIMELINE_NAMESPACE, f"badge-{user_id}-{badge_id}"))
+                
+                events_to_upsert.append({
+                    "user_id": user_id,
+                    "event_type": evt_type,
+                    "source_id": deterministic_id,
+                    "event_date": ts[:10],
+                    "event_ts": ts,
+                    "title": f"🏆 {badge_name}",
+                    "summary": f"Unlocked the '{badge_name}' {label.lower()}.",
+                    "search_text": f"{evt_type} milestone achievement badge {badge_name}".strip(),
+                    "metadata": {"badge_id": badge_id, "badge_name": badge_name},
+                })
+    except Exception as exc:
+        logger.warning("Timeline rebuild: failed to fetch user_profiles: %s", exc)
+
+    # ── 7. Solstice letters (preserve existing cached letters) ───────────────
+    try:
+        existing_letters = await pb.list_records(
+            "timeline_events",
+            token=token,
+            params={"filter": f'user_id="{user_id}" && event_type="letter"', "perPage": 100}
+        )
+        for el in (existing_letters.get("items") or []):
+            events_to_upsert.append({
+                "user_id": user_id,
+                "event_type": "letter",
+                "source_id": el.get("source_id"),
+                "event_date": el.get("event_date"),
+                "event_ts": el.get("event_ts"),
+                "title": el.get("title"),
+                "summary": el.get("summary"),
+                "search_text": el.get("search_text"),
+                "metadata": el.get("metadata") or {},
+            })
+    except Exception as exc:
+        logger.warning("Timeline rebuild: failed to preserve cached letters: %s", exc)
+
+    # ── 8. Important memories (user_memory_insights) ────────────────────────
+    try:
+        memories = await pb.list_records(
+            "user_memory_insights",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 500, "sort": "-created"}
+        )
+        for m in (memories.get("items") or []):
+            ts = m.get("created") or now_iso
+            situation = _safe_str(m.get("situation") or "")
+            what_happened = _safe_str(m.get("what_happened") or "")
+            what_helped = _safe_str(m.get("what_helped") or "")
+            follow_up = _safe_str(m.get("follow_up") or "")
+            emotion = _safe_str(m.get("emotion") or "")
+            
+            # Use custom date or extract from timestamp
+            event_date = _safe_str(m.get("date"))
+            if not event_date:
+                event_date = ts[:10]
+                
+            summary_parts = []
+            if situation:
+                summary_parts.append(f"Situation: {situation}")
+            if what_happened:
+                summary_parts.append(f"What happened: {what_happened}")
+            if what_helped:
+                summary_parts.append(f"What helped: {what_helped}")
+            summary = "\n".join(summary_parts)
+            
+            events_to_upsert.append({
+                "user_id": user_id,
+                "event_type": "memory",
+                "source_id": m.get("id"),
+                "event_date": event_date,
+                "event_ts": ts,
+                "title": situation[:80] if situation else "Important Memory",
+                "summary": summary[:300],
+                "emotion": emotion if emotion else None,
+                "search_text": f"memory {situation} {what_happened} {what_helped} {follow_up} {emotion}".strip(),
+                "metadata": {
+                    "situation": situation,
+                    "what_happened": what_happened,
+                    "what_helped": what_helped,
+                    "follow_up": follow_up
+                },
+            })
+    except Exception as exc:
+        logger.warning("Timeline rebuild: failed to fetch user_memory_insights: %s", exc)
+
+    # ─── 9. Generate & Cache Embeddings ───────────────────────────────────────
+    try:
+        # Fetch existing timeline events to reuse embeddings
+        existing_resp = await pb.list_records(
+            "timeline_events",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 1000}
+        )
+        existing_items = existing_resp.get("items") or []
+        
+        # Map existing embeddings by (event_type, source_id) -> (embedding, search_text)
+        existing_cache = {}
+        for item in existing_items:
+            etype = item.get("event_type")
+            sid = item.get("source_id")
+            emb = item.get("embedding")
+            stxt = item.get("search_text")
+            if etype and sid and emb:
+                existing_cache[(etype, sid)] = (emb, stxt)
+                
+        # Find which events need new embeddings
+        needs_embeddings_indices = []
+        for idx, event in enumerate(events_to_upsert):
+            key = (event["event_type"], event["source_id"])
+            if key in existing_cache:
+                cached_emb, cached_text = existing_cache[key]
+                if cached_text == event["search_text"]:
+                    event["embedding"] = cached_emb
+                    continue
+            needs_embeddings_indices.append(idx)
+            
+        # Batch fetch new embeddings
+        if needs_embeddings_indices:
+            texts_to_embed = [events_to_upsert[idx]["search_text"] for idx in needs_embeddings_indices]
+            from app.services.embeddings import get_embeddings_batch
+            new_embeddings = await get_embeddings_batch(texts_to_embed)
+            for i, idx in enumerate(needs_embeddings_indices):
+                events_to_upsert[idx]["embedding"] = new_embeddings[i]
+                
+    except Exception as emb_err:
+        logger.warning("Timeline rebuild: failed to handle embeddings caching/generation: %s", emb_err)
+
+    if not events_to_upsert:
+        return 0
+
+    # Upsert all events — on conflict (user_id, event_type, source_id) update summary & metadata
+    try:
+        upserted = await pb.upsert_records(
+            "timeline_events",
+            records=events_to_upsert,
+            token=token,
+            on_conflict="user_id,event_type,source_id"
+        )
+        return len(upserted) if isinstance(upserted, list) else len(events_to_upsert)
+    except Exception as exc:
+        logger.warning("Timeline rebuild: upsert failed, falling back to individual inserts: %s", exc)
+        # Fallback: insert events individually, ignoring duplicate-key errors
+        inserted = 0
+        for evt in events_to_upsert:
+            try:
+                await pb.create_record("timeline_events", evt, token=token)
+                inserted += 1
+            except Exception:
+                pass  # likely a duplicate — ignore
+        return inserted
+
+
+@router.post("/timeline/rebuild")
+async def rebuild_timeline(authorization: Optional[str] = Header(None)):
+    """
+    Rebuilds the timeline_events cache for the authenticated user.
+    Triggered lazily on the user's first timeline visit.
+    Safe to call multiple times — uses upsert semantics.
+    """
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    try:
+        count = await _rebuild_timeline_for_user(user_id, token)
+        return {"success": True, "events_cached": count}
+    except Exception as e:
+        logger.error("Timeline rebuild failed for user %s: %s", user_id, e)
+        raise HTTPException(status_code=500, detail="Timeline rebuild failed")
+
+
+@router.get("/timeline", response_model=TimelinePage)
+async def get_timeline(
+    page: int = 1,
+    page_size: int = 30,
+    types: Optional[str] = None,         # comma-separated: "mood,journal,discovery"
+    start_date: Optional[str] = None,    # YYYY-MM-DD
+    end_date: Optional[str] = None,      # YYYY-MM-DD
+    q: Optional[str] = None,            # free-text keyword search
+    authorization: Optional[str] = Header(None),
+):
+    """
+    Returns a paginated, filterable personal growth timeline for the user.
+    Events are sorted newest-first (event_ts DESC).
+    Supports type filtering, date range, and full-text keyword search.
+    """
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    page = max(1, page)
+    page_size = min(max(1, page_size), 100)
+    offset = (page - 1) * page_size
+
+    # Build filter string for Supabase
+    filters = [f'user_id="{user_id}"']
+
+    if types:
+        type_list = [t.strip() for t in types.split(",") if t.strip()]
+        if type_list:
+            type_filter = " || ".join([f'event_type="{t}"' for t in type_list])
+            filters.append(f"({type_filter})")
+
+    if start_date:
+        filters.append(f'event_date>="{start_date}"')
+    if end_date:
+        filters.append(f'event_date<="{end_date}"')
+
+    combined_filter = " && ".join(filters)
+
+    try:
+        params = {
+            "filter": combined_filter,
+            "sort": "-event_ts",
+            "perPage": page_size,
+            "page": page,
+        }
+
+        # Full-text search: add search query if provided
+        # Supabase REST doesn't support FTS natively via PostgREST filter syntax easily,
+        # so we fetch a broader set and filter client-side for the keyword search.
+        if q:
+            params["perPage"] = 200  # wider fetch for client-side keyword filter
+            params["page"] = 1
+
+        result = await pb.list_records("timeline_events", token=token, params=params)
+        all_items = result.get("items") or []
+        total_from_db = result.get("totalItems") or len(all_items)
+
+        # Client-side keyword filter
+        if q:
+            q_lower = q.lower()
+            all_items = [
+                item for item in all_items
+                if q_lower in _safe_str(item.get("search_text")).lower()
+                or q_lower in _safe_str(item.get("title")).lower()
+                or q_lower in _safe_str(item.get("summary")).lower()
+            ]
+            total_from_db = len(all_items)
+            # Apply manual pagination
+            all_items = all_items[offset:offset + page_size]
+
+        events = [_timeline_row_to_event(row) for row in all_items]
+
+        # Compute date span and types present from this page
+        dates = [e["event_date"] for e in events if e.get("event_date")]
+        date_span = {"earliest": min(dates), "latest": max(dates)} if dates else None
+        types_present = list({e["event_type"] for e in events if e.get("event_type")})
+
+        has_more = (offset + len(events)) < total_from_db
+
+        return TimelinePage(
+            events=events,
+            total=total_from_db,
+            page=page,
+            page_size=page_size,
+            has_more=has_more,
+            date_span=date_span,
+            types_present=sorted(types_present),
+        )
+
+    except Exception as e:
+        logger.error("Timeline fetch failed for user %s: %s", user_id, e)
+        raise HTTPException(status_code=500, detail="Failed to load timeline")
+
+
+# ─── Predictive Intelligence Endpoints ─────────────────────────────────────
+
+from app.models.schemas import PredictionsPage, PredictionFeedbackRequest, PredictionResponse
+
+@router.get("/predictions", response_model=PredictionsPage)
+async def get_predictions(
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Evaluates past predictions and retrieves the user's active predictions + stats.
+    """
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+        
+    user_id = extract_user_id(token) or "unknown"
+    if user_id == "unknown":
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    from app.services.prediction_engine import generate_predictions_for_user, evaluate_predictions_for_user
+    
+    # 1. Run evaluation first to ensure stats are updated
+    stats_dict = await evaluate_predictions_for_user(user_id, token)
+    
+    # 2. Re-run generation so the user has the latest active predictions
+    await generate_predictions_for_user(user_id, token)
+    
+    # 3. Retrieve active predictions (where target_date >= today and is_correct is NULL)
+    now_utc = datetime.now(timezone.utc)
+    today_str = now_utc.strftime("%Y-%m-%d")
+    
+    try:
+        active_resp = await pb.list_records(
+            "user_predictions",
+            token=token,
+            params={
+                "filter": f'user_id="{user_id}" && target_date >= "{today_str}" && is_correct = null',
+                "sort": "-created_at",
+                "perPage": 50
+            }
+        )
+        active_items = active_resp.get("items") or []
+    except Exception as e:
+        logger.error("Failed to query active user_predictions: %s", e)
+        active_items = []
+        
+    active_preds = []
+    for item in active_items:
+        active_preds.append(PredictionResponse(
+            id=item["id"],
+            user_id=item["user_id"],
+            prediction_type=item["prediction_type"],
+            prediction_text=item["prediction_text"],
+            target_date=item["target_date"],
+            confidence_score=item["confidence_score"],
+            is_correct=item.get("is_correct"),
+            metadata=item.get("metadata") or {},
+            created_at=item["created_at"]
+        ))
+        
+    return PredictionsPage(
+        active_predictions=active_preds,
+        stats={
+            "total_evaluated": stats_dict.get("total_evaluated", 0),
+            "correct_count": stats_dict.get("correct_count", 0),
+            "accuracy_rate": stats_dict.get("accuracy_rate", 1.0)
+        }
+    )
+
+
+@router.post("/predictions/rebuild")
+async def rebuild_predictions(
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Manually triggers evaluation and generation of user predictions.
+    """
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+        
+    user_id = extract_user_id(token) or "unknown"
+    if user_id == "unknown":
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    from app.services.prediction_engine import generate_predictions_for_user, evaluate_predictions_for_user
+    
+    await evaluate_predictions_for_user(user_id, token)
+    await generate_predictions_for_user(user_id, token)
+    
+    return {"success": True, "message": "Predictions successfully rebuilt."}
+
+
+@router.patch("/predictions/{prediction_id}/feedback")
+async def submit_prediction_feedback(
+    prediction_id: str,
+    req: PredictionFeedbackRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Updates the prediction record with manual feedback override.
+    """
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+        
+    user_id = extract_user_id(token) or "unknown"
+    if user_id == "unknown":
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    now_utc = datetime.now(timezone.utc)
+    
+    try:
+        # Get the prediction to verify ownership
+        pred = await pb.get_record("user_predictions", prediction_id, token=token)
+        if pred.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this prediction")
+            
+        # Update is_correct and evaluated_at
+        await pb.update_record(
+            "user_predictions",
+            prediction_id,
+            {
+                "is_correct": req.is_correct,
+                "evaluated_at": now_utc.isoformat()
+            },
+            token=token
+        )
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to submit feedback for prediction %s: %s", prediction_id, e)
+        raise HTTPException(status_code=500, detail="Failed to update prediction feedback")
+
+
+# ─── Semantic Search ───────────────────────────────────────────────────────────
+
+import math as _math
+
+
+def _recency_score(event_ts_str: str, now: datetime | None = None) -> float:
+    """Exponential recency decay with a 90-day half-life."""
+    now = now or datetime.now(timezone.utc)
+    try:
+        ts_str = str(event_ts_str).replace("Z", "+00:00")
+        event_time = datetime.fromisoformat(ts_str)
+        if not event_time.tzinfo:
+            event_time = event_time.replace(tzinfo=timezone.utc)
+        age_days = max(0.0, (now - event_time).total_seconds() / 86400)
+        return _math.exp(-age_days / 90)
+    except Exception:
+        return 0.0
+
+
+def _keyword_score(text: str, query_words: list[str]) -> float:
+    """Fraction of query words found in the text (case-insensitive)."""
+    if not query_words or not text:
+        return 0.0
+    text_lower = text.lower()
+    matched = sum(1 for w in query_words if w in text_lower)
+    return matched / len(query_words)
+
+
+def _build_search_result(row: dict, rank_score: float, similarity: float | None) -> dict:
+    """Serialise a raw DB row into a SearchResultItem-compatible dict."""
+    return {
+        "id": _safe_str(row.get("id")),
+        "user_id": _safe_str(row.get("user_id")),
+        "event_type": _safe_str(row.get("event_type")),
+        "source_id": row.get("source_id"),
+        "event_date": _safe_str(row.get("event_date")),
+        "event_ts": _safe_str(row.get("event_ts")),
+        "title": row.get("title"),
+        "summary": row.get("summary"),
+        "emotion": row.get("emotion"),
+        "mood_level": row.get("mood_level"),
+        "metadata": row.get("metadata") or {},
+        "rank_score": round(rank_score, 4),
+        "similarity": round(similarity, 4) if similarity is not None else None,
+    }
+
+
+@router.get("/search", response_model=SearchPage)
+async def semantic_search(
+    q: str,
+    types: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    limit: int = 15,
+    authorization: Optional[str] = Header(None),
+):
+    """
+    Hybrid semantic + keyword + recency search across all timeline events.
+
+    Search pipeline:
+    1. Embed the query with text-embedding-3-small (graceful fallback if unavailable).
+    2. Run pgvector cosine-similarity search via match_timeline_events RPC.
+    3. Run keyword search on search_text column.
+    4. Merge, deduplicate, and re-rank with hybrid score.
+    5. Apply type/date filters and return top `limit` results.
+    """
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    q = q.strip()
+    if not q:
+        raise HTTPException(status_code=422, detail="Search query cannot be empty")
+
+    limit = min(max(1, limit), 25)
+    query_words = [w.lower() for w in q.split() if len(w) > 2]
+    now = datetime.now(timezone.utc)
+
+    # ── Step 1: Generate query embedding ───────────────────────────────────
+    query_embedding: list[float] | None = None
+    try:
+        query_embedding = await embedding_svc.embed_text(q)
+    except Exception as exc:
+        logger.warning("Semantic search: embedding generation failed: %s", exc)
+
+    semantic_rows: list[dict] = []
+    has_embeddings = query_embedding is not None
+
+    # ── Step 2: Semantic retrieval via pgvector ─────────────────────────────
+    if query_embedding is not None:
+        try:
+            rpc_result = await pb.call_rpc(
+                "match_timeline_events",
+                {
+                    "query_embedding": query_embedding,
+                    "match_threshold": 0.50,
+                    "match_count": 60,
+                    "p_user_id": user_id,
+                },
+                token=token,
+            )
+            semantic_rows = rpc_result if isinstance(rpc_result, list) else []
+        except Exception as exc:
+            logger.warning("Semantic search: pgvector RPC failed: %s", exc)
+
+    # ── Step 3: Keyword search ──────────────────────────────────────────────
+    keyword_rows: list[dict] = []
+    try:
+        kw_filter = f'user_id="{user_id}"'
+        if start_date:
+            kw_filter += f' && event_date>="{start_date}"'
+        if end_date:
+            kw_filter += f' && event_date<="{end_date}"'
+        if types:
+            type_list = [t.strip() for t in types.split(",") if t.strip()]
+            if type_list:
+                type_filter = " || ".join([f'event_type="{t}"' for t in type_list])
+                kw_filter += f" && ({type_filter})"
+
+        kw_result = await pb.list_records(
+            "timeline_events",
+            token=token,
+            params={"filter": kw_filter, "sort": "-event_ts", "perPage": 200},
+        )
+        all_kw_items = kw_result.get("items") or []
+
+        # Filter client-side for keyword matches
+        q_lower = q.lower()
+        for item in all_kw_items:
+            search_text = _safe_str(item.get("search_text"))
+            title = _safe_str(item.get("title"))
+            summary = _safe_str(item.get("summary"))
+            combined = f"{search_text} {title} {summary}".lower()
+            if q_lower in combined or any(w in combined for w in query_words):
+                keyword_rows.append(item)
+    except Exception as exc:
+        logger.warning("Semantic search: keyword fallback failed: %s", exc)
+
+    # ── Step 4: Merge, deduplicate, and hybrid-rank ─────────────────────────
+    scored: dict[str, dict] = {}
+
+    # Add semantic results
+    for row in semantic_rows:
+        row_id = _safe_str(row.get("id"))
+        if not row_id:
+            continue
+        sim = float(row.get("similarity") or 0)
+        rec = _recency_score(row.get("event_ts") or "", now)
+        kw = _keyword_score(
+            f"{_safe_str(row.get('search_text'))} {_safe_str(row.get('title'))} {_safe_str(row.get('summary'))}",
+            query_words
+        )
+        hybrid = 0.60 * sim + 0.25 * kw + 0.15 * rec
+        scored[row_id] = _build_search_result(row, hybrid, sim)
+
+    # Add keyword-only results (not already in semantic set)
+    for row in keyword_rows:
+        row_id = _safe_str(row.get("id"))
+        if not row_id or row_id in scored:
+            continue
+        rec = _recency_score(row.get("event_ts") or "", now)
+        kw = _keyword_score(
+            f"{_safe_str(row.get('search_text'))} {_safe_str(row.get('title'))} {_safe_str(row.get('summary'))}",
+            query_words
+        )
+        hybrid = 0.25 * kw + 0.15 * rec
+        scored[row_id] = _build_search_result(row, hybrid, None)
+
+    # Sort by hybrid score descending
+    ranked = sorted(scored.values(), key=lambda r: r["rank_score"], reverse=True)
+
+    # Apply type filter to keyword results (semantic already filtered by pgvector user_id)
+    if types:
+        type_set = {t.strip() for t in types.split(",") if t.strip()}
+        ranked = [r for r in ranked if r["event_type"] in type_set]
+
+    # Apply date filters
+    if start_date:
+        ranked = [r for r in ranked if r.get("event_date", "") >= start_date]
+    if end_date:
+        ranked = [r for r in ranked if r.get("event_date", "") <= end_date]
+
+    top = ranked[:limit]
+    search_mode = "hybrid" if (semantic_rows and keyword_rows) else ("semantic" if semantic_rows else "keyword")
+
+    return SearchPage(
+        results=top,
+        total=len(ranked),
+        query=q,
+        search_mode=search_mode,
+        has_embeddings=has_embeddings,
+    )
+
+
+@router.get("/search/suggestions", response_model=SearchSuggestionsResponse)
+async def get_search_suggestions(authorization: Optional[str] = Header(None)):
+    """
+    Return 6 dynamic example search queries tailored to what data the user has.
+    Falls back to a generic set if data fetch fails.
+    """
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    defaults = [
+        "When was I happiest?",
+        "What was I worried about?",
+        "Show my best mornings",
+        "When did I feel calm?",
+        "What helped me most?",
+        "Show my recent breakthroughs",
+    ]
+
+    try:
+        # Sample a few events to customise suggestions
+        result = await pb.list_records(
+            "timeline_events",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "sort": "-event_ts", "perPage": 10}
+        )
+        items = result.get("items") or []
+
+        type_set = {item.get("event_type") for item in items if item.get("event_type")}
+        suggestions = []
+
+        if "mood" in type_set:
+            suggestions.append("When was I happiest?")
+        if "journal" in type_set:
+            suggestions.append("What was I working through in my journals?")
+        if "morning" in type_set:
+            suggestions.append("Show my best morning intentions")
+        if "discovery" in type_set:
+            suggestions.append("What patterns has ARIA noticed?")
+        if "wind_down" in type_set:
+            suggestions.append("What am I grateful for most?")
+
+        suggestions += [
+            "When did I feel most stressed?",
+            "Show everything about work",
+            "When did I mention a breakthrough?",
+            "What worried me most?",
+            "Show my calm moments",
+            "When did I feel energised?",
+        ]
+
+        # Deduplicate and pick 6
+        seen = set()
+        unique = []
+        for s in suggestions:
+            if s not in seen:
+                seen.add(s)
+                unique.append(s)
+            if len(unique) == 6:
+                break
+
+        return SearchSuggestionsResponse(suggestions=unique if unique else defaults)
+
+    except Exception as exc:
+        logger.warning("Failed to generate dynamic suggestions: %s", exc)
+        return SearchSuggestionsResponse(suggestions=defaults)
+
+
+@router.post("/embeddings/generate", response_model=EmbeddingGenerateResponse)
+async def generate_embeddings(
+    background_tasks: BackgroundTasks,
+    authorization: Optional[str] = Header(None),
+):
+    """
+    Trigger embedding generation for all timeline_events that don't yet have an embedding.
+    Runs in a background task so the HTTP response returns immediately.
+    """
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    # Fetch all events without embeddings
+    try:
+        result = await pb.list_records(
+            "timeline_events",
+            token=token,
+            params={
+                "filter": f'user_id="{user_id}" && embedding=null',
+                "sort": "-event_ts",
+                "perPage": 500,
+            },
+        )
+        items_without = result.get("items") or []
+    except Exception as exc:
+        logger.error("generate_embeddings: failed to fetch unembedded events: %s", exc)
+        items_without = []
+
+    total = len(items_without)
+
+    async def _run_embedding_job():
+        embedded = 0
+        failed = 0
+        batch_size = 25
+
+        for i in range(0, len(items_without), batch_size):
+            batch = items_without[i: i + batch_size]
+            texts = [embedding_svc.build_event_text(item) for item in batch]
+
+            try:
+                vectors = await embedding_svc.embed_batch(texts)
+            except Exception as exc:
+                logger.error("Embedding batch failed: %s", exc)
+                failed += len(batch)
+                continue
+
+            for item, vector in zip(batch, vectors):
+                if vector is None:
+                    failed += 1
+                    continue
+                try:
+                    await pb.update_record(
+                        "timeline_events",
+                        item["id"],
+                        {"embedding": vector},
+                        token=token,
+                    )
+                    embedded += 1
+                except Exception as exc:
+                    logger.warning("Failed to save embedding for %s: %s", item.get("id"), exc)
+                    failed += 1
+
+            # Brief pause to respect rate limits
+            await asyncio.sleep(0.3)
+
+        logger.info(
+            "Embedding job complete: user=%s total=%d embedded=%d failed=%d",
+            user_id, total, embedded, failed
+        )
+
+    background_tasks.add_task(_run_embedding_job)
+
+    return EmbeddingGenerateResponse(
+        total=total,
+        embedded=0,       # job is async — progress not returned synchronously
+        failed=0,
+        skipped=0,
+    )
+
+
+# ─── Personal Knowledge Graph (PKG) / CIE ─────────────────────────────────────
+
+@aria_router.post("/knowledge/process", response_model=KnowledgeProcessResponse)
+async def process_knowledge(
+    req: KnowledgeProcessRequest,
+    background_tasks: BackgroundTasks,
+    authorization: Optional[str] = Header(None),
+):
+    """
+    Tier-2 ingestion: Process user text asynchronously to extract entities
+    and expand their Personal Knowledge Graph.
+    """
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    async def _run_process():
+        try:
+            await kg_svc.process_source(
+                user_id=user_id,
+                source_type=req.source_type,
+                source_id=req.source_id,
+                text=req.text,
+                token=token
+            )
+        except Exception as exc:
+            logger.error("Async PKG processing failed: %s", exc)
+
+    background_tasks.add_task(_run_process)
+
+    return KnowledgeProcessResponse(
+        success=True,
+        nodes_processed=0  # Run in background
+    )
+
+
+@aria_router.get("/knowledge/graph", response_model=KnowledgeGraphResponse)
+async def get_knowledge_graph(
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Retrieve the active, non-archived entities and relationships
+    that compose the user's Personal Knowledge Graph.
+    """
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    try:
+        # Fetch active nodes
+        nodes_res = await pb.list_records(
+            "user_knowledge_nodes",
+            token=token,
+            params={
+                "filter": f'user_id="{user_id}" && is_archived=false',
+                "sort": "-confidence",
+                "perPage": 200
+            }
+        )
+        nodes_list = nodes_res.get("items") or []
+
+        # Convert/map to schema response format
+        nodes_mapped = []
+        for n in nodes_list:
+            nodes_mapped.append(
+                KnowledgeNodeResponse(
+                    id=_safe_str(n.get("id")),
+                    label=_safe_str(n.get("label")),
+                    node_type=_safe_str(n.get("node_type")),
+                    confidence=float(n.get("confidence") or 0.0),
+                    importance=int(n.get("importance") or 5),
+                    valence=float(n.get("valence") or 0.0),
+                    mention_count=int(n.get("mention_count") or 1),
+                    first_seen_at=_safe_str(n.get("first_seen_at")),
+                    last_seen_at=_safe_str(n.get("last_seen_at")),
+                    source_reason=n.get("source_reason"),
+                    is_confirmed=bool(n.get("is_confirmed")),
+                    is_archived=bool(n.get("is_archived")),
+                    metadata=n.get("metadata") or {}
+                )
+            )
+
+        # Fetch edges
+        edges_res = await pb.list_records(
+            "user_knowledge_edges",
+            token=token,
+            params={
+                "filter": f'user_id="{user_id}"',
+                "sort": "-weight",
+                "perPage": 300
+            }
+        )
+        edges_list = edges_res.get("items") or []
+
+        edges_mapped = []
+        # Make sure target/source nodes exist in the active set or are valid UUIDs
+        active_node_ids = {n.id for n in nodes_mapped}
+        for e in edges_list:
+            src = _safe_str(e.get("source_node_id"))
+            tgt = _safe_str(e.get("target_node_id"))
+            # Only include edges where both nodes are active/loaded
+            if src in active_node_ids and tgt in active_node_ids:
+                edges_mapped.append(
+                    KnowledgeEdgeResponse(
+                        id=_safe_str(e.get("id")),
+                        source_node_id=src,
+                        target_node_id=tgt,
+                        edge_type=_safe_str(e.get("edge_type")),
+                        weight=float(e.get("weight") or 0.0),
+                        evidence_count=int(e.get("evidence_count") or 1),
+                        last_reinforced_at=_safe_str(e.get("last_reinforced_at"))
+                    )
+                )
+
+        return KnowledgeGraphResponse(
+            nodes=nodes_mapped,
+            edges=edges_mapped
+        )
+
+    except Exception as exc:
+        logger.error("Failed to fetch knowledge graph: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve knowledge graph")
+
+
+@aria_router.get("/knowledge/context", response_model=KnowledgeContextResponse)
+async def get_knowledge_context(
+    topic: Optional[str] = None,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Retrieve the compiled system context packet built from the PKG.
+    """
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    packet = await kg_svc.get_context_packet(user_id=user_id, topic=topic, token=token)
+    return KnowledgeContextResponse(context_packet=packet)
+
+
+@aria_router.get("/knowledge/growth", response_model=GrowthMetricsResponse)
+async def get_growth_metrics(
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Retrieve the user's computed growth metrics over time.
+    """
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    try:
+        res = await pb.list_records(
+            "user_growth_metrics",
+            token=token,
+            params={
+                "filter": f'user_id="{user_id}"',
+                "sort": "-computed_at",
+                "perPage": 100
+            }
+        )
+        items = res.get("items") or []
+
+        # Deduplicate to show only the latest snapshot of each (metric_type, period)
+        seen = set()
+        unique_metrics = []
+        for item in items:
+            key = (item.get("metric_type"), item.get("period"))
+            if key not in seen:
+                seen.add(key)
+                unique_metrics.append(
+                    GrowthMetricItem(
+                        metric_type=_safe_str(item.get("metric_type")),
+                        period=_safe_str(item.get("period")),
+                        value=float(item.get("value") or 0.0),
+                        previous_value=float(item.get("previous_value")) if item.get("previous_value") is not None else None,
+                        delta=float(item.get("delta")) if item.get("delta") is not None else None,
+                        computed_at=_safe_str(item.get("computed_at"))
+                    )
+                )
+
+        return GrowthMetricsResponse(metrics=unique_metrics)
+
+    except Exception as exc:
+        logger.error("Failed to fetch growth metrics: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve growth metrics")
+
+
+@aria_router.delete("/knowledge/nodes/{node_id}")
+async def delete_knowledge_node(
+    node_id: str,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Delete a knowledge node from the PKG.
+    """
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    try:
+        # Check ownership first
+        node = await pb.get_record("user_knowledge_nodes", node_id, token=token)
+        if _safe_str(node.get("user_id")) != user_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+
+        await pb.delete_record("user_knowledge_nodes", node_id, token=token)
+        return {"success": True, "message": "Node deleted successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Failed to delete knowledge node %s: %s", node_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to delete knowledge node")
+
+
+@aria_router.get("/knowledge/chapters", response_model=KnowledgeChaptersListResponse)
+async def get_knowledge_chapters(
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Retrieve the life chapters detected for the user.
+    """
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    try:
+        res = await pb.list_records(
+            "user_life_chapters",
+            token=token,
+            params={
+                "filter": f'user_id="{user_id}"',
+                "sort": "-chapter_number",
+                "perPage": 100
+            }
+        )
+        items = res.get("items") or []
+
+        chapters_mapped = []
+        for c in items:
+            chapters_mapped.append(
+                KnowledgeChapterResponse(
+                    id=_safe_str(c.get("id")),
+                    user_id=_safe_str(c.get("user_id")),
+                    title=_safe_str(c.get("title")),
+                    chapter_number=int(c.get("chapter_number") or 1),
+                    start_date=_safe_str(c.get("start_date")),
+                    end_date=_safe_str(c.get("end_date")) if c.get("end_date") else None,
+                    is_current=bool(c.get("is_current")),
+                    theme_summary=c.get("theme_summary"),
+                    dominant_emotion=c.get("dominant_emotion"),
+                    mood_average=float(c.get("mood_average")) if c.get("mood_average") is not None else None,
+                    growth_score=float(c.get("growth_score")) if c.get("growth_score") is not None else None,
+                    key_events=c.get("key_events") or [],
+                    dominant_themes=c.get("dominant_themes") or [],
+                    goals_started=c.get("goals_started") or [],
+                    goals_achieved=c.get("goals_achieved") or [],
+                    node_ids=c.get("node_ids") or [],
+                    detected_by=_safe_str(c.get("detected_by") or "system"),
+                    confidence=float(c.get("confidence") or 0.7)
+                )
+            )
+
+        return KnowledgeChaptersListResponse(chapters=chapters_mapped)
+
+    except Exception as exc:
+        logger.error("Failed to fetch life chapters: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve life chapters")
+
+
+@aria_router.patch("/knowledge/nodes/{node_id}", response_model=KnowledgeNodeResponse)
+async def update_knowledge_node(
+    node_id: str,
+    req: KnowledgeNodeUpdateRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Update a knowledge node's attributes (label, confirmation status, archived status, valence).
+    """
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    try:
+        # Check ownership first
+        node = await pb.get_record("user_knowledge_nodes", node_id, token=token)
+        if _safe_str(node.get("user_id")) != user_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+
+        update_data = {}
+        if req.label is not None:
+            update_data["label"] = req.label.strip()
+            update_data["canonical_label"] = req.label.strip().lower()
+        if req.is_confirmed is not None:
+            update_data["is_confirmed"] = req.is_confirmed
+        if req.is_archived is not None:
+            update_data["is_archived"] = req.is_archived
+        if req.valence is not None:
+            update_data["valence"] = round(req.valence, 4)
+
+        updated_node = await pb.update_record("user_knowledge_nodes", node_id, update_data, token=token)
+
+        return KnowledgeNodeResponse(
+            id=_safe_str(updated_node.get("id")),
+            label=_safe_str(updated_node.get("label")),
+            node_type=_safe_str(updated_node.get("node_type")),
+            confidence=float(updated_node.get("confidence") or 0.0),
+            importance=int(updated_node.get("importance") or 5),
+            valence=float(updated_node.get("valence") or 0.0),
+            mention_count=int(updated_node.get("mention_count") or 1),
+            first_seen_at=_safe_str(updated_node.get("first_seen_at")),
+            last_seen_at=_safe_str(updated_node.get("last_seen_at")),
+            source_reason=updated_node.get("source_reason"),
+            is_confirmed=bool(updated_node.get("is_confirmed")),
+            is_archived=bool(updated_node.get("is_archived")),
+            metadata=updated_node.get("metadata") or {}
+        )
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Failed to update knowledge node %s: %s", node_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to update knowledge node")
+
+
+@aria_router.get("/knowledge/comparison", response_model=KnowledgeComparisonResponse)
+async def get_chapter_comparison(
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Compare the user's current life chapter with their previous life chapter,
+    analyzing metric improvements, focus shifts, and challenges.
+    """
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    try:
+        # Fetch chapters
+        res = await pb.list_records(
+            "user_life_chapters",
+            token=token,
+            params={
+                "filter": f'user_id="{user_id}"',
+                "sort": "-chapter_number",
+                "perPage": 2
+            }
+        )
+        chapters = res.get("items") or []
+
+        if len(chapters) < 2:
+            # Not enough chapters to compare, return empty/placeholder response
+            curr_title = chapters[0].get("title", "Initial Chapter") if chapters else "Initial Chapter"
+            return KnowledgeComparisonResponse(
+                current_chapter_title=curr_title,
+                previous_chapter_title="N/A",
+                improvements=["Welcome to your first chapter! Continue reflecting daily to generate comparison reports."],
+                challenge="Not enough historical chapters logged yet.",
+                comparison_metrics=[]
+            )
+
+        current = chapters[0]
+        previous = chapters[1]
+
+        curr_mood = float(current.get("mood_average") or 5.0)
+        prev_mood = float(previous.get("mood_average") or 5.0)
+
+        curr_growth = float(current.get("growth_score") or 50.0)
+        prev_growth = float(previous.get("growth_score") or 50.0)
+
+        # Generate metrics
+        metrics = [
+            KnowledgeComparisonItem(
+                metric_type="Mood Average",
+                current_value=curr_mood,
+                previous_value=prev_mood,
+                delta=round(curr_mood - prev_mood, 2)
+            ),
+            KnowledgeComparisonItem(
+                metric_type="Growth Score",
+                current_value=curr_growth,
+                previous_value=prev_growth,
+                delta=round(curr_growth - prev_growth, 2)
+            )
+        ]
+
+        # Use OpenRouter to generate comparison summary
+        compare_prompt = (
+            f"Compare these two life chapters for the user:\n"
+            f"Current Chapter: '{current.get('title')}'\n"
+            f"  - Theme: {current.get('theme_summary')}\n"
+            f"  - Dominant Emotion: {current.get('dominant_emotion')}\n"
+            f"  - Mood Avg: {curr_mood}/10\n"
+            f"Previous Chapter: '{previous.get('title')}'\n"
+            f"  - Theme: {previous.get('theme_summary')}\n"
+            f"  - Dominant Emotion: {previous.get('dominant_emotion')}\n"
+            f"  - Mood Avg: {prev_mood}/10\n"
+            f"Identify exactly 3 positive improvements and 1 primary challenge remaining.\n"
+            f"Output must be a valid JSON object containing:\n"
+            f"  - 'improvements': list of 3 short strings\n"
+            f"  - 'challenge': a 1-sentence string"
+        )
+
+        try:
+            ai_res = await openrouter_ai.chat_completion(
+                messages=[{"role": "user", "content": compare_prompt}],
+                system_prompt="You are ARIA, a warm, validating companion in MindCradle. Generate chapter comparisons as JSON.",
+                temperature=0.3,
+                max_tokens=300
+            )
+            data = parse_json_safely(ai_res)
+            improvements = data.get("improvements") or ["Positive growth trends emerging", "Improved emotional regulation", "Stronger intention alignment"]
+            challenge = data.get("challenge") or "Maintaining routine consistency during stressful periods."
+        except Exception:
+            improvements = ["Positive growth trends emerging", "Improved emotional regulation", "Stronger intention alignment"]
+            challenge = "Maintaining routine consistency during stressful periods."
+
+        return KnowledgeComparisonResponse(
+            current_chapter_title=_safe_str(current.get("title")),
+            previous_chapter_title=_safe_str(previous.get("title")),
+            improvements=improvements[:3],
+            challenge=challenge,
+            comparison_metrics=metrics
+        )
+
+    except Exception as exc:
+        logger.error("Failed to generate chapter comparison: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve chapter comparison")
+
+
+
+
+
+

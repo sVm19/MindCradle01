@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Header, Request, Depends
+from fastapi import APIRouter, Header, Request, Depends, BackgroundTasks
 from typing import Optional
 from fastapi_csrf_protect import CsrfProtect
 from app.models.schemas import JournalCreate
 from app.services.supabase import pb, extract_user_id
+from app.services import knowledge_graph as kg_svc
 
 router = APIRouter()
 
@@ -11,6 +12,7 @@ router = APIRouter()
 async def create_entry(
     req: JournalCreate,
     request: Request,
+    background_tasks: BackgroundTasks,
     authorization: Optional[str] = Header(None),
     csrf_protect: CsrfProtect = Depends(),
 ):
@@ -36,6 +38,15 @@ async def create_entry(
         data,
         token=authorization,
     )
+    if user_id and sanitized_content:
+        background_tasks.add_task(
+            kg_svc.process_source,
+            user_id,
+            "journal",
+            record["id"],
+            sanitized_content,
+            authorization
+        )
     return {"id": record["id"], "saved": True}
 
 

@@ -1,12 +1,14 @@
 import { Link, useLocation } from 'react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth, getInitials, getAvatarGradient, UserSketchAvatar } from '@/lib/auth';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi } from '@/lib/api';
-import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, Flame, AlertTriangle, X, User, Award, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, Flame, AlertTriangle, X, User, Award, Sparkles, Search } from 'lucide-react';
+
 import Logo from './Logo';
 import AuthCardModal from './AuthCardModal';
 import AgeVerificationModal from './AgeVerificationModal';
 import PrivacyPolicyModal from './PrivacyPolicyModal';
+import SemanticSearch from './SemanticSearch';
 import { TelemetryProvider } from '@/context/TelemetryContext';
 
 function formatDate(d: Date): string {
@@ -21,6 +23,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [didCheckInYesterday, setDidCheckInYesterday] = useState(false);
   const [hasCriticalCrisis, setHasCriticalCrisis] = useState(false);
   const [showCrisisModal, setShowCrisisModal] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Global ⌘K / Ctrl+K shortcut
+  const handleGlobalKeyDown = useCallback((e: globalThis.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      if (user) setSearchOpen(open => !open);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [handleGlobalKeyDown]);
 
   // Open auth modal if redirected with state
   useEffect(() => {
@@ -194,8 +210,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               )}
             </div>
 
-            {/* Right: Notification Center & Profile Link */}
+            {/* Right: Search + Notification Center & Profile Link */}
             <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
+              {/* Global Search button (⌘K) */}
+              {user && (
+                <button
+                  onClick={() => setSearchOpen(true)}
+                  title="Search your history (⌘K)"
+                  className="w-11 h-11 rounded-lg bg-bg2/50 border border-border flex items-center justify-center hover:border-accent/50 hover:bg-accent/5 text-text2 hover:text-accent transition-all cursor-pointer group relative"
+                  aria-label="Search history"
+                >
+                  <Search size={17} />
+                  <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[9px] text-text3 bg-bg2 border border-border px-1.5 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                    ⌘K
+                  </span>
+                </button>
+              )}
               {/* Notification Center */}
               <div className="relative">
                 <button
@@ -539,7 +569,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         onDeclined={() => setVerifyModalOpen(false)}
       />
       <PrivacyPolicyModal />
+
+      {/* Semantic Search overlay (⌘K / Ctrl+K) */}
+      <SemanticSearch
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+      />
       </>
+
     </TelemetryProvider>
   );
 }

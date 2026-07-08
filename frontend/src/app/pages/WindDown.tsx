@@ -23,6 +23,18 @@ export default function WindDown() {
   const [step, setStep] = useState<'checklist' | 'detail' | 'done'>('checklist');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [suggestedPrompt, setSuggestedPrompt] = useState('Write down one thought or concern you wish to let go of tonight.');
+
+  useEffect(() => {
+    if (!user) return;
+    ritualsApi.getWindDownPrompt()
+      .then((res) => {
+        if (res.prompt) {
+          setSuggestedPrompt(res.prompt);
+        }
+      })
+      .catch(() => {});
+  }, [user]);
 
   const updateGratitude = (index: number, val: string) => {
     const sanitizedVal = sanitizeForInput(val);
@@ -118,7 +130,7 @@ export default function WindDown() {
                 {leaveChecked ? (
                   <span className="text-green font-medium">Left behind: "{release}"</span>
                 ) : (
-                  <span>Write down one thought or concern you wish to let go of tonight.</span>
+                  <span>{suggestedPrompt}</span>
                 )}
               </div>
             </div>
