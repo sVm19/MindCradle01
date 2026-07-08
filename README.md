@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/public/mindcradle-logo.svg" alt="MindCradle Logo" width="550" />
+  <img src="frontend/public/mindcradle-logo.svg" alt="MindCradle Logo" width="320" />
 </p>
 
 # MindCradle — Mental Health & Well-being Dashboard

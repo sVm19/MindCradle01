@@ -1,90 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 740 180" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" width="100%" height="100%">
   <defs>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&amp;display=swap');
-      
-      .panel-bg-light {
-        fill: #FFFFFF;
-        stroke: #E1E8ED;
-        stroke-width: 1;
-      }
-      .panel-bg-dark {
-        fill: #0F1419;
-        stroke: #1F2937;
-        stroke-width: 1;
-      }
-      .mc-text-light {
-        font-family: 'Caveat', 'Brush Script MT', cursive, sans-serif;
-        font-size: 48px;
-        fill: #0F1419;
-        font-weight: 700;
-      }
-      .mc-text-dark {
-        font-family: 'Caveat', 'Brush Script MT', cursive, sans-serif;
-        font-size: 48px;
-        fill: #FFFFFF;
-        font-weight: 700;
-      }
       .mc-icon-shape {
         stroke: #E94B6F;
-        stroke-width: 5.5;
+        stroke-width: 5;
         fill: none;
         stroke-linejoin: round;
         stroke-linecap: round;
       }
-      .label-text {
-        font-family: system-ui, -apple-system, sans-serif;
-        font-size: 12px;
-        font-weight: 600;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
+      .mc-text {
+        font-family: 'Caveat', 'Brush Script MT', cursive, sans-serif;
+        font-size: 46px;
+        font-weight: 700;
+        fill: #0F1419;
       }
-      .label-light {
-        fill: #8899A6;
-      }
-      .label-dark {
-        fill: #657786;
+      @media (prefers-color-scheme: dark) {
+        .mc-text {
+          fill: #FFFFFF;
+        }
       }
     </style>
   </defs>
 
-  <!-- ================= LIGHT THEME PANEL ================= -->
-  <g id="light-version-panel">
-    <!-- Card Background -->
-    <rect class="panel-bg-light" x="20" y="20" width="330" height="140" rx="16" />
-    
-    <!-- Version Label -->
-    <text class="label-text label-light" x="40" y="45">Light Background</text>
-    
-    <!-- Icon Group: Centered around (70, 100) -->
-    <g id="logo-icon-light">
+  <g transform="translate(10, 0)">
+    <!-- Icon Group -->
+    <g transform="translate(10, 20)">
       <!-- Large Corner Cradle Shape -->
-      <path class="mc-icon-shape" d="M 53,97 L 53,77 L 93,77 L 93,117 L 73,117 L 73,97 Z" />
+      <path class="mc-icon-shape" d="M 33,40 L 33,20 L 73,20 L 73,60 L 53,60 L 53,40 Z" />
       <!-- Small Nestled Square -->
-      <rect class="mc-icon-shape" x="47" y="103" width="20" height="20" rx="2" />
+      <rect class="mc-icon-shape" x="27" y="46" width="20" height="20" rx="2" />
     </g>
-    
-    <!-- Logo Text: Starts at x = 116, baseline y = 114 -->
-    <text class="mc-text-light" x="116" y="114">MindCradle</text>
-  </g>
 
-  <!-- ================= DARK THEME PANEL ================= -->
-  <g id="dark-version-panel">
-    <!-- Card Background -->
-    <rect class="panel-bg-dark" x="390" y="20" width="330" height="140" rx="16" />
-    
-    <!-- Version Label -->
-    <text class="label-text label-dark" x="410" y="45">Dark Background</text>
-    
-    <!-- Icon Group: Centered around (440, 100) -->
-    <g id="logo-icon-dark">
-      <!-- Large Corner Cradle Shape -->
-      <path class="mc-icon-shape" d="M 423,97 L 423,77 L 463,77 L 463,117 L 443,117 L 443,97 Z" />
-      <!-- Small Nestled Square -->
-      <rect class="mc-icon-shape" x="417" y="103" width="20" height="20" rx="2" />
-    </g>
-    
-    <!-- Logo Text: Starts at x = 486, baseline y = 114 -->
-    <text class="mc-text-dark" x="486" y="114">MindCradle</text>
+    <!-- Text -->
+    <text class="mc-text" x="110" y="62">MindCradle</text>
   </g>
 </svg>
