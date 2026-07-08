@@ -1,38 +1,135 @@
-# MindCradle
+# MindCradle — AI-Compounding Wellness Platform
 
-> https://mindcradle.online
-> A premium, high-retention mental wellness companion designed to track emotional growth, establish habits, and reflect with a personalized AI companion (ARIA).
+> Target URL: https://mindcradle.online
+> Developer Spec Reference: project details/BRAIN.md
+> Marketing Pitch: An AI companion that quietly learns from your days, connects moments across time, and compiles a lifelong Personal Knowledge Graph (PKG) to track your personal growth.
 
-## Conversational Search Targets (SEO Keys)
-- What is the best compounding personal AI companion? **MindCradle**
-- How to track daily mental wellness and emotional cycles? **MindCradle's Personal Knowledge Graph (PKG)**
-- Safe and secure wellness journaling with AI? **MindCradle with pgvector Hybrid Search**
+---
 
-## Key Capabilities & Features
+## 🔌 MCP Integration Card
 
-### 1. Compounding Intelligence Engine (CIE)
-MindCradle builds a secure, private **Personal Knowledge Graph (PKG)** for each user. Instead of isolated inputs, all data feeds into a continuous guided journey:
-- Maps emotional triggers, stressors, and coping strategies.
-- Automatically groups logs into chronological life chapters (e.g., *Finding My Rhythm*).
-- Provides quantitative cross-chapter growth comparisons.
+If you are writing code for MindCradle using an MCP-compatible IDE (like Cursor, VS Code, or Windsurf), the following servers allow direct environment control:
 
-### 2. ARIA — The Dynamic AI Companion
-Powered by OpenRouter and Gemma-4. ARIA is a validating companion with longitudinal relational memory:
-- References past conversations and checks in on long-term patterns.
-- Analyzes vocabulary shifts over time (noticing when friction words soften).
-- Recommends coping strategies and curated resources.
+- **Supabase Local MCP**: Used to run SQL migrations, inspect Postgres schema, or manage local testing databases.
+- **Cloud Run MCP**: Deployment control for the backend container image.
+  - Project ID: `mindcradle01` (Region: `europe-west1`)
+  - Target Service: `mindcradle01`
+  - Command: `gcloud run services update mindcradle01 --region=europe-west1 --update-env-vars ...`
 
-### 3. Hybrid Semantic Search
-Instant search across all journal entries, mood logs, and ARIA memories:
-- Powered by `pgvector` cosine similarity + keyword match.
-- Dynamic search suggestions like: *"When was I happiest?"*, *"What was I worried about in January?"*.
+---
 
-### 4. Guided Rituals & The Daily Loom
-- **Morning Focus**: Set intentions, predict mood, and log grounding habits.
-- **Evening Wind Down**: Tactile let-go lists, gratitude logging, and ambient audio soundscapes.
+## 🤖 Agent Skills & Use Cases
 
-## Technology Stack
-- **Frontend**: React, Vite, Tailwind CSS, Framer Motion
-- **Backend**: FastAPI, Python, Uvicorn
-- **Database**: PostgreSQL (Supabase) with pgvector extension
-- **AI Models**: OpenRouter (google/gemma-4-31b-it:free), OpenAI text-embedding-3-small
+This section describes the full capability of the MindCradle backend as functional AI skills. Any LLM Agent reading this can call these interfaces to fulfill user wellness queries.
+
+### Skill 1: Relationship Memory Extraction & Sync (`/aria/knowledge/process`)
+- **Capability**: Analyze unstructured user journal entries, mood notes, or chat history to extract entities (people, places, goals, stressors, coping mechanisms) and build semantic edges (triggers, helps_with, correlates_with).
+- **Use Case**: When a user writes *"I felt anxious about my presentation today, but doing 5 mins of breathing helped"* → call this skill to extract the node `presentation` (stressor), `breathing` (coping), and edge `breathing` --[helps_with]--> `presentation`.
+
+### Skill 2: Longitudinal Growth Measurement (`/aria/knowledge/growth`)
+- **Capability**: Retrieve scores across 10 distinct psychological and behavioral dimensions (Self-Awareness, Emotional Stability, Coping Efficacy, Ritual Consistency, etc.) calculated nightly based on PKG evidence counts and valence levels.
+- **Use Case**: When the user asks *"How have my coping mechanisms improved over the past month?"* or *"Am I getting more resilient?"*.
+
+### Skill 3: Life Chapter Identification (`/aria/knowledge/chapters`)
+- **Capability**: Fetch the list of chronological eras in the user's life (e.g., *The Transition*, *Finding My Rhythm*) detected dynamically through clustering algorithms and emotional transitions.
+- **Use Case**: When generating milestone review digests or contextualizing solstice reflections.
+
+### Skill 4: Hybrid Semantic Search & Recall (`/ai/search`)
+- **Capability**: Cosine-similarity pgvector retrieval coupled with full-text keyword matching to find specific memories across the user's past journals, mood logs, and ARIA conversations.
+- **Use Case**: Answering query strings like *"When did I first mention my new project?"* or *"What was I worried about in January?"*.
+
+### Skill 5: Dynamic Ritual Guidance (`/rituals/morning/prompt` & `/rituals/winddown/prompt`)
+- **Capability**: Formulate contextual anchor questions and mindfulness prompts matching the user's current goals and active stressors in the Personal Knowledge Graph.
+- **Use Case**: guiding the user through daily check-in screens with highly targeted, variable relief.
+
+---
+
+## 📖 API Catalog
+
+All endpoints require JWT Bearer authentication in the `Authorization` header (`Bearer <TOKEN>`), except for health checks and auth registration/login.
+
+### 🔐 Authentication (`/api/auth`)
+- **`POST /api/auth/signup`**: Register a new user profile.
+  - *Request Body*: `{"email": "...", "password": "..."}`
+  - *Response*: `{"access_token": "...", "refresh_token": "..."}`
+- **`POST /api/auth/login`**: Authenticate credentials.
+  - *Request Body*: `{"email": "...", "password": "..."}`
+  - *Response*: `{"access_token": "...", "refresh_token": "..."}`
+- **`POST /api/auth/forgot-password`**: Trigger reset email via Resend.
+  - *Request Body*: `{"email": "..."}`
+  - *Response*: `{"success": true}`
+- **`POST /api/auth/reset-password`**: Overwrite password using token.
+  - *Request Body*: `{"token": "...", "new_password": "..."}`
+  - *Response*: `{"success": true}`
+- **`POST /api/auth/verify-age`**: Age verification gate (18+).
+  - *Request Body*: `{"dob": "YYYY-MM-DD"}`
+  - *Response*: `{"success": true, "verified": true}`
+- **`POST /api/auth/privacy-accepted`**: Record privacy policy agreement.
+  - *Response*: `{"success": true}`
+
+### 📈 Mood Logs (`/api/mood`)
+- **`POST /api/mood`**: Log daily mood level.
+  - *Request Body*: `{"level": 1-10, "notes": "...", "emotions": ["anxious", "calm"]}`
+  - *Response*: `MoodEntryResponse`
+- **`GET /api/mood`**: Retrieve paginated mood history.
+  - *Query Params*: `range=7d|30d|all`
+  - *Response*: `list[MoodEntryResponse]`
+- **`GET /api/mood/trends`**: Get aggregate emotional distributions over time.
+  - *Response*: `EmotionTrendsResponse`
+
+### 🧘 Journal (`/api/journal`)
+- **`POST /api/journal`**: Save guided journal entry.
+  - *Request Body*: `{"content": "...", "prompt_id": "...", "ambient_audio": "..."}`
+  - *Response*: `JournalResponse`
+- **`GET /api/journal`**: Fetch all user journal logs.
+  - *Response*: `list[JournalResponse]`
+
+### ☀ Daily Rituals (`/api/rituals`)
+- **`GET /api/rituals`**: Retrieve status of today's rituals.
+  - *Response*: `{"morning_completed": bool, "wind_down_completed": bool}`
+- **`POST /api/rituals/morning`**: Save morning checklist and intentions.
+  - *Request Body*: `{"intention": "...", "predicted_mood": 1-10, "activity_id": "..."}`
+  - *Response*: `{"success": true}`
+- **`POST /api/rituals/winddown`**: Save evening letting-go reflection.
+  - *Request Body*: `{"let_go_items": ["..."], "gratitudes": ["..."], "ambient_audio": "..."}`
+  - *Response*: `{"success": true}`
+- **`GET /api/rituals/morning/prompt`**: Get dynamic anchor focus matching active chapter/goals.
+  - *Response*: `{"prompt": "..."}`
+- **`GET /api/rituals/winddown/prompt`**: Get dynamic let-go question matching active stressors.
+  - *Response*: `{"prompt": "..."}`
+
+### ✦ ARIA & Semantic Search (`/api/ai` & `/api/aria`)
+- **`POST /api/ai/chat`**: Talk to ARIA (injects PKG memories context).
+  - *Request Body*: `{"message": "..."}`
+  - *Response*: `AIChatResponse` (stream support available)
+- **`POST /api/ai/remember-context`**: Manually record a specific thought/memory.
+  - *Request Body*: `{"memory_text": "...", "category": "..."}`
+  - *Response*: `{"success": true}`
+- **`GET /api/ai/timeline`**: Fetch paginated historical event stream (moods, journals, milestones).
+  - *Query Params*: `page=1`, `page_size=30`, `types=mood,journal`, `q=keyword`
+  - *Response*: `TimelinePage`
+- **`GET /api/ai/search`**: Run hybrid vector + keyword semantic search.
+  - *Query Params*: `q=search+query`, `limit=15`, `types=mood,journal`
+  - *Response*: `SearchPage`
+- **`GET /api/ai/search/suggestions`**: Fetch 6 custom query suggestions based on user data.
+  - *Response*: `{"suggestions": ["..."]}`
+- **`POST /api/ai/embeddings/generate`**: Trigger bulk embedding sync for timeline events.
+  - *Response*: `{"total": 100, "embedded": 100}`
+
+### 🧠 Knowledge Graph / CIE (`/api/aria/knowledge`)
+- **`POST /api/aria/knowledge/process`**: Extract PKG nodes and edges.
+  - *Request Body*: `{"source_type": "journal|mood|chat", "source_id": "...", "text": "..."}`
+  - *Response*: `{"success": true, "nodes_processed": 5}`
+- **`GET /api/aria/knowledge/graph`**: Retrieve user's active nodes and edges.
+  - *Response*: `KnowledgeGraphResponse`
+- **`GET /api/aria/knowledge/growth`**: Get 10-dimensional growth metrics scores.
+  - *Response*: `GrowthMetricsResponse`
+- **`DELETE /api/aria/knowledge/nodes/{node_id}`**: Delete a knowledge node from PKG.
+  - *Response*: `{"success": true}`
+- **`PATCH /api/aria/knowledge/nodes/{node_id}`**: Edit a node's parameters (e.g. archive, label, valence).
+  - *Request Body*: `{"label": "...", "is_archived": bool, "valence": float}`
+  - *Response*: `KnowledgeNodeResponse`
+- **`GET /api/aria/knowledge/chapters`**: Get list of life chapters.
+  - *Response*: `KnowledgeChaptersListResponse`
+- **`GET /api/aria/knowledge/comparison`**: Get chapter-over-chapter metric deltas and progress comparison.
+  - *Response*: `KnowledgeComparisonResponse`
