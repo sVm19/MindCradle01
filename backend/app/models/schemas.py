@@ -763,6 +763,66 @@ class TimelinePage(BaseModel):
     types_present: list[str]
 
 
+# ── Product Growth & Experimentation Engine Schemas ──────────────────────────
+
+class TrackEventRequest(BaseModel):
+    event_name: str
+    properties: dict = {}
+
+
+class ActiveAssignmentResponse(BaseModel):
+    experiment_id: str
+    experiment_name: str
+    variant: str
+    variants: list[str]
+
+
+class ActiveAssignmentsList(BaseModel):
+    assignments: list[ActiveAssignmentResponse]
+
+
+class ExperimentVariantStats(BaseModel):
+    variant: str
+    sample_size: int
+    conversions: int
+    conversion_rate: float
+
+
+class ExperimentAnalytics(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    status: str
+    variants: list[ExperimentVariantStats]
+    p_value: float
+    is_significant: bool
+    improvement_delta: float
+    conclusion: str
+
+
+class FunnelStepAnalytics(BaseModel):
+    step: int
+    name: str
+    count: int
+    percent: float
+
+
+class GrowthAnalyticsResponse(BaseModel):
+    experiments: list[ExperimentAnalytics]
+    funnel: list[FunnelStepAnalytics]
+
+
+class CreateExperimentRequest(BaseModel):
+    name: str
+    description: str
+    variants: list[str] = ["control", "treatment"]
+
+
+class UpdateExperimentStatusRequest(BaseModel):
+    status: str
+
+
+
 
 
 

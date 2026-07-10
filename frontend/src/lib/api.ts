@@ -836,4 +836,76 @@ export const payments = {
 };
 
 
+// ─── Product Growth & Experimentation ──────────────────────────────────────────
+
+export interface ActiveAssignment {
+  experiment_id: string;
+  experiment_name: string;
+  variant: string;
+  variants: string[];
+}
+
+export interface ActiveAssignmentsList {
+  assignments: ActiveAssignment[];
+}
+
+export interface ExperimentVariantStats {
+  variant: string;
+  sample_size: number;
+  conversions: number;
+  conversion_rate: number;
+}
+
+export interface ExperimentAnalytics {
+  id: string;
+  name: string;
+  description?: string;
+  status: 'draft' | 'running' | 'paused' | 'completed';
+  variants: ExperimentVariantStats[];
+  p_value: number;
+  is_significant: boolean;
+  improvement_delta: number;
+  conclusion: string;
+}
+
+export interface FunnelStepAnalytics {
+  step: number;
+  name: string;
+  count: number;
+  percent: number;
+}
+
+export interface GrowthAnalyticsResponse {
+  experiments: ExperimentAnalytics[];
+  funnel: FunnelStepAnalytics[];
+}
+
+export const growth = {
+  getActiveAssignments: () =>
+    request<ActiveAssignmentsList>('GET', '/growth/experiments/active'),
+    
+  trackEvent: (eventName: string, properties: Record<string, any> = {}) =>
+    request<{ success: boolean }>('POST', '/growth/events', {
+      event_name: eventName,
+      properties,
+    }),
+    
+  getStats: () =>
+    request<GrowthAnalyticsResponse>('GET', '/growth/experiments/stats'),
+    
+  createExperiment: (name: string, description: string, variants: string[] = ['control', 'treatment']) =>
+    request<any>('POST', '/growth/experiments/create', {
+      name,
+      description,
+      variants,
+    }),
+    
+  updateExperimentStatus: (id: string, status: 'draft' | 'running' | 'paused' | 'completed') =>
+    request<any>('POST', `/growth/experiments/${id}/status`, {
+      status,
+    }),
+};
+
+
+
 

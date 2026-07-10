@@ -4,6 +4,7 @@ import { Frown, Meh, Smile, Sun, Wind, Activity, PenTool, Footprints, Heart, Moo
 import { sanitizeForInput } from '@/lib/sanitize';
 import { rituals as ritualsApi, mood as moodApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useGrowth } from '@/context/GrowthContext';
 import GuestGate from '@/app/components/GuestGate';
 
 const MOOD_LABELS: Record<number, string> = {
@@ -27,6 +28,8 @@ const ACTIVITIES = [
 
 export default function Morning() {
   const { user } = useAuth();
+  const { variantOf, trackEvent } = useGrowth();
+  const layoutVariant = variantOf('morning_habit_layout', 'control');
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [forecast, setForecast] = useState<number | null>(null);
@@ -72,6 +75,7 @@ export default function Morning() {
       localStorage.setItem('last_morning_intention', intention || 'Show up gently');
       localStorage.setItem('last_morning_activity', activity || 'none');
       localStorage.setItem('morning_completed_at', new Date().toISOString());
+      trackEvent('morning_ritual_completed', { activity_id: activity, layout_variant: layoutVariant });
       setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save ritual');
@@ -244,25 +248,68 @@ export default function Morning() {
           </h1>
           <p className="text-[15px] text-text2">Pick a 2-minute routine to build immediate momentum and calm.</p>
 
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            {ACTIVITIES.map((act) => (
-              <button
-                key={act.id}
-                onClick={() => setActivity(act.id)}
-                className={`bg-bg2 border rounded-[16px] px-5 py-4 flex items-center gap-3 text-left transition-all ${
-                  activity === act.id
-                    ? 'border-accent bg-accent/10 shadow-[0_0_15px_rgba(108,92,231,0.08)] scale-[1.02]'
-                    : 'border-border hover:border-border2 hover:bg-bg3'
-                }`}
-              >
-                <span className="text-2xl">{act.icon}</span>
-                <div>
-                  <div className="text-sm text-text font-medium">{act.label}</div>
-                  <div className="text-xs text-text3">{act.desc}</div>
-                </div>
-              </button>
-            ))}
-          </div>
+          {layoutVariant === 'creative' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              {ACTIVITIES.map((act) => (
+                <button
+                  key={act.id}
+                  onClick={() => {
+                    setActivity(act.id);
+                    trackEvent('morning_habit_click', { activity_id: act.id, layout_variant: 'creative' });
+                  }}
+                  className={`relative overflow-hidden group rounded-[22px] p-5 flex items-start gap-4 transition-all duration-300 text-left border ${
+                    activity === act.id
+                      ? 'border-accent bg-accent/10 shadow-[0_8px_30px_rgb(108,92,231,0.08)] scale-[1.03]'
+                      : 'border-border/60 bg-bg2/40 hover:border-accent2/30 hover:bg-bg3/60'
+                  }`}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-tr from-accent2/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                  
+                  <div className={`p-3 rounded-xl transition-transform duration-300 group-hover:scale-110 ${
+                    activity === act.id ? 'bg-accent/20 text-accent2' : 'bg-bg/80 text-text2'
+                  }`}>
+                    {act.icon}
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-sm font-semibold text-text group-hover:text-accent2 transition-colors duration-200">
+                      {act.label}
+                    </div>
+                    <div className="text-xs text-text3 leading-relaxed">
+                      {act.desc}
+                    </div>
+                  </div>
+                  {act.id === 'breathwork' && (
+                    <span className="absolute top-3 right-3 bg-teal/15 text-teal text-[9px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider scale-90">
+                      Recommended
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              {ACTIVITIES.map((act) => (
+                <button
+                  key={act.id}
+                  onClick={() => {
+                    setActivity(act.id);
+                    trackEvent('morning_habit_click', { activity_id: act.id, layout_variant: 'control' });
+                  }}
+                  className={`bg-bg2 border rounded-[16px] px-5 py-4 flex items-center gap-3 text-left transition-all ${
+                    activity === act.id
+                      ? 'border-accent bg-accent/10 shadow-[0_0_15px_rgba(108,92,231,0.08)] scale-[1.02]'
+                      : 'border-border hover:border-border2 hover:bg-bg3'
+                  }`}
+                >
+                  <span className="text-2xl">{act.icon}</span>
+                  <div>
+                    <div className="text-sm text-text font-medium">{act.label}</div>
+                    <div className="text-xs text-text3">{act.desc}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="pt-2 flex gap-3 items-center">
             <button

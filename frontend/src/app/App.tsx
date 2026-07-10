@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ARIAProvider } from '@/context/ARIAContext';
+import { GrowthProvider, useGrowth } from '@/context/GrowthContext';
 import { registerFCMToken, listenForMessages } from '@/lib/firebase';
 import { useCSRF } from '@/lib/csrf';
 import Layout from './components/Layout';
@@ -30,6 +31,7 @@ const Insights = lazy(() => import('./pages/Insights'));
 const Discoveries = lazy(() => import('./pages/Discoveries'));
 const Timeline = lazy(() => import('./pages/Timeline'));
 const Understanding = lazy(() => import('./pages/Understanding'));
+const GrowthDashboard = lazy(() => import('./pages/GrowthDashboard'));
 
 
 
@@ -37,7 +39,16 @@ const Understanding = lazy(() => import('./pages/Understanding'));
 
 function AppRoutes() {
   const { user, isLoading } = useAuth();
+  const { trackEvent } = useGrowth();
+  const location = useLocation();
   useCSRF();
+
+  // Auto-track pageviews
+  useEffect(() => {
+    if (user) {
+      trackEvent('page_view', { path: location.pathname });
+    }
+  }, [location.pathname, user]);
 
   // Listen for push messages once at app startup
   useEffect(() => {
@@ -114,6 +125,7 @@ function AppRoutes() {
                 <Route path="/insights" element={<Insights />} />
                 <Route path="/discoveries" element={<Discoveries />} />
                 <Route path="/timeline" element={<Timeline />} />
+                <Route path="/admin/growth" element={<GrowthDashboard />} />
               </Routes>
             </Suspense>
           </Layout>
@@ -126,12 +138,14 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <ARIAProvider>
-        <BrowserRouter>
-          <PWAInstallPrompt />
-          <AppRoutes />
-        </BrowserRouter>
-      </ARIAProvider>
+      <GrowthProvider>
+        <ARIAProvider>
+          <BrowserRouter>
+            <PWAInstallPrompt />
+            <AppRoutes />
+          </BrowserRouter>
+        </ARIAProvider>
+      </GrowthProvider>
     </AuthProvider>
   );
 }

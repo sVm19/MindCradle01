@@ -12,10 +12,10 @@ Target: Anyone managing stress/anxiety seeking self-discovery.
 - **Backend**: FastAPI + Python (Uvicorn)
 - **Database**: PostgreSQL (Supabase) + pgvector
 - **Auth**: JWT + Supabase Auth
-- **AI**: OpenRouter (Google Gemma-4) + OpenAI Embedding API (`text-embedding-3-small`)
+- **AI**: OpenRouter (Google Gemma-4-31b-it + openai/text-embedding-3-small)
 - **Notifications**: Firebase Cloud Messaging
 - **Emails**: Resend
-- **Payments**: Xflow Pay
+- **Payments**: Creem
 - **Deployment**: Google Cloud Run (backend), Vercel (frontend)
 
 ---
