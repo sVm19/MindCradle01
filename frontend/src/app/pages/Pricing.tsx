@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Check, Star, HelpCircle, ArrowRight, Sparkles, CreditCard, Lock, RefreshCw, X } from 'lucide-react';
 import { Link } from 'react-router';
 import { useAuth } from '@/lib/auth';
+import SEO from '@/app/components/SEO';
 import { billing, profile as profileApi, type ProfileResponse } from '@/lib/api';
 
 export default function Pricing() {
@@ -124,8 +125,69 @@ export default function Pricing() {
     }
   };
 
+  const pricingSchema = [
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "MindCradle Premium",
+      "description": "Unlock MindCradle's compounding intelligence engine, custom daily rhythms, and advanced pattern analysis.",
+      "url": "https://mindcradle.online/pricing",
+      "image": "https://mindcradle.online/mindcradle-logo.svg",
+      "applicationCategory": "HealthApplication",
+      "offers": {
+        "@type": "Offer",
+        "price": "9.99",
+        "priceCurrency": "USD",
+        "description": "Monthly subscription plan"
+      }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Can I cancel anytime?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, cancel your subscription anytime with one click. No questions asked."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is there a long-term commitment?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Pay monthly, cancel monthly. Complete flexibility."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do you offer annual pricing?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Coming soon! Sign up for updates."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What happens to my data if I cancel?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Your data stays with you. Export it anytime."
+          }
+        }
+      ]
+    }
+  ];
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 sm:py-12 space-y-16 animate-fadeIn text-left">
+      <SEO 
+        title="Pricing Plans & Upgrade | MindCradle"
+        description="Choose a MindCradle plan to unlock full Relational Memory, Daily Solstice, and CIE-guided mental wellness analysis. Cancel anytime."
+        schema={pricingSchema}
+      />
       {/* Header Section */}
       <header className="text-center space-y-4 max-w-2xl mx-auto">
         <h1 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl lg:text-5xl font-light text-text leading-tight">

@@ -1,6 +1,30 @@
 {
   "rewrites": [
     {
+      "source": "/sitemap.xml",
+      "destination": "https://mindcradle01-959765770210.europe-west1.run.app/api/seo/sitemap.xml"
+    },
+    {
+      "source": "/sitemap-pages.xml",
+      "destination": "https://mindcradle01-959765770210.europe-west1.run.app/api/seo/sitemap-pages.xml"
+    },
+    {
+      "source": "/sitemap-blog.xml",
+      "destination": "https://mindcradle01-959765770210.europe-west1.run.app/api/seo/sitemap-blog.xml"
+    },
+    {
+      "source": "/sitemap-docs.xml",
+      "destination": "https://mindcradle01-959765770210.europe-west1.run.app/api/seo/sitemap-docs.xml"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "https://mindcradle01-959765770210.europe-west1.run.app/api/seo/robots.txt"
+    },
+    {
+      "source": "/rss.xml",
+      "destination": "https://mindcradle01-959765770210.europe-west1.run.app/api/seo/rss.xml"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://mindcradle01-959765770210.europe-west1.run.app/api/:path*"
     },

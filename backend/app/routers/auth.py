@@ -87,12 +87,13 @@ async def login(req: LoginRequest, response: Response):
         refresh_token = result["refresh_token"]
 
         # Set refresh token in HttpOnly cookie
+        is_prod = (settings.ENVIRONMENT == "production")
         response.set_cookie(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
-            secure=(settings.ENVIRONMENT == "production"),
-            samesite="lax",
+            secure=True if is_prod else False,
+            samesite="none" if is_prod else "lax",
             max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
             path="/"
         )
@@ -135,12 +136,13 @@ async def signup(req: SignupRequest, response: Response):
         refresh_token = result["refresh_token"]
 
         # Set refresh token in HttpOnly cookie
+        is_prod = (settings.ENVIRONMENT == "production")
         response.set_cookie(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
-            secure=(settings.ENVIRONMENT == "production"),
-            samesite="lax",
+            secure=True if is_prod else False,
+            samesite="none" if is_prod else "lax",
             max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
             path="/"
         )
@@ -200,12 +202,13 @@ async def refresh_token_endpoint(
         new_access_token = result["token"]
         new_refresh_token = result["refresh_token"]
 
+        is_prod = (settings.ENVIRONMENT == "production")
         response.set_cookie(
             key="refresh_token",
             value=new_refresh_token,
             httponly=True,
-            secure=(settings.ENVIRONMENT == "production"),
-            samesite="lax",
+            secure=True if is_prod else False,
+            samesite="none" if is_prod else "lax",
             max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
             path="/"
         )
@@ -218,7 +221,14 @@ async def refresh_token_endpoint(
             email=email,
         )
     except Exception:
-        response.delete_cookie(key="refresh_token", path="/")
+        is_prod = (settings.ENVIRONMENT == "production")
+        response.delete_cookie(
+            key="refresh_token",
+            path="/",
+            secure=True if is_prod else False,
+            samesite="none" if is_prod else "lax",
+            httponly=True
+        )
         logger.warning("Supabase refresh token invalid or expired")
         raise HTTPException(status_code=401, detail="Session expired. Please log in again.")
 
@@ -444,7 +454,14 @@ async def withdraw_consent(
 @router.post("/logout")
 async def logout_endpoint(response: Response):
     """Log out user by clearing the refresh token cookie."""
-    response.delete_cookie(key="refresh_token", path="/")
+    is_prod = (settings.ENVIRONMENT == "production")
+    response.delete_cookie(
+        key="refresh_token",
+        path="/",
+        secure=True if is_prod else False,
+        samesite="none" if is_prod else "lax",
+        httponly=True
+    )
     return {"success": True}
 
 
@@ -625,12 +642,13 @@ async def magic_login(req: MagicLoginRequest, response: Response):
         refresh_token = create_refresh_token(user_id, email, name)
         
         # Set refresh token in HttpOnly cookie
+        is_prod = (settings.ENVIRONMENT == "production")
         response.set_cookie(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
-            secure=(settings.ENVIRONMENT == "production"),
-            samesite="lax",
+            secure=True if is_prod else False,
+            samesite="none" if is_prod else "lax",
             max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
             path="/"
         )

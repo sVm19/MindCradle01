@@ -1,10 +1,15 @@
 import { useState } from 'react';
+import SEO from '@/app/components/SEO';
 
 export default function Privacy() {
   const todayDate = "June 28, 2026";
 
   return (
     <div className="bg-bg2 text-text rounded-[28px] border border-border shadow-2xl p-8 sm:p-12 text-left animate-fadeIn">
+      <SEO 
+        title="Privacy Policy | MindCradle"
+        description="Learn how MindCradle collects, stores, and protects your personal wellness data and journaling logs under GDPR and HIPAA privacy standards."
+      />
       <div 
         className="w-full"
         style={{ 

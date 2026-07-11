@@ -110,9 +110,10 @@ async function request<T>(
     'Content-Type': 'application/json',
   };
 
-  if (requiresAuth) {
-    const token = getToken();
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+  // Always attach authorization header if we have a token, even if requiresAuth is false
+  const token = getToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method.toUpperCase())) {
@@ -733,7 +734,19 @@ export const ai = {
   },
 
   getSearchSuggestions: () =>
-    request<{ suggestions: string[] }>('GET', '/ai/search/suggestions'),
+    request<{ suggestions: string[] }>('GET', '/ai/search/suggestions', undefined, false),
+
+  getBlogPosts: () =>
+    request<any[]>('GET', '/blog', undefined, false),
+
+  getBlogPostBySlug: (slug: string) =>
+    request<any>('GET', `/blog/${slug}`, undefined, false),
+
+  getDocs: () =>
+    request<any[]>('GET', '/docs', undefined, false),
+
+  getDocBySlug: (slug: string) =>
+    request<any>('GET', `/docs/${slug}`, undefined, false),
 
   generateEmbeddings: () =>
     request<{ total: number; embedded: number; failed: number; skipped: number }>(

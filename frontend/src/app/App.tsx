@@ -32,6 +32,9 @@ const Discoveries = lazy(() => import('./pages/Discoveries'));
 const Timeline = lazy(() => import('./pages/Timeline'));
 const Understanding = lazy(() => import('./pages/Understanding'));
 const GrowthDashboard = lazy(() => import('./pages/GrowthDashboard'));
+const Blog = lazy(() => import('./pages/Blog'));
+const BlogPost = lazy(() => import('./pages/BlogPost'));
+const Docs = lazy(() => import('./pages/Docs'));
 
 
 
@@ -119,6 +122,10 @@ function AppRoutes() {
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset" element={<Reset />} />
                 <Route path="/about" element={<About />} />
+                <Route path="/blog" element={<Blog />} />
+                <Route path="/blog/:slug" element={<BlogPost />} />
+                <Route path="/docs" element={<Docs />} />
+                <Route path="/docs/:slug" element={<Docs />} />
                 <Route path="/billing" element={<Billing />} />
                 <Route path="/billing/success" element={<BillingSuccess />} />
                 <Route path="/billing/cancel" element={<BillingCancel />} />

@@ -1,8 +1,26 @@
 import { Sparkles, Heart, ShieldCheck } from 'lucide-react';
+import SEO from '@/app/components/SEO';
 
 export default function About() {
+  const aboutSchema = {
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    "name": "About MindCradle",
+    "description": "Learn about MindCradle's mission to empower self-reflection and habit building using a persistent AI memory engine.",
+    "publisher": {
+      "@type": "Organization",
+      "name": "MindCradle",
+      "url": "https://mindcradle.online"
+    }
+  };
+
   return (
     <div className="bg-bg2 text-text rounded-[28px] border border-border shadow-2xl p-8 sm:p-12 text-left animate-fadeIn relative overflow-hidden">
+      <SEO 
+        title="About Us | MindCradle"
+        description="Discover our mission to empower self-awareness and wellness through daily check-ins, guided rituals, and relational AI companions."
+        schema={aboutSchema}
+      />
       {/* Ambient background glow */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(240,147,160,0.06),transparent_50%)] pointer-events-none" />
 

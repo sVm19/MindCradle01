@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '@/lib/auth';
+import SEO from '@/app/components/SEO';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi, rituals as ritualsApi, journal as journalApi, payments as paymentsApi } from '@/lib/api';
 import type { ResourceItem } from '@/lib/api';
 import { Lock, Award, Moon, Wind, PenTool, CheckCircle2, TrendingUp, Brain, Star, Flame, BookOpen, Target, Sparkles, X } from 'lucide-react';
@@ -263,8 +264,53 @@ export default function Dashboard() {
   };
 
   if (!user) {
+    const homepageSchema = [
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "MindCradle",
+        "description": "MindCradle is a personal wellness companion powered by a Compounding Intelligence Engine (CIE).",
+        "url": "https://mindcradle.online",
+        "image": "https://mindcradle.online/mindcradle-logo.svg",
+        "applicationCategory": "HealthApplication",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD",
+          "description": "Free basic version, premium subscription available."
+        }
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "MindCradle",
+        "url": "https://mindcradle.online",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://mindcradle.online/blog?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "MindCradle",
+        "url": "https://mindcradle.online",
+        "logo": "https://mindcradle.online/mindcradle-logo.svg",
+        "sameAs": [
+          "https://twitter.com/mindcradle",
+          "https://www.instagram.com/mindcradle"
+        ]
+      }
+    ];
+
     return (
       <div className="space-y-10 animate-fadeIn">
+        <SEO 
+          title="MindCradle — AI Memory That Grows With You"
+          description="MindCradle is a persistent AI memory platform that helps users preserve, organize, and grow knowledge across conversations."
+          schema={homepageSchema}
+        />
         {/* Redesigned Hero Section */}
         <section className="animate-fadeIn">
           <div className="bg-[#0c081c]/45 border border-white/5 rounded-[32px] p-8 md:p-12 relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-12 shadow-[0_30px_80px_rgba(0,0,0,0.5)]">
@@ -530,6 +576,11 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-fadeIn">
+      <SEO 
+        title="Dashboard | MindCradle"
+        description="Manage your wellness dashboard, check in on your calm index, log your rituals, and get relational insights."
+        robots="noindex, nofollow"
+      />
       {discovery && !discovery.is_dismissed && (
         <div className="bg-gradient-to-r from-teal/15 via-accent/10 to-indigo/15 border-2 border-teal/20 rounded-3xl p-6 text-left shadow-2xl relative overflow-hidden animate-slideIn">
           <div className="absolute top-4 right-4 flex items-center gap-2">

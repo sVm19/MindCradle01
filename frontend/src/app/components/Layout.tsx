@@ -10,6 +10,7 @@ import AgeVerificationModal from './AgeVerificationModal';
 import PrivacyPolicyModal from './PrivacyPolicyModal';
 import SemanticSearch from './SemanticSearch';
 import { TelemetryProvider } from '@/context/TelemetryContext';
+import SEO from './SEO';
 
 function formatDate(d: Date): string {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -148,9 +149,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const initials = user ? getInitials(user.name || user.email) : '?';
   const greeting = new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening';
 
+  const publicPaths = ['/', '/about', '/pricing', '/privacy', '/terms', '/refund'];
+  const isPublic = publicPaths.includes(location.pathname) || 
+                   location.pathname.startsWith('/blog') || 
+                   location.pathname.startsWith('/docs');
+
   return (
     <TelemetryProvider>
       <>
+      {!isPublic && (
+        <SEO 
+          title="MindCradle"
+          description="Your private wellness dashboard."
+          robots="noindex, nofollow"
+        />
+      )}
       {/* Ambient orbs */}
       <div className="fixed w-[500px] h-[500px] rounded-full blur-[80px] bg-accent/8 -top-[150px] -right-[100px] pointer-events-none z-0" />
       <div className="fixed w-[400px] h-[400px] rounded-full blur-[80px] bg-teal/6 bottom-[100px] -left-[100px] pointer-events-none z-0" />
@@ -462,7 +475,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <div>
               &copy; {new Date().getFullYear()} MindCradle. All rights reserved.
             </div>
-            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 font-mono">
+              <Link to="/blog" className="hover:text-text text-accent font-semibold transition-all">Blog</Link>
+              <Link to="/docs/introduction" className="hover:text-text text-accent font-semibold transition-all">Docs</Link>
               <Link to="/pricing" className="hover:text-text transition-all">Pricing</Link>
               <Link to="/privacy" className="hover:text-text transition-all">Privacy Policy</Link>
               <Link to="/refund" className="hover:text-text transition-all">Refund Policy</Link>

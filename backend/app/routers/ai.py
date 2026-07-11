@@ -5992,11 +5992,7 @@ async def get_search_suggestions(authorization: Optional[str] = Header(None)):
     Falls back to a generic set if data fetch fails.
     """
     token = _normalize_token(authorization)
-    if not token:
-        raise HTTPException(status_code=401, detail="Missing authorization token")
-    user_id = extract_user_id(token)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    user_id = extract_user_id(token) if token else None
 
     defaults = [
         "When was I happiest?",
@@ -6006,6 +6002,9 @@ async def get_search_suggestions(authorization: Optional[str] = Header(None)):
         "What helped me most?",
         "Show my recent breakthroughs",
     ]
+
+    if not token or not user_id:
+        return SearchSuggestionsResponse(suggestions=defaults)
 
     try:
         # Sample a few events to customise suggestions

@@ -1,10 +1,15 @@
 import { useState } from 'react';
+import SEO from '@/app/components/SEO';
 
 export default function Terms() {
   const todayDate = "June 28, 2026";
 
   return (
     <div className="bg-bg2 text-text rounded-[28px] border border-border shadow-2xl p-8 sm:p-12 text-left animate-fadeIn">
+      <SEO 
+        title="Terms of Service | MindCradle"
+        description="Read the terms and conditions for using the MindCradle website, applications, AI relational features, and subscription payments."
+      />
       <div 
         className="w-full"
         style={{ 

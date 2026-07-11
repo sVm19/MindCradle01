@@ -95,6 +95,7 @@ app.include_router(billing.router, prefix="/api/billing", tags=["billing"])
 app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["webhooks"])
 app.include_router(growth.router, prefix="/api/growth", tags=["growth"])
+app.include_router(seo.router, prefix="/api", tags=["seo"])
 
 
 # Health endpoint (no DB required)

@@ -1,10 +1,15 @@
 import { useState } from 'react';
+import SEO from '@/app/components/SEO';
 
 export default function Refund() {
   const todayDate = "June 28, 2026";
 
   return (
     <div className="bg-bg2 text-text rounded-[28px] border border-border shadow-2xl p-8 sm:p-12 text-left animate-fadeIn">
+      <SEO 
+        title="Refund Policy | MindCradle"
+        description="Review our subscription billing terms, trial period rules, and refund request guidelines."
+      />
       <div 
         className="w-full"
         style={{ 
