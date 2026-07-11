@@ -9,16 +9,30 @@ from app.services.supabase import _get_client
 
 logger = logging.getLogger(__name__)
 
+import json
+
 # Initialize Firebase Admin SDK
 cred_path = Path(__file__).resolve().parent.parent.parent / "firebase-key.json"
 if not cred_path.exists():
     cred_path = Path("firebase-key.json")
 
+firebase_creds_env = os.environ.get("FIREBASE_CREDENTIALS")
+
 try:
     if not firebase_admin._apps:
-        cred = credentials.Certificate(str(cred_path))
-        firebase_admin.initialize_app(cred)
-        logger.info("Firebase Admin SDK initialized successfully.")
+        if firebase_creds_env:
+            # Parse and initialize from environment variable configuration
+            creds_dict = json.loads(firebase_creds_env)
+            cred = credentials.Certificate(creds_dict)
+            firebase_admin.initialize_app(cred)
+            logger.info("Firebase Admin SDK initialized successfully from environment variable.")
+        elif cred_path.exists():
+            # Initialize from local key file
+            cred = credentials.Certificate(str(cred_path))
+            firebase_admin.initialize_app(cred)
+            logger.info("Firebase Admin SDK initialized successfully from file.")
+        else:
+            logger.warning("Firebase Admin SDK not initialized: Neither firebase-key.json file nor FIREBASE_CREDENTIALS environment variable was found.")
 except Exception as e:
     logger.error("Failed to initialize Firebase Admin SDK: %s", e)
 
