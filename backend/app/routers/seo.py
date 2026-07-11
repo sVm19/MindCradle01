@@ -55,9 +55,10 @@ async def get_sitemap_pages():
     <priority>{page['priority']}</priority>
   </url>""")
         
+    xml_content = "\n".join(xml_items)
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-{"\n".join(xml_items)}
+{xml_content}
 </urlset>"""
     return Response(content=xml, media_type="application/xml")
 
@@ -83,9 +84,10 @@ async def get_sitemap_blog():
     <priority>0.8</priority>
   </url>""")
         
+    xml_content = "\n".join(xml_items)
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-{"\n".join(xml_items)}
+{xml_content}
 </urlset>"""
     return Response(content=xml, media_type="application/xml")
 
@@ -110,9 +112,10 @@ async def get_sitemap_docs():
     <priority>0.7</priority>
   </url>""")
         
+    xml_content = "\n".join(xml_items)
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-{"\n".join(xml_items)}
+{xml_content}
 </urlset>"""
     return Response(content=xml, media_type="application/xml")
 
@@ -161,6 +164,7 @@ async def get_rss_feed():
       <author>{post['author']['name']}</author>
     </item>""")
         
+    xml_content = "\n".join(xml_items)
     xml = f"""<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
@@ -169,7 +173,7 @@ async def get_rss_feed():
     <description>Insights on persistent AI memory, longitudinal context, and relational wellness companions.</description>
     <language>en-us</language>
     <atom:link href="{BASE_URL}/rss.xml" rel="self" type="application/rss+xml" />
-{"\n".join(xml_items)}
+{xml_content}
   </channel>
 </rss>"""
     return Response(content=xml, media_type="application/xml")
