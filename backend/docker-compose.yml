@@ -9,3 +9,5 @@ services:
       - .env
     environment:
       - ENVIRONMENT=development
+    volumes:
+      - ./firebase-key.json:/app/firebase-key.json
