@@ -16,6 +16,8 @@ interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   loginWithGoogle: (token: string) => Promise<void>;
+  loginWithGoogleCode: (code: string) => Promise<void>;
+  loginWithMagicToken: (token: string) => Promise<void>;
   logout: () => void;
   authModalOpen: boolean;
   setAuthModalOpen: (open: boolean) => void;
@@ -104,6 +106,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persist(toUser(res));
   }, [persist]);
 
+  const loginWithGoogleCode = useCallback(async (code: string) => {
+    const res = await authApi.loginWithGoogleCode(code);
+    persist(toUser(res));
+  }, [persist]);
+
+  const loginWithMagicToken = useCallback(async (token: string) => {
+    const res = await authApi.loginWithMagicToken(token);
+    persist(toUser(res));
+  }, [persist]);
+
 
   return (
     <AuthContext.Provider
@@ -111,6 +123,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isLoading,
         loginWithGoogle,
+        loginWithGoogleCode,
+        loginWithMagicToken,
         logout,
         authModalOpen,
         setAuthModalOpen,

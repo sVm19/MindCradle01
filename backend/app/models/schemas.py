@@ -39,7 +39,8 @@ class MagicLoginRequest(BaseModel):
 
 
 class GoogleLoginRequest(BaseModel):
-    token: str
+    token: Optional[str] = None
+    code: Optional[str] = None
 
 
 

@@ -516,17 +516,18 @@ async def reset_password(req: ResetPasswordRequest):
 async def magic_link_request(req: MagicLinkRequest):
     """Request passwordless magic link email."""
     # Generate token
+    email = req.email.lower().strip()
     token = str(uuid.uuid4())
     expiry_seconds = 900  # 15 minutes
     
     try:
         # Call database RPC to lookup user and store the token
-        res = await pb.create_magic_login_token(req.email, token, expiry_seconds)
+        res = await pb.create_magic_login_token(email, token, expiry_seconds)
         
         # If successfully created, send email
         if res is True:
-            magic_link = f"{settings.FRONTEND_URL}/magic-login?token={token}"
-            send_magic_link_email(req.email, magic_link)
+            magic_link = f"{settings.FRONTEND_URL}/auth/magic?token={token}"
+            send_magic_link_email(email, magic_link)
     except Exception as e:
         logger.error(f"Magic link request failed: {str(e)}")
         # Proceed silently to prevent email enumeration
@@ -616,14 +617,47 @@ async def google_login(req: GoogleLoginRequest, response: Response):
                 status_code=500,
                 detail="GOOGLE_CLIENT_ID is not configured on the backend."
             )
-            
-        # Verify token from frontend with 10s clock tolerance for skew
-        idinfo = google_id_token.verify_oauth2_token(
-            req.token,
-            google_requests.Request(),
-            settings.GOOGLE_CLIENT_ID,
-            clock_skew_in_seconds=10
-        )
+
+        idinfo = None
+
+        # Auth-code flow: exchange code for tokens using client secret
+        if req.code:
+            import httpx
+            token_resp = httpx.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": req.code,
+                    "client_id": settings.GOOGLE_CLIENT_ID,
+                    "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                    "redirect_uri": "postmessage",
+                    "grant_type": "authorization_code",
+                },
+                timeout=15,
+            )
+            if token_resp.status_code != 200:
+                logger.error(f"Google token exchange failed: {token_resp.text}")
+                raise HTTPException(status_code=400, detail="Failed to exchange Google authorization code.")
+            token_data = token_resp.json()
+            id_token_str = token_data.get("id_token")
+            if not id_token_str:
+                raise HTTPException(status_code=400, detail="No id_token returned from Google token exchange.")
+            idinfo = google_id_token.verify_oauth2_token(
+                id_token_str,
+                google_requests.Request(),
+                settings.GOOGLE_CLIENT_ID,
+                clock_skew_in_seconds=10
+            )
+
+        # Legacy ID-token flow (from <GoogleLogin> component)
+        elif req.token:
+            idinfo = google_id_token.verify_oauth2_token(
+                req.token,
+                google_requests.Request(),
+                settings.GOOGLE_CLIENT_ID,
+                clock_skew_in_seconds=10
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Either 'token' or 'code' must be provided.")
         
         email = idinfo['email']
         name = idinfo.get('name', 'User')

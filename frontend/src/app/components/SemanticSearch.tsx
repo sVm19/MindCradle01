@@ -17,7 +17,7 @@
 
 import { useEffect, useRef, useState, useCallback, KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router';
-import { ai as aiApi, SearchResultItem } from '@/lib/api';
+import { ai as aiApi, getAccessToken, SearchResultItem } from '@/lib/api';
 import {
   Search, X, Loader2, Sun, Smile, BookOpen, Brain,
   Moon, Award, Sparkles, ChevronRight, Clock,
@@ -221,6 +221,8 @@ export default function SemanticSearch({ open, onClose, embedded = false }: Prop
 
   // ── Load suggestions once on mount ──────────────────────────────────────
   useEffect(() => {
+    if (!getAccessToken()) return;
+
     aiApi.getSearchSuggestions()
       .then(res => setSuggestions(res.suggestions || []))
       .catch(() => {});

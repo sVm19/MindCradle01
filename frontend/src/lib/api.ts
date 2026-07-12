@@ -406,6 +406,15 @@ export const auth = {
   loginWithGoogle: (token: string) =>
     request<AuthResponse>('POST', '/auth/google', { token }, false),
 
+  loginWithGoogleCode: (code: string) =>
+    request<AuthResponse>('POST', '/auth/google', { code }, false),
+
+  requestMagicLink: (email: string) =>
+    request<{ message: string }>('POST', '/auth/magic-link', { email }, false),
+
+  loginWithMagicToken: (token: string) =>
+    request<AuthResponse>('POST', '/auth/magic-login', { token }, false),
+
   refresh: () =>
     request<AuthResponse>('POST', '/auth/refresh', undefined, false),
 

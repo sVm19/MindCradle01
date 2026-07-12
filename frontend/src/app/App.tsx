@@ -19,6 +19,8 @@ const WindDown = lazy(() => import('./pages/WindDown'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Login = lazy(() => import('./pages/Login'));
 const AuthCallback = lazy(() => import('./pages/AuthCallback'));
+const MagicLinkRequest = lazy(() => import('./pages/MagicLinkRequest'));
+const MagicLinkCallback = lazy(() => import('./pages/MagicLinkCallback'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
@@ -94,6 +96,9 @@ function AppRoutes() {
       {/* Dedicated Login page handles traditional Sign In + Google OAuth */}
       <Route path="/login" element={<Login />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/auth/magic-link" element={<MagicLinkRequest />} />
+      <Route path="/auth/magic" element={<MagicLinkCallback />} />
+      <Route path="/magic-login" element={<MagicLinkCallback />} />
 
       {/* Main app layout and routes */}
       <Route

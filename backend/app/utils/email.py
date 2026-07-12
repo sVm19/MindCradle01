@@ -63,7 +63,7 @@ def send_password_reset_email(user_email: str, reset_link: str):
         return False
 
 def send_magic_link_email(user_email: str, magic_link: str):
-    """Send passwordless login link"""
+    """Send magic link for passwordless login"""
     try:
         email = resend.Emails.send({
             "from": "noreply@mindcradle.online",
