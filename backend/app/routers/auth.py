@@ -534,6 +534,32 @@ async def magic_link_request(req: MagicLinkRequest):
     return {"message": "If email exists, magic login link sent"}
 
 
+async def _auto_start_trial_if_needed(user_id: str, token: str):
+    """Automatically starts the 7-day free trial on first signin if not already used."""
+    try:
+        profile = await pb.get_record("user_profiles", user_id, token=token)
+        if profile and not profile.get("trial_used"):
+            from app.core.security import generate_subscription_token
+            
+            trial_started = datetime.now(timezone.utc)
+            trial_ends = trial_started + timedelta(days=7)
+            sub_token = generate_subscription_token(user_id, trial_ends)
+            
+            trial_payload = {
+                "trial_started_at": trial_started.isoformat(),
+                "trial_ends_at": trial_ends.isoformat(),
+                "trial_used": True,
+                "trial_active": True,
+                "is_premium": True,
+                "subscription_expires_at": trial_ends.isoformat(),
+                "subscription_token": sub_token
+            }
+            await pb.update_record("user_profiles", user_id, trial_payload, token=token)
+            logger.info(f"Automatically started 7-day trial for user {user_id}")
+    except Exception as te:
+        logger.error(f"Failed to auto-start trial: {str(te)}")
+
+
 @router.post("/magic-login", response_model=AuthResponse)
 async def magic_login(req: MagicLoginRequest, response: Response):
     """Verify magic link token and log user in, returning Custom JWT AuthResponse."""
@@ -551,6 +577,9 @@ async def magic_login(req: MagicLoginRequest, response: Response):
         # Generate custom tokens (standard custom JWT flow)
         access_token = create_access_token(user_id, email)
         refresh_token = create_refresh_token(user_id, email, name)
+        
+        # Auto-start 7-day trial if first time signing in
+        await _auto_start_trial_if_needed(user_id, access_token)
         
         # Set refresh token in HttpOnly cookie
         is_prod = (settings.ENVIRONMENT == "production")
@@ -621,6 +650,9 @@ async def google_login(req: GoogleLoginRequest, response: Response):
         # Generate custom tokens (same custom JWT flow as magic login)
         access_token = create_access_token(user_id, ret_email)
         refresh_token = create_refresh_token(user_id, ret_email, ret_name)
+        
+        # Auto-start 7-day trial if first time signing in
+        await _auto_start_trial_if_needed(user_id, access_token)
         
         # Set refresh token in HttpOnly cookie
         is_prod = (settings.ENVIRONMENT == "production")
