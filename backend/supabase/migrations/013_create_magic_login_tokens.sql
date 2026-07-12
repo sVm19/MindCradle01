@@ -75,7 +75,7 @@ BEGIN
     SELECT email, (raw_user_meta_data->>'name') INTO ret_email, ret_name FROM auth.users WHERE id = target_user_id;
 
     -- Delete all login tokens for this user
-    DELETE FROM public.magic_login_tokens WHERE user_id = target_user_id;
+    DELETE FROM public.magic_login_tokens WHERE magic_login_tokens.user_id = target_user_id;
 
     RETURN QUERY SELECT target_user_id, ret_email, COALESCE(ret_name, '');
 END;
