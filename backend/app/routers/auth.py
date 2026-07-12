@@ -593,7 +593,7 @@ async def google_login(req: GoogleLoginRequest, response: Response):
             req.token,
             google_requests.Request(),
             settings.GOOGLE_CLIENT_ID,
-            clock_tolerance=10
+            clock_skew_in_seconds=10
         )
         
         email = idinfo['email']
