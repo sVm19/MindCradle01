@@ -10,7 +10,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 class DeleteAccountRequest(BaseModel):
-    password: str
+    password: Optional[str] = None
 
 
 @router.get("/me")
@@ -199,9 +199,23 @@ async def delete_account(
         logger.error("Failed to resolve email for delete account: %s", e)
         raise HTTPException(status_code=400, detail="Could not resolve email for active user session.")
 
-    # 2. Verify password by logging in
+    # 2. Verify password (only for legacy email/password users)
     try:
-        await pb.auth_with_password(email, get_deterministic_hash(req.password))
+        client = _get_client(token)
+        user_res = client.auth.get_user(token)
+        is_google = False
+        if user_res and user_res.user:
+            app_metadata = getattr(user_res.user, "app_metadata", {}) or {}
+            providers = app_metadata.get("providers", [])
+            if "google" in providers or app_metadata.get("provider") == "google":
+                is_google = True
+
+        if not is_google:
+            if not req.password:
+                raise HTTPException(status_code=400, detail="Password is required for legacy accounts.")
+            await pb.auth_with_password(email, get_deterministic_hash(req.password))
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=401, detail="Incorrect password. Account deletion aborted.")
 

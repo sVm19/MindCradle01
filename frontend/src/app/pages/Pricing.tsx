@@ -249,7 +249,7 @@ export default function Pricing() {
               )
             ) : (
               <Link
-                to="/signup"
+                to="/login"
                 className="inline-flex items-center justify-center gap-2 w-full h-[48px] bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-semibold transition-all shadow-md cursor-pointer"
               >
                 Get Started - Free <ArrowRight className="w-4 h-4" />
@@ -335,7 +335,7 @@ export default function Pricing() {
               )
             ) : (
               <Link
-                to="/signup"
+                to="/login"
                 className="inline-flex items-center justify-center gap-2 w-full h-[48px] text-white rounded-xl text-sm font-semibold transition-all shadow-lg hover:brightness-110 cursor-pointer"
                 style={{
                   backgroundColor: "#E94B6F",

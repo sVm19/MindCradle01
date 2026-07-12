@@ -669,11 +669,10 @@ startxref
             {/* Password input */}
             <form onSubmit={handleDeleteAccount} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs text-text2 font-medium">Confirm Password</label>
+                <label className="text-xs text-text2 font-medium">Confirm Password (leave blank for Google accounts)</label>
                 <input
                   type="password"
-                  required
-                  placeholder="Enter password to confirm deletion"
+                  placeholder="Enter password, or leave blank if using Google"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full bg-bg3 border border-border rounded-xl px-4 py-2.5 text-xs text-text placeholder:text-text3 focus:outline-none focus:border-rose/40 transition-colors"
@@ -683,7 +682,7 @@ startxref
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  disabled={isDeleting || !confirmPassword}
+                  disabled={isDeleting}
                   className="flex-1 py-2.5 bg-rose text-white rounded-xl text-xs font-semibold hover:opacity-90 transition-all disabled:opacity-50 flex justify-center items-center cursor-pointer"
                 >
                   {isDeleting ? 'Deleting Account...' : 'Delete Account & Data'}

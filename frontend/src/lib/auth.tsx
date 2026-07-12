@@ -15,8 +15,7 @@ interface User {
 interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string, passwordConfirm: string) => Promise<void>;
+  loginWithGoogle: (token: string) => Promise<void>;
   logout: () => void;
   authModalOpen: boolean;
   setAuthModalOpen: (open: boolean) => void;
@@ -99,18 +98,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const res = await authApi.login(email, password);
+
+  const loginWithGoogle = useCallback(async (token: string) => {
+    const res = await authApi.loginWithGoogle(token);
     persist(toUser(res));
   }, [persist]);
-
-  const signup = useCallback(
-    async (name: string, email: string, password: string, passwordConfirm: string) => {
-      const res = await authApi.signup(name, email, password, passwordConfirm);
-      persist(toUser(res));
-    },
-    [persist],
-  );
 
 
   return (
@@ -118,8 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoading,
-        login,
-        signup,
+        loginWithGoogle,
         logout,
         authModalOpen,
         setAuthModalOpen,

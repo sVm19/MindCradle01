@@ -403,16 +403,8 @@ export interface ResourcesResponse {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export const auth = {
-  login: (email: string, password: string) =>
-    request<AuthResponse>('POST', '/auth/login', { email, password }, false),
-
-  signup: (name: string, email: string, password: string, passwordConfirm: string) =>
-    request<AuthResponse>(
-      'POST',
-      '/auth/signup',
-      { name, email, password, passwordConfirm },
-      false,
-    ),
+  loginWithGoogle: (token: string) =>
+    request<AuthResponse>('POST', '/auth/google', { token }, false),
 
   refresh: () =>
     request<AuthResponse>('POST', '/auth/refresh', undefined, false),
@@ -441,16 +433,10 @@ export const auth = {
   getPrivacyPolicy: () =>
     request<{ text: string }>('GET', '/auth/privacy-policy', undefined, false),
 
-  withdrawConsent: (password: string) =>
+  withdrawConsent: (password?: string) =>
     request<{ success: boolean; message: string }>('DELETE', '/auth/withdraw-consent', {
       password,
     }),
-
-  forgotPassword: (email: string) =>
-    request<{ message: string }>('POST', '/auth/forgot-password', { email }, false),
-
-  resetPassword: (token: string, newPassword: string) =>
-    request<{ message: string }>('POST', '/auth/reset-password', { token, newPassword }, false),
 };
 
 // ─── Mood ─────────────────────────────────────────────────────────────────────
@@ -817,7 +803,7 @@ export const profile = {
 export const user = {
   me: () => request<{ id: string; email: string }>('GET', '/user/me'),
   exportData: () => request<any>('GET', '/user/export-data'),
-  deleteAccount: (password: string) => request<{ message: string }>('DELETE', '/user/delete-account', { password }),
+  deleteAccount: (password?: string) => request<{ message: string }>('DELETE', '/user/delete-account', { password }),
 };
 
 // ─── Billing & Subscriptions ──────────────────────────────────────────────────

@@ -1,26 +1,14 @@
-import { useState, useEffect } from 'react';
-import { useLocation, Link } from 'react-router';
+import { useState } from 'react';
+import { Link } from 'react-router';
 import { useAuth } from '@/lib/auth';
 import Logo from './Logo';
 import { auth as authApi } from '@/lib/api';
-import { X, Eye, EyeOff } from 'lucide-react';
+import { X, ShieldAlert } from 'lucide-react';
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function AuthCardModal() {
-  const { authModalOpen, setAuthModalOpen, setVerifyModalOpen, login, signup } = useAuth();
-  const location = useLocation();
-  const [isLogin, setIsLogin] = useState(true);
-
-  useEffect(() => {
-    if (authModalOpen && location.state?.isSignUp) {
-      setIsLogin(false);
-    }
-  }, [authModalOpen, location.state]);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [passwordConfirm, setPasswordConfirm] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+  const { authModalOpen, setAuthModalOpen, setVerifyModalOpen, loginWithGoogle } = useAuth();
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -28,45 +16,19 @@ export default function AuthCardModal() {
 
   const handleClose = () => {
     setError('');
-    setEmail('');
-    setPassword('');
-    setName('');
-    setPasswordConfirm('');
-    setShowPassword(false);
-    setShowPasswordConfirm(false);
+    setPrivacyAccepted(false);
     setAuthModalOpen(false);
   };
 
-  const handleSwitchTab = (toLogin: boolean) => {
+  const handleGoogleSuccess = async (credentialResponse: any) => {
     setError('');
-    setShowPassword(false);
-    setShowPasswordConfirm(false);
-    setIsLogin(toLogin);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (!isLogin && password !== passwordConfirm) {
-      setError('Passwords do not match');
-      return;
-    }
-
     setLoading(true);
     try {
-      if (isLogin) {
-        await login(email, password);
-      } else {
-        await signup(name, email, password, passwordConfirm);
+      if (!privacyAccepted) {
+        throw new Error('You must accept the Privacy Policy and Terms of Service to continue.');
       }
 
-      // Check age verification status
-      const localVerified = localStorage.getItem('age_verified');
-      if (localVerified === 'true' || localVerified === 'false') {
-        handleClose();
-        return;
-      }
+      await loginWithGoogle(credentialResponse.credential);
 
       try {
         const verificationStatus = await authApi.checkAgeVerified();
@@ -82,7 +44,7 @@ export default function AuthCardModal() {
         handleClose();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : `${isLogin ? 'Login' : 'Signup'} failed`);
+      setError(err instanceof Error ? err.message : 'Google login failed');
     } finally {
       setLoading(false);
     }
@@ -106,135 +68,56 @@ export default function AuthCardModal() {
           <Logo className="h-10 w-auto text-text" />
         </div>
 
-        {/* Tab Selector */}
-        <div className="flex bg-bg3/60 border border-border/40 rounded-xl p-1 mb-6">
-          <button
-            type="button"
-            onClick={() => handleSwitchTab(true)}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-              isLogin ? 'bg-accent text-white shadow-md' : 'text-text3 hover:text-text'
-            }`}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSwitchTab(false)}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-              !isLogin ? 'bg-accent text-white shadow-md' : 'text-text3 hover:text-text'
-            }`}
-          >
-            Sign Up
-          </button>
-        </div>
-
         <div className="text-xs text-accent tracking-[0.1em] uppercase mb-1">
-          {isLogin ? 'Welcome back' : 'Get started'}
+          Secure Login & Registration
         </div>
         <h1 className="text-2xl font-light text-text mb-6">
-          {isLogin ? 'Sign in' : 'Create account'}
+          Sign in to MindCradle
         </h1>
 
         {error && (
-          <div className="bg-rose/10 border border-rose/30 text-rose text-sm rounded-[12px] px-4 py-3 mb-5">
-            {error}
+          <div className="bg-rose/10 border border-rose/30 text-rose text-sm rounded-[12px] px-4 py-3 mb-5 flex items-start gap-2">
+            <ShieldAlert className="shrink-0 mt-0.5" size={16} />
+            <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin && (
-            <div className="space-y-1.5">
-              <label className="text-xs text-text3 uppercase tracking-wider">Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                placeholder="Your name"
-                className="w-full bg-bg3 border border-border rounded-[12px] px-4 py-3 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent/40 transition-colors"
-              />
-            </div>
-          )}
-
-          <div className="space-y-1.5">
-            <label className="text-xs text-text3 uppercase tracking-wider">Email</label>
+        <div className="space-y-6">
+          <div className="flex items-start gap-2.5 w-full text-left">
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="you@example.com"
-              className="w-full bg-bg3 border border-border rounded-[12px] px-4 py-3 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent/40 transition-colors"
+              type="checkbox"
+              id="privacy-check-modal"
+              checked={privacyAccepted}
+              onChange={(e) => setPrivacyAccepted(e.target.checked)}
+              className="rounded border-border text-accent focus:ring-accent mt-0.5 cursor-pointer"
+            />
+            <label htmlFor="privacy-check-modal" className="text-[11px] text-text3 leading-snug cursor-pointer">
+              I agree to the{' '}
+              <Link to="/privacy" onClick={handleClose} className="text-accent hover:underline">
+                Privacy Policy
+              </Link>{' '}
+              and{' '}
+              <Link to="/terms" onClick={handleClose} className="text-accent hover:underline">
+                Terms of Service
+              </Link>
+            </label>
+          </div>
+
+          <div className="w-full flex justify-center">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setError('Google authentication failed')}
+              theme="outline"
+              size="large"
+              shape="pill"
+              width="326"
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs text-text3 uppercase tracking-wider">Password</label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={isLogin ? undefined : 8}
-                placeholder="••••••••"
-                className="w-full bg-bg3 border border-border rounded-[12px] pl-4 pr-11 py-3 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent/40 transition-colors"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-black hover:text-black/80 cursor-pointer transition-colors focus:outline-none"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
+          <div className="bg-bg3/40 border border-border rounded-xl p-3.5 text-[11px] text-text3 leading-relaxed text-center">
+            MindCradle uses secure, passwordless authentication. Accounts are created instantly on first Google login.
           </div>
-
-          {!isLogin && (
-            <div className="space-y-1.5">
-              <label className="text-xs text-text3 uppercase tracking-wider">Confirm password</label>
-              <div className="relative">
-                <input
-                  type={showPasswordConfirm ? 'text' : 'password'}
-                  value={passwordConfirm}
-                  onChange={(e) => setPasswordConfirm(e.target.value)}
-                  required
-                  placeholder="Repeat password"
-                  className="w-full bg-bg3 border border-border rounded-[12px] pl-4 pr-11 py-3 text-sm text-text placeholder:text-text3 focus:outline-none focus:border-accent/40 transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-black hover:text-black/80 cursor-pointer transition-colors focus:outline-none"
-                  aria-label={showPasswordConfirm ? "Hide confirm password" : "Show confirm password"}
-                >
-                  {showPasswordConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-gradient-to-r from-accent2 to-accent text-white rounded-[12px] font-medium text-sm hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2 cursor-pointer"
-          >
-            {loading ? (isLogin ? 'Signing in…' : 'Creating account…') : (isLogin ? 'Sign in →' : 'Create account →')}
-          </button>
-
-          {isLogin && (
-            <div className="mt-3 text-center">
-              <Link
-                to="/forgot-password"
-                onClick={handleClose}
-                className="inline-block w-full py-2.5 text-center text-xs border border-border text-text3 hover:text-text hover:bg-bg3/40 rounded-[12px] transition-all cursor-pointer font-medium"
-              >
-                Forgot Password?
-              </Link>
-            </div>
-          )}
-        </form>
+        </div>
       </div>
     </div>
   );

@@ -6,9 +6,9 @@ from datetime import datetime, timedelta, timezone
 import jwt
 
 from fastapi import APIRouter, HTTPException, Header, Response, Cookie
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from app.models.schemas import (
-    LoginRequest,
-    SignupRequest,
     AuthResponse,
     RefreshRequest,
     AriaAgeVerifyRequest,
@@ -19,6 +19,7 @@ from app.models.schemas import (
     ResetPasswordRequest,
     MagicLinkRequest,
     MagicLoginRequest,
+    GoogleLoginRequest,
 )
 from app.utils.security import (
     hash_password,
@@ -71,112 +72,8 @@ def create_refresh_token(user_id: str, email: Optional[str] = None, name: Option
     return jwt.encode(payload, settings.JWT_REFRESH_SECRET_KEY, "HS256")
 
 
-@router.post("/login", response_model=AuthResponse)
-async def login(req: LoginRequest, response: Response):
-    """Authenticate user via Supabase and return custom access token."""
-    try:
-        result = await pb.auth_with_password(req.email, get_deterministic_hash(req.password))
-        record = result["record"]
-        user_id = record["id"]
-        name = record.get("name", "")
-        email = record["email"]
-
-        # Use Supabase-issued tokens for API calls so Supabase RLS can validate
-        # requests with the project's active signing-key setup.
-        access_token = result["token"]
-        refresh_token = result["refresh_token"]
-
-        # Set refresh token in HttpOnly cookie
-        is_prod = (settings.ENVIRONMENT == "production")
-        response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            httponly=True,
-            secure=True if is_prod else False,
-            samesite="none" if is_prod else "lax",
-            max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-            path="/"
-        )
-
-        return AuthResponse(
-            token=access_token,
-            refresh_token="",  # Do not return refresh token in body to maintain httpOnly flow
-            user_id=user_id,
-            name=name,
-            email=email,
-        )
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
 
 
-@router.post("/signup", response_model=AuthResponse)
-async def signup(req: SignupRequest, response: Response):
-    """Create a new user in Supabase and return custom auth token."""
-    # Validate password
-    password_error = validate_password(req.password)
-    if password_error:
-        raise HTTPException(status_code=400, detail=password_error)
-        
-    try:
-        await pb.create_user({
-            "email": req.email,
-            "password": get_deterministic_hash(req.password),
-            "name": req.name,
-        })
-        # Auto-login after signup
-        result = await pb.auth_with_password(req.email, get_deterministic_hash(req.password))
-        record = result["record"]
-        user_id = record["id"]
-        name = record.get("name", "")
-        email = record["email"]
-
-        # Use Supabase-issued tokens for API calls so Supabase RLS can validate
-        # requests with the project's active signing-key setup.
-        access_token = result["token"]
-        refresh_token = result["refresh_token"]
-
-        # Set refresh token in HttpOnly cookie
-        is_prod = (settings.ENVIRONMENT == "production")
-        response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            httponly=True,
-            secure=True if is_prod else False,
-            samesite="none" if is_prod else "lax",
-            max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-            path="/"
-        )
-
-        # Save password hash in history
-        try:
-            await pb.create_record(
-                "user_password_history",
-                {
-                    "user_id": user_id,
-                    "password_hash": hash_password(req.password)
-                },
-                token=access_token
-            )
-        except Exception as hexc:
-            logger.warning("Failed to save initial password in history: %s", hexc)
-
-        # Send welcome email
-        try:
-            send_signup_welcome(email)
-        except Exception as e:
-            logger.warning("Failed to send welcome email: %s", e)
-
-        return AuthResponse(
-            token=access_token,
-            refresh_token="",  # Do not return refresh token in body
-            user_id=user_id,
-            name=name,
-            email=email,
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/refresh", response_model=AuthResponse)
@@ -436,9 +333,23 @@ async def withdraw_consent(
         logger.error(f"Failed to resolve email for user {user_id}: {str(e)}")
         raise HTTPException(status_code=400, detail="Could not resolve email for active user session.")
         
-    # 2. Verify password by logging in
+    # 2. Verify password (only for legacy email/password users)
     try:
-        await pb.auth_with_password(email, get_deterministic_hash(req.password))
+        client = _get_client(token)
+        user_res = client.auth.get_user(token)
+        is_google = False
+        if user_res and user_res.user:
+            app_metadata = getattr(user_res.user, "app_metadata", {}) or {}
+            providers = app_metadata.get("providers", [])
+            if "google" in providers or app_metadata.get("provider") == "google":
+                is_google = True
+
+        if not is_google:
+            if not req.password:
+                raise HTTPException(status_code=400, detail="Password is required for legacy accounts.")
+            await pb.auth_with_password(email, get_deterministic_hash(req.password))
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=401, detail="Incorrect password. Account deletion aborted.")
         
@@ -665,6 +576,73 @@ async def magic_login(req: MagicLoginRequest, response: Response):
     except Exception as e:
         logger.error(f"Magic login failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to log in with magic link.")
+
+
+@router.post("/google", response_model=AuthResponse)
+async def google_login(req: GoogleLoginRequest, response: Response):
+    """Verify Google token and create or authenticate user session"""
+    try:
+        if not settings.GOOGLE_CLIENT_ID:
+            raise HTTPException(
+                status_code=500,
+                detail="GOOGLE_CLIENT_ID is not configured on the backend."
+            )
+            
+        # Verify token from frontend
+        idinfo = google_id_token.verify_oauth2_token(
+            req.token,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID
+        )
+        
+        email = idinfo['email']
+        name = idinfo.get('name', 'User')
+        google_sub = idinfo['sub']
+        
+        # Use database RPC to find or create the user securely and return details
+        user_info_list = await pb.call_rpc(
+            "get_or_create_google_user",
+            {
+                "email_address": email,
+                "user_name": name,
+                "google_sub": google_sub
+            }
+        )
+        
+        if not user_info_list or len(user_info_list) == 0:
+            raise HTTPException(status_code=400, detail="Failed to retrieve or create Google user account.")
+            
+        user_info = user_info_list[0]
+        user_id = str(user_info["user_id"])
+        ret_email = user_info["user_email"]
+        ret_name = user_info["user_name"]
+        
+        # Generate custom tokens (same custom JWT flow as magic login)
+        access_token = create_access_token(user_id, ret_email)
+        refresh_token = create_refresh_token(user_id, ret_email, ret_name)
+        
+        # Set refresh token in HttpOnly cookie
+        is_prod = (settings.ENVIRONMENT == "production")
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=True if is_prod else False,
+            samesite="none" if is_prod else "lax",
+            max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            path="/"
+        )
+        
+        return AuthResponse(
+            token=access_token,
+            refresh_token="",  # Do not return in body
+            user_id=user_id,
+            name=ret_name,
+            email=ret_email,
+        )
+    except Exception as e:
+        logger.error(f"Google login failed: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Google authentication failed: {str(e)}")
 
 
 

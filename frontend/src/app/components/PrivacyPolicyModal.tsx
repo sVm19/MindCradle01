@@ -83,8 +83,8 @@ export default function PrivacyPolicyModal() {
       // 3. Close modal
       setIsOpen(false);
 
-      // 4. Redirect to Signup page
-      navigate('/signup');
+      // 4. Redirect to Login page (Google OAuth signup is handled here)
+      navigate('/login');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save agreement');
     } finally {

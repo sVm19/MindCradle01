@@ -5,33 +5,6 @@ from app.utils.sanitizer import sanitize
 
 
 # --- Auth ---
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
-
-
-class SignupRequest(BaseModel):
-    email: EmailStr
-    password: str
-    password_confirm: str = Field(alias="passwordConfirm")
-    name: str
-    age_verified: Optional[bool] = None
-
-    @field_validator('name', mode='before')
-    @classmethod
-    def sanitize_name(cls, v):
-        if isinstance(v, str):
-            return sanitize(v)
-        return v
-
-    @field_validator('password')
-    @classmethod
-    def validate_password(cls, v):
-        from app.utils.security import validate_password as val_pwd
-        err = val_pwd(v)
-        if err:
-            raise ValueError(err)
-        return v
 
 
 class AuthResponse(BaseModel):
@@ -62,6 +35,10 @@ class MagicLinkRequest(BaseModel):
 
 
 class MagicLoginRequest(BaseModel):
+    token: str
+
+
+class GoogleLoginRequest(BaseModel):
     token: str
 
 
@@ -395,7 +372,7 @@ class PrivacyAcceptanceRequest(BaseModel):
 
 
 class WithdrawConsentRequest(BaseModel):
-    password: str
+    password: Optional[str] = None
 
 
 class ConversationSummaryResponse(BaseModel):

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ARIAProvider } from '@/context/ARIAContext';
 import { GrowthProvider, useGrowth } from '@/context/GrowthContext';
@@ -16,13 +17,12 @@ const Journal = lazy(() => import('./pages/Journal'));
 const ARIA = lazy(() => import('./pages/ARIA'));
 const WindDown = lazy(() => import('./pages/WindDown'));
 const Settings = lazy(() => import('./pages/Settings'));
-const Signup = lazy(() => import('./pages/Signup'));
+const Login = lazy(() => import('./pages/Login'));
+const AuthCallback = lazy(() => import('./pages/AuthCallback'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Refund = lazy(() => import('./pages/Refund'));
-const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
-const Reset = lazy(() => import('./pages/Reset'));
 const About = lazy(() => import('./pages/About'));
 const Billing = lazy(() => import('./pages/Billing'));
 const BillingSuccess = lazy(() => import('./pages/BillingSuccess'));
@@ -91,8 +91,9 @@ function AppRoutes() {
 
   return (
     <Routes>
-      {/* Redirect old login/signup pages to main dashboard, opening auth modal */}
-      <Route path="/login" element={<Navigate to="/" replace state={{ openAuth: true }} />} />
+      {/* Dedicated Login page handles traditional Sign In + Google OAuth */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
 
       {/* Main app layout and routes */}
       <Route
@@ -114,13 +115,13 @@ function AppRoutes() {
                 <Route path="/wind-down" element={<WindDown />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/settings/understanding" element={<Understanding />} />
-                <Route path="/signup" element={<Signup />} />
+                <Route path="/signup" element={<Navigate to="/login" replace />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/refund" element={<Refund />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset" element={<Reset />} />
+                <Route path="/forgot-password" element={<Navigate to="/login" replace />} />
+                <Route path="/reset" element={<Navigate to="/login" replace />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/blog" element={<Blog />} />
                 <Route path="/blog/:slug" element={<BlogPost />} />
@@ -143,16 +144,19 @@ function AppRoutes() {
 }
 
 export default function App() {
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
   return (
-    <AuthProvider>
-      <GrowthProvider>
-        <ARIAProvider>
-          <BrowserRouter>
-            <PWAInstallPrompt />
-            <AppRoutes />
-          </BrowserRouter>
-        </ARIAProvider>
-      </GrowthProvider>
-    </AuthProvider>
+    <GoogleOAuthProvider clientId={clientId}>
+      <AuthProvider>
+        <GrowthProvider>
+          <ARIAProvider>
+            <BrowserRouter>
+              <PWAInstallPrompt />
+              <AppRoutes />
+            </BrowserRouter>
+          </ARIAProvider>
+        </GrowthProvider>
+      </AuthProvider>
+    </GoogleOAuthProvider>
   );
 }
