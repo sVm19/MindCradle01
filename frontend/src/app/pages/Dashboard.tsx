@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth';
 import SEO from '@/app/components/SEO';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi, rituals as ritualsApi, journal as journalApi, payments as paymentsApi } from '@/lib/api';
 import type { ResourceItem } from '@/lib/api';
-import { Lock, Award, Moon, Wind, PenTool, CheckCircle2, TrendingUp, Brain, Star, Flame, BookOpen, Target, Sparkles, X } from 'lucide-react';
+import { Lock, Award, Moon, Wind, PenTool, CheckCircle2, TrendingUp, Brain, Star, Flame, BookOpen, Target, Sparkles, X, AlertTriangle, Gift } from 'lucide-react';
 import GuestGate from '@/app/components/GuestGate';
 import { WellnessInsightCard } from '@/app/components/WellnessInsightCard';
 import AriaTerminalCard from '@/app/components/AriaTerminalCard';
@@ -632,9 +632,15 @@ export default function Dashboard() {
             <div>
               <h4 className="font-semibold text-sm">
                 {trialDays === 2 || trialDays === 1 ? (
-                  <span className="text-amber-500 font-medium">⚠️ your trial will end after {trialDays} days</span>
+                  <span className="text-amber-500 font-medium flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    your trial will end after {trialDays} days
+                  </span>
                 ) : (
-                  "🎁 Premium Free Trial Active"
+                  <span className="flex items-center gap-1.5">
+                    <Gift className="w-4 h-4 text-accent" />
+                    Premium Free Trial Active
+                  </span>
                 )}
               </h4>
               <p className="text-xs text-text3">
