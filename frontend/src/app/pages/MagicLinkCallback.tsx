@@ -22,7 +22,6 @@ export default function MagicLinkCallback() {
       try {
         await loginWithMagicToken(token);
         if (!cancelled) {
-          setVerifyModalOpen(true);
           navigate('/dashboard', { replace: true });
         }
       } catch (err) {

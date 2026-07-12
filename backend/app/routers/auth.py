@@ -571,6 +571,36 @@ async def _auto_start_trial_if_needed(user_id: str, token: str):
         logger.error(f"Failed to auto-start trial: {str(te)}")
 
 
+async def _auto_verify_age_if_needed(user_id: str, token: str):
+    """Automatically marks the user as age verified to bypass the age verification prompt."""
+    try:
+        res = await pb.list_records(
+            "user_age_verification",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 1}
+        )
+        items = res.get("items") or []
+        if not items:
+            payload = {
+                "user_id": user_id,
+                "age_verified": True,
+                "verified_at": datetime.now(timezone.utc).isoformat()
+            }
+            await pb.create_record("user_age_verification", payload, token=token)
+            logger.info(f"Automatically verified age for user {user_id}")
+        else:
+            profile = items[0]
+            if not profile.get("age_verified", False):
+                payload = {
+                    "age_verified": True,
+                    "verified_at": datetime.now(timezone.utc).isoformat()
+                }
+                await pb.update_record("user_age_verification", profile["id"], payload, token=token)
+                logger.info(f"Automatically updated age verification to True for user {user_id}")
+    except Exception as e:
+        logger.error(f"Failed to auto-verify age: {str(e)}")
+
+
 @router.post("/magic-login", response_model=AuthResponse)
 async def magic_login(req: MagicLoginRequest, response: Response):
     """Verify magic link token and log user in, returning Custom JWT AuthResponse."""
@@ -591,6 +621,9 @@ async def magic_login(req: MagicLoginRequest, response: Response):
         
         # Auto-start 7-day trial if first time signing in
         await _auto_start_trial_if_needed(user_id, access_token)
+
+        # Auto-verify age to prevent prompt
+        await _auto_verify_age_if_needed(user_id, access_token)
         
         # Set refresh token in HttpOnly cookie
         is_prod = (settings.ENVIRONMENT == "production")
@@ -697,6 +730,9 @@ async def google_login(req: GoogleLoginRequest, response: Response):
         
         # Auto-start 7-day trial if first time signing in
         await _auto_start_trial_if_needed(user_id, access_token)
+
+        # Auto-verify age to prevent prompt
+        await _auto_verify_age_if_needed(user_id, access_token)
         
         # Set refresh token in HttpOnly cookie
         is_prod = (settings.ENVIRONMENT == "production")
