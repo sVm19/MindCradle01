@@ -630,7 +630,13 @@ export default function Dashboard() {
               <Sparkles className="w-5 h-5 animate-pulse" />
             </div>
             <div>
-              <h4 className="font-semibold text-sm">🎁 Premium Free Trial Active</h4>
+              <h4 className="font-semibold text-sm">
+                {trialDays === 2 || trialDays === 1 ? (
+                  <span className="text-amber-500 font-medium">⚠️ your trial will end after {trialDays} days</span>
+                ) : (
+                  "🎁 Premium Free Trial Active"
+                )}
+              </h4>
               <p className="text-xs text-text3">
                 {moodItems.length > 0 || (ritualsCompleted || 0) > 0 ? (
                   <>You've logged {moodItems.length} check-in(s) and {ritualsCompleted || 0} routine(s) in your trial. Enjoy full access for {trialDays} more days!</>
