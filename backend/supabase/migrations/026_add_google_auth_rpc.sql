@@ -19,6 +19,7 @@ RETURNS TABLE (
     user_email VARCHAR,
     user_name TEXT
 ) AS $$
+#variable_conflict use_column
 DECLARE
     target_user_id UUID;
     ret_email VARCHAR;
