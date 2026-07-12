@@ -91,13 +91,23 @@ async def refresh_token_endpoint(
         raise HTTPException(status_code=401, detail="Refresh token missing")
 
     try:
-        result = await pb.refresh_session(token_to_verify)
-        record = result["record"]
-        user_id = record["id"]
-        email = record.get("email", "")
-        name = record.get("name", "")
-        new_access_token = result["token"]
-        new_refresh_token = result["refresh_token"]
+        # Decode and verify the custom refresh token
+        payload = jwt.decode(
+            token_to_verify,
+            settings.JWT_REFRESH_SECRET_KEY,
+            algorithms=["HS256"]
+        )
+
+        if payload.get("type") != "refresh":
+            logger.warning("Token type in custom refresh token is invalid")
+            raise HTTPException(status_code=401, detail="Invalid token type")
+
+        user_id = payload["sub"]
+        email = payload.get("email", "")
+        name = payload.get("name", "")
+
+        new_access_token = create_access_token(user_id, email)
+        new_refresh_token = create_refresh_token(user_id, email, name)
 
         is_prod = (settings.ENVIRONMENT == "production")
         response.set_cookie(
@@ -117,7 +127,7 @@ async def refresh_token_endpoint(
             name=name,
             email=email,
         )
-    except Exception:
+    except Exception as e:
         is_prod = (settings.ENVIRONMENT == "production")
         response.delete_cookie(
             key="refresh_token",
@@ -126,7 +136,7 @@ async def refresh_token_endpoint(
             samesite="none" if is_prod else "lax",
             httponly=True
         )
-        logger.warning("Supabase refresh token invalid or expired")
+        logger.warning(f"Custom refresh token invalid or expired: {str(e)}")
         raise HTTPException(status_code=401, detail="Session expired. Please log in again.")
 
 
