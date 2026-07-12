@@ -55,6 +55,7 @@ class AgeGateException(Exception):
 
 OFF_TOPIC_LIMITS = {}
 aria_router = APIRouter()
+telemetry_router = APIRouter()
 
 def _normalize_token(token: Optional[str]) -> str:
     if not token:
@@ -1779,7 +1780,7 @@ async def _track_engagement_internal(token: str, user_id: str, conversation_id: 
         }
 
 
-@router.post("/track-engagement", response_model=TrackEngagementResponse)
+@telemetry_router.post("/track-engagement", response_model=TrackEngagementResponse)
 async def track_engagement(
     req: TrackEngagementRequest,
     authorization: Optional[str] = Header(None),
@@ -4748,7 +4749,7 @@ class TelemetryInteractionRequest(BaseModel):
     input_length: Optional[int] = 0
     metadata: Optional[dict] = None
 
-@router.post("/track-interaction")
+@telemetry_router.post("/track-interaction")
 async def track_interaction(
     req: TelemetryInteractionRequest,
     authorization: Optional[str] = Header(None)

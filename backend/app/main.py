@@ -85,6 +85,7 @@ app.include_router(resources.router, prefix="/api/resources", tags=["resources"]
 app.include_router(mood.router, prefix="/api/mood", tags=["mood"])
 app.include_router(journal.router, prefix="/api/journal", tags=["journal"])
 app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
+app.include_router(ai.telemetry_router, prefix="/api/ai", tags=["ai"])
 app.include_router(ai.aria_router, prefix="/api/aria", tags=["aria"])
 app.include_router(rituals.router, prefix="/api/rituals", tags=["rituals"])
 app.include_router(profile.router, prefix="/api/profile", tags=["profile"])
