@@ -66,16 +66,18 @@ export default function Morning() {
     setSaving(true);
     setError('');
     try {
-      await ritualsApi.saveMorning({
-        forecast: MOOD_LABELS[forecast],
-        intention: intention || 'Show up gently',
-        activityType: activity || 'none',
-        completedAt: new Date().toISOString(),
-      });
+      if (user) {
+        await ritualsApi.saveMorning({
+          forecast: MOOD_LABELS[forecast],
+          intention: intention || 'Show up gently',
+          activityType: activity || 'none',
+          completedAt: new Date().toISOString(),
+        });
+        trackEvent('morning_ritual_completed', { activity_id: activity, layout_variant: layoutVariant });
+      }
       localStorage.setItem('last_morning_intention', intention || 'Show up gently');
       localStorage.setItem('last_morning_activity', activity || 'none');
       localStorage.setItem('morning_completed_at', new Date().toISOString());
-      trackEvent('morning_ritual_completed', { activity_id: activity, layout_variant: layoutVariant });
       setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save ritual');
@@ -83,16 +85,6 @@ export default function Morning() {
       setSaving(false);
     }
   };
-
-  if (!user) {
-    return (
-      <GuestGate
-        title="Morning Routine"
-        description="Set your daily focus, log your outlook, and select a short habit to ground your morning."
-        icon={<Sun className="w-8 h-8 text-accent animate-pulse" />}
-      />
-    );
-  }
 
   if (saved) {
     return (

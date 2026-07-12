@@ -146,25 +146,26 @@ export default function Mood() {
     setError('');
     setSaving(true);
     try {
-      await moodApi.log(moodLevel, feelings, notes);
-      
-      aiApi.trackInteraction({
-        event_type: 'input_submit',
-        page_path: '/mood',
-        input_placeholder: 'mood_checkin_notes',
-        input_length: notes.length,
-        metadata: {
-          mood_level: moodLevel,
-          emotions_count: feelings.length,
+      if (user) {
+        await moodApi.log(moodLevel, feelings, notes);
+        
+        aiApi.trackInteraction({
+          event_type: 'input_submit',
+          page_path: '/mood',
+          input_placeholder: 'mood_checkin_notes',
+          input_length: notes.length,
+          metadata: {
+            mood_level: moodLevel,
+            emotions_count: feelings.length,
+          }
+        }).catch((err) => console.error('Failed to log mood telemetry:', err));
+
+        // Automatically re-run the 30-day analytics if premium
+        if (isPremium) {
+          handleAnalyze();
         }
-      }).catch((err) => console.error('Failed to log mood telemetry:', err));
-
-      setSaved(true);
-
-      // Automatically re-run the 30-day analytics if premium
-      if (isPremium) {
-        handleAnalyze();
       }
+      setSaved(true);
     } catch (err) {
       if (import.meta.env.DEV) {
         console.error('Mood save failed', err);
@@ -174,17 +175,6 @@ export default function Mood() {
       setSaving(false);
     }
   };
-
-
-  if (!user) {
-    return (
-      <GuestGate
-        title="Calm & Reflection Tracker"
-        description="Acknowledge your emotional rhythm. Log your energy, save personal reflections, and let ARIA highlight consistency patterns."
-        icon={<Smile className="w-8 h-8 text-accent animate-pulse" />}
-      />
-    );
-  }
 
   if (saved) {
     return (

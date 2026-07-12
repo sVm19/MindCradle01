@@ -46,12 +46,14 @@ export default function WindDown() {
     setSaving(true);
     setError('');
     try {
-      await ritualsApi.saveWindDown({
-        releaseItem: release,
-        gratitudes: gratitudes.filter(Boolean),
-        audioChoice,
-        timer: '3m',
-      });
+      if (user) {
+        await ritualsApi.saveWindDown({
+          releaseItem: release,
+          gratitudes: gratitudes.filter(Boolean),
+          audioChoice,
+          timer: '3m',
+        });
+      }
       localStorage.setItem('winddown_completed_at', new Date().toISOString());
       setStep('done');
     } catch (err) {
@@ -86,16 +88,6 @@ export default function WindDown() {
           </button>
         </div>
       </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <GuestGate
-        title="Evening Wind Down"
-        description="End your day with intention. Clear your mind, list your gratitudes, and select a calming sleep companion."
-        icon={<Moon className="w-8 h-8 text-accent animate-pulse" />}
-      />
     );
   }
 

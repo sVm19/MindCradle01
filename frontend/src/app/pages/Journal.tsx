@@ -10,7 +10,7 @@ import { validateJournal } from '@/lib/validation';
 const TODAY_PROMPT = "What felt lighter today than it did a week ago?";
 
 export default function Journal() {
-  const { user } = useAuth();
+  const { user, setAuthModalOpen } = useAuth();
   const navigate = useNavigate();
   const [journalText, setJournalText] = useState('');
   const [journalError, setJournalError] = useState('');
@@ -74,19 +74,20 @@ export default function Journal() {
     setSaving(true);
     setSaveError('');
     try {
-      await journalApi.save(TODAY_PROMPT, journalText);
-      
-      aiApi.trackInteraction({
-        event_type: 'input_submit',
-        page_path: '/journal',
-        input_placeholder: 'journal_entry_content',
-        input_length: journalText.length,
-        metadata: {
-          word_count: journalText.split(/\s+/).filter(Boolean).length,
-          has_reflection: false,
-        }
-      }).catch((err) => console.error('Failed to log journal telemetry:', err));
-
+      if (user) {
+        await journalApi.save(TODAY_PROMPT, journalText);
+        
+        aiApi.trackInteraction({
+          event_type: 'input_submit',
+          page_path: '/journal',
+          input_placeholder: 'journal_entry_content',
+          input_length: journalText.length,
+          metadata: {
+            word_count: journalText.split(/\s+/).filter(Boolean).length,
+            has_reflection: false,
+          }
+        }).catch((err) => console.error('Failed to log journal telemetry:', err));
+      }
       setSaved(true);
       setJournalError('');
     } catch (err) {
@@ -105,19 +106,20 @@ export default function Journal() {
     setSaveError('');
     try {
       const formattedReflection = `Reflection: ${reflectionData.reflection}\nKey Themes: ${reflectionData.themes.join(', ')}\nEmotional Tone: ${reflectionData.emotional_tone}`;
-      await journalApi.save(TODAY_PROMPT, journalText, formattedReflection);
-
-      aiApi.trackInteraction({
-        event_type: 'input_submit',
-        page_path: '/journal',
-        input_placeholder: 'journal_entry_content',
-        input_length: journalText.length,
-        metadata: {
-          word_count: journalText.split(/\s+/).filter(Boolean).length,
-          has_reflection: true,
-        }
-      }).catch((err) => console.error('Failed to log journal telemetry:', err));
-
+      if (user) {
+        await journalApi.save(TODAY_PROMPT, journalText, formattedReflection);
+        
+        aiApi.trackInteraction({
+          event_type: 'input_submit',
+          page_path: '/journal',
+          input_placeholder: 'journal_entry_content',
+          input_length: journalText.length,
+          metadata: {
+            word_count: journalText.split(/\s+/).filter(Boolean).length,
+            has_reflection: true,
+          }
+        }).catch((err) => console.error('Failed to log journal telemetry:', err));
+      }
       setSaved(true);
       setJournalError('');
     } catch (err) {
@@ -131,6 +133,10 @@ export default function Journal() {
     if (wordCount <= 10) return;
     if (journalText.length > 5000) {
       setReflectError('Journal entry cannot exceed 5000 characters.');
+      return;
+    }
+    if (!user) {
+      setAuthModalOpen(true);
       return;
     }
     setReflecting(true);
@@ -148,20 +154,13 @@ export default function Journal() {
       setReflecting(false);
     }
   };
+
   const handleClearReflection = () => {
     setReflectionData(null);
     setReflectError('');
   };
 
-  if (!user) {
-    return (
-      <GuestGate
-        title="Guided Reflection Journal"
-        description="Clear your thoughts. Write daily reflections with relaxing ambient sounds, and receive immediate insights from ARIA."
-        icon={<BookOpen className="w-8 h-8 text-accent animate-pulse" />}
-      />
-    );
-  }
+
 
   if (saved) {
     return (

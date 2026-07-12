@@ -78,10 +78,13 @@ export default function Understanding() {
   useEffect(() => {
     if (user) {
       loadData();
+    } else {
+      setIsLoading(false);
     }
   }, [user]);
 
   const handleToggleConfirm = async (node: KnowledgeNode) => {
+    if (!user) return;
     try {
       const updated = await aiApi.updateKnowledgeNode(node.id, { 
         is_confirmed: !node.is_confirmed 
@@ -93,6 +96,7 @@ export default function Understanding() {
   };
 
   const handleDeleteNode = async (nodeId: string) => {
+    if (!user) return;
     if (!window.confirm("Are you sure you want ARIA to forget this theme? This will clear it from ARIA's active memories.")) return;
     try {
       await aiApi.deleteKnowledgeNode(nodeId);
@@ -108,6 +112,7 @@ export default function Understanding() {
   };
 
   const handleSaveLabel = async (nodeId: string) => {
+    if (!user) return;
     if (!editLabelText.trim()) return;
     try {
       const updated = await aiApi.updateKnowledgeNode(nodeId, { 
@@ -119,16 +124,6 @@ export default function Understanding() {
       console.error('Failed to update node label:', err);
     }
   };
-
-  if (!user) {
-    return (
-      <GuestGate
-        title="ARIA's Understanding"
-        description="Review, modify, or manage how your AI companion builds a Personal Knowledge Graph of your growth."
-        icon={<Compass className="w-8 h-8 text-accent" />}
-      />
-    );
-  }
 
   const nodeTypes = Array.from(new Set(nodes.map(n => n.node_type)));
   const filteredNodes = nodes.filter(n => filterType === 'all' || n.node_type === filterType);

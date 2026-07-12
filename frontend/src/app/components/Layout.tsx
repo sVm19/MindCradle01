@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router';
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth, getInitials, getAvatarGradient, UserSketchAvatar } from '@/lib/auth';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi } from '@/lib/api';
-import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, Flame, AlertTriangle, X, User, Award, Sparkles, Search } from 'lucide-react';
+import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, Flame, AlertTriangle, X, User, Award, Sparkles, Search, Lock } from 'lucide-react';
 
 import Logo from './Logo';
 import AuthCardModal from './AuthCardModal';
@@ -399,6 +399,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {navItems.map((item) => {
               const isActive = location.pathname === item.path;
               const isBlocked = item.path === '/aria' && localStorage.getItem('age_verified') === 'false';
+              const isLockedForGuest = (item.path === '/aria' || item.path === '/insights') && !user;
+              
               return (
                 <Link
                   key={item.path}
@@ -418,6 +420,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 >
                   {item.icon}
                   <span>{item.label}</span>
+                  {isLockedForGuest && <Lock size={11} className="text-text3 shrink-0 ml-0.5" />}
                 </Link>
               );
             })}

@@ -14,10 +14,8 @@ export default function PrivacyPolicyModal() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const accepted = localStorage.getItem('privacy_accepted') === 'true';
-    if (!accepted) {
-      setIsOpen(true);
-    }
+    // Disable auto-opening privacy policy modal on first visit
+    setIsOpen(false);
   }, []);
 
   const handleScroll = () => {
