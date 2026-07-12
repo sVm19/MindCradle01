@@ -604,9 +604,9 @@ async def google_login(req: GoogleLoginRequest, response: Response):
         user_info_list = await pb.call_rpc(
             "get_or_create_google_user",
             {
-                "email_address": email,
-                "user_name": name,
-                "google_sub": google_sub
+                "p_email_address": email,
+                "p_user_name": name,
+                "p_google_sub": google_sub
             }
         )
         
