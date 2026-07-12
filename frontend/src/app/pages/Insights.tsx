@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 export default function Insights() {
-  const { user } = useAuth();
+  const { user, setAuthModalOpen } = useAuth();
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
@@ -44,6 +44,12 @@ export default function Insights() {
     };
   } | null>(null);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setAuthModalOpen(true);
+    }
+  }, [user, setAuthModalOpen]);
 
   useEffect(() => {
     if (!user) {

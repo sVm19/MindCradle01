@@ -52,7 +52,7 @@ const renderMessageContent = (content: string) => {
 };
 
 export default function ARIA() {
-  const { user, setVerifyModalOpen, verifyModalOpen } = useAuth();
+  const { user, setVerifyModalOpen, verifyModalOpen, setAuthModalOpen } = useAuth();
   const navigate = useNavigate();
   const initials = user ? getInitials(user.name || user.email) : '?';
 
@@ -71,6 +71,12 @@ export default function ARIA() {
   const [linguisticShift, setLinguisticShift] = useState<string | null>(null);
   const [discovery, setDiscovery] = useState<any | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setAuthModalOpen(true);
+    }
+  }, [user, setAuthModalOpen]);
 
   useEffect(() => {
     if (user) {

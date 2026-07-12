@@ -404,11 +404,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               return (
                 <Link
                   key={item.path}
-                  to={isBlocked ? '#' : item.path}
+                  to={isBlocked ? '#' : isLockedForGuest ? '#' : item.path}
                   onClick={(e) => {
                     if (isBlocked) {
                       e.preventDefault();
                       alert("This feature is for users 18+. Please contact a crisis counselor instead.");
+                    } else if (isLockedForGuest) {
+                      e.preventDefault();
+                      setAuthModalOpen(true);
                     }
                   }}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap ${isBlocked

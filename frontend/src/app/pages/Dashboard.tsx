@@ -827,7 +827,13 @@ export default function Dashboard() {
               </div>
             </div>
             <Link
-              to="/aria"
+              to={user ? "/aria" : "#"}
+              onClick={(e) => {
+                if (!user) {
+                  e.preventDefault();
+                  setAuthModalOpen(true);
+                }
+              }}
               className="inline-flex items-center gap-1.5 text-[12.5px] text-accent font-medium bg-accent-glow border border-accent/25 px-4 py-2 rounded-full hover:bg-accent/20 transition-all self-center sm:self-start"
             >
               See What's Recommended →
