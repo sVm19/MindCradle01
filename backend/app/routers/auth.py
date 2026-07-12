@@ -588,11 +588,12 @@ async def google_login(req: GoogleLoginRequest, response: Response):
                 detail="GOOGLE_CLIENT_ID is not configured on the backend."
             )
             
-        # Verify token from frontend
+        # Verify token from frontend with 10s clock tolerance for skew
         idinfo = google_id_token.verify_oauth2_token(
             req.token,
             google_requests.Request(),
-            settings.GOOGLE_CLIENT_ID
+            settings.GOOGLE_CLIENT_ID,
+            clock_tolerance=10
         )
         
         email = idinfo['email']
