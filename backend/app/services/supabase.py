@@ -443,6 +443,51 @@ class SupabaseService:
             return None
         return await asyncio.to_thread(_call)
 
+    async def create_magic_login_token_with_session(self, email: str, token: str, expiry_seconds: int, session_id: str) -> bool:
+        """Call RPC to securely generate and store magic login token and session ID for user email."""
+        def _call():
+            client = _get_client()
+            res = client.rpc(
+                "create_magic_login_token_for_email",
+                {
+                    "email_address": email,
+                    "magic_token": token,
+                    "expiry_seconds": expiry_seconds,
+                    "p_session_id": session_id
+                }
+            ).execute()
+            return res.data is True
+        return await asyncio.to_thread(_call)
+
+    async def verify_magic_login_token(self, magic_token: str, device_info: str) -> Optional[dict]:
+        """Call RPC to securely verify magic token, mark as used, and return user details."""
+        def _call():
+            client = _get_client()
+            res = client.rpc(
+                "verify_magic_login_token",
+                {
+                    "p_token": magic_token,
+                    "p_device_info": device_info
+                }
+            ).execute()
+            if res.data and len(res.data) > 0:
+                return res.data[0]
+            return None
+        return await asyncio.to_thread(_call)
+
+    async def check_magic_login_session(self, session_id: str) -> Optional[dict]:
+        """Call RPC to check if a session_id is verified, returning user details if so."""
+        def _call():
+            client = _get_client()
+            res = client.rpc(
+                "check_magic_login_session",
+                {"p_session_id": session_id}
+            ).execute()
+            if res.data and len(res.data) > 0:
+                return res.data[0]
+            return None
+        return await asyncio.to_thread(_call)
+
     async def check_expired_trials(self) -> bool:
         """Call RPC to check and deactivate expired trials in the database."""
         def _call():

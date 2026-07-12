@@ -18,6 +18,7 @@ interface AuthContextValue {
   loginWithGoogle: (token: string) => Promise<void>;
   loginWithGoogleCode: (code: string) => Promise<void>;
   loginWithMagicToken: (token: string) => Promise<void>;
+  loginWithSessionData: (res: any) => void;
   logout: () => void;
   authModalOpen: boolean;
   setAuthModalOpen: (open: boolean) => void;
@@ -112,7 +113,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [persist]);
 
   const loginWithMagicToken = useCallback(async (token: string) => {
-    const res = await authApi.loginWithMagicToken(token);
+    const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
+    const deviceInfo = isMobile ? 'mobile' : 'pc';
+    const res = await authApi.verifyMagicLink(token, deviceInfo);
+    persist(toUser(res));
+  }, [persist]);
+
+  const loginWithSessionData = useCallback((res: any) => {
     persist(toUser(res));
   }, [persist]);
 
@@ -125,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithGoogle,
         loginWithGoogleCode,
         loginWithMagicToken,
+        loginWithSessionData,
         logout,
         authModalOpen,
         setAuthModalOpen,

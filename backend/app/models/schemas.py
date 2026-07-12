@@ -38,6 +38,11 @@ class MagicLoginRequest(BaseModel):
     token: str
 
 
+class VerifyMagicLinkRequest(BaseModel):
+    token: str
+    device_info: str = Field(alias="device_info")
+
+
 class GoogleLoginRequest(BaseModel):
     token: Optional[str] = None
     code: Optional[str] = None

@@ -1,15 +1,21 @@
-import { FormEvent, useState } from 'react';
-import { Link } from 'react-router';
+import { FormEvent, useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router';
 import { Mail, Loader2, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import Logo from '@/app/components/Logo';
 import { auth as authApi } from '@/lib/api';
 import { sanitizeForInput } from '@/lib/sanitize';
+import { useAuth } from '@/lib/auth';
 
 export default function MagicLinkRequest() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+  const [sessionId, setSessionId] = useState('');
+  const [waiting, setWaiting] = useState(false);
+  
+  const navigate = useNavigate();
+  const { loginWithSessionData } = useAuth();
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -17,14 +23,55 @@ export default function MagicLinkRequest() {
     setError('');
 
     try {
-      await authApi.requestMagicLink(email);
+      const data = await authApi.requestMagicLink(email);
       setSent(true);
+      if (data.session_id) {
+        setSessionId(data.session_id);
+        setWaiting(true);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not send login link.');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    
+    if (sent && waiting && sessionId) {
+      let attempts = 0;
+      const maxAttempts = 120; // 10 minutes (5s interval)
+      
+      intervalId = setInterval(async () => {
+        attempts++;
+        try {
+          const checkRes = await authApi.checkSessionStatus(sessionId);
+          if (checkRes.verified && checkRes.token) {
+            clearInterval(intervalId);
+            loginWithSessionData({
+              token: checkRes.token,
+              user_id: checkRes.user_id,
+              name: checkRes.name || '',
+              email: checkRes.email || '',
+            });
+            navigate('/dashboard', { replace: true });
+          }
+        } catch (pollErr) {
+          console.error('Session poll error:', pollErr);
+        }
+        
+        if (attempts >= maxAttempts) {
+          clearInterval(intervalId);
+          setWaiting(false);
+        }
+      }, 5000);
+    }
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [sent, waiting, sessionId, loginWithSessionData, navigate]);
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center p-4 animate-fadeIn">
@@ -61,6 +108,19 @@ export default function MagicLinkRequest() {
                 </p>
               </div>
             </div>
+
+            {waiting && (
+              <div className="bg-accent-glow/5 border border-accent/20 rounded-[14px] px-4 py-4 flex gap-3 animate-pulse">
+                <Loader2 className="text-accent shrink-0 animate-spin mt-0.5" size={18} />
+                <div>
+                  <div className="text-sm font-medium text-accent">Waiting for verification...</div>
+                  <p className="text-xs text-text3 mt-1 leading-relaxed">
+                    Clicked the link on your phone? This page will automatically log you in and redirect here.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <Link to="/login" className="block text-center text-xs text-accent hover:underline">
               Back to sign in
             </Link>

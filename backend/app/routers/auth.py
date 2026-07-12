@@ -20,6 +20,7 @@ from app.models.schemas import (
     MagicLinkRequest,
     MagicLoginRequest,
     GoogleLoginRequest,
+    VerifyMagicLinkRequest,
 )
 from app.utils.security import (
     hash_password,
@@ -524,15 +525,15 @@ async def reset_password(req: ResetPasswordRequest):
 
 @router.post("/magic-link")
 async def magic_link_request(req: MagicLinkRequest):
-    """Request passwordless magic link email."""
-    # Generate token
+    """Request passwordless magic link email with session tracking."""
     email = req.email.lower().strip()
     token = str(uuid.uuid4())
+    session_id = str(uuid.uuid4())
     expiry_seconds = 900  # 15 minutes
     
     try:
-        # Call database RPC to lookup user and store the token
-        res = await pb.create_magic_login_token(email, token, expiry_seconds)
+        # Call database RPC to lookup user and store the token and session_id
+        res = await pb.create_magic_login_token_with_session(email, token, expiry_seconds, session_id)
         
         # If successfully created, send email
         if res is True:
@@ -542,7 +543,99 @@ async def magic_link_request(req: MagicLinkRequest):
         logger.error(f"Magic link request failed: {str(e)}")
         # Proceed silently to prevent email enumeration
         
-    return {"message": "If email exists, magic login link sent"}
+    return {"message": "If email exists, magic login link sent", "session_id": session_id}
+
+
+@router.post("/verify-magic-link", response_model=AuthResponse)
+async def verify_magic_link(req: VerifyMagicLinkRequest, response: Response):
+    """Verify magic link token and mark session as verified, returning AuthResponse."""
+    try:
+        # Call database RPC to verify, update used status, and return user info
+        user_info = await pb.verify_magic_login_token(req.token, req.device_info)
+        
+        if not user_info:
+            raise HTTPException(status_code=400, detail="Invalid or expired magic link")
+            
+        user_id = str(user_info["user_id"])
+        email = user_info["user_email"]
+        name = user_info["user_name"]
+        
+        # Generate custom tokens
+        access_token = create_access_token(user_id, email)
+        refresh_token = create_refresh_token(user_id, email, name)
+        
+        # Auto-start 7-day trial if first time signing in
+        await _auto_start_trial_if_needed(user_id, access_token)
+        
+        # Auto-verify age to prevent prompt
+        await _auto_verify_age_if_needed(user_id, access_token)
+        
+        # Set refresh token in HttpOnly cookie
+        is_prod = (settings.ENVIRONMENT == "production")
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=True if is_prod else False,
+            samesite="none" if is_prod else "lax",
+            max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            path="/"
+        )
+        
+        return AuthResponse(
+            token=access_token,
+            refresh_token="",
+            user_id=user_id,
+            name=name,
+            email=email,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Verify magic link failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to verify magic link.")
+
+
+@router.get("/check-session/{session_id}")
+async def check_session_status(session_id: str, response: Response):
+    """Check if session has been verified on another device, and log in if so."""
+    try:
+        # Call database RPC to check and consume
+        session_info = await pb.check_magic_login_session(session_id)
+        
+        if not session_info or not session_info.get("verified"):
+            return {"verified": False}
+            
+        user_id = str(session_info["user_id"])
+        email = session_info["user_email"]
+        name = session_info["user_name"]
+        
+        # Generate custom tokens
+        access_token = create_access_token(user_id, email)
+        refresh_token = create_refresh_token(user_id, email, name)
+        
+        # Set refresh token in HttpOnly cookie for the PC
+        is_prod = (settings.ENVIRONMENT == "production")
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=True if is_prod else False,
+            samesite="none" if is_prod else "lax",
+            max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            path="/"
+        )
+        
+        return {
+            "verified": True,
+            "token": access_token,
+            "user_id": user_id,
+            "name": name,
+            "email": email,
+        }
+    except Exception as e:
+        logger.error(f"Check session status failed: {str(e)}")
+        return {"verified": False, "error": str(e)}
 
 
 async def _auto_start_trial_if_needed(user_id: str, token: str):

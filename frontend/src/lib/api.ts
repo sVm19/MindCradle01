@@ -410,10 +410,16 @@ export const auth = {
     request<AuthResponse>('POST', '/auth/google', { code }, false),
 
   requestMagicLink: (email: string) =>
-    request<{ message: string }>('POST', '/auth/magic-link', { email }, false),
+    request<{ message: string; session_id?: string }>('POST', '/auth/magic-link', { email }, false),
 
   loginWithMagicToken: (token: string) =>
     request<AuthResponse>('POST', '/auth/magic-login', { token }, false),
+
+  verifyMagicLink: (token: string, deviceInfo: string) =>
+    request<AuthResponse>('POST', '/auth/verify-magic-link', { token, device_info: deviceInfo }, false),
+
+  checkSessionStatus: (sessionId: string) =>
+    request<{ verified: boolean; token?: string; user_id?: string; name?: string; email?: string }>('GET', `/auth/check-session/${sessionId}`, undefined, false),
 
   refresh: () =>
     request<AuthResponse>('POST', '/auth/refresh', undefined, false),
