@@ -325,7 +325,7 @@ export default function Dashboard() {
       <SEO 
         title="Dashboard | MindCradle"
         description="Manage your wellness dashboard, check in on your calm index, log your rituals, and get relational insights."
-        robots="noindex, nofollow"
+        robots={user ? "noindex, nofollow" : "index, follow"}
       />
       {discovery && !discovery.is_dismissed && (
         <div className="bg-gradient-to-r from-teal/15 via-accent/10 to-indigo/15 border-2 border-teal/20 rounded-3xl p-6 text-left shadow-2xl relative overflow-hidden animate-slideIn">
