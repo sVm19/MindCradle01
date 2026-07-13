@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Check, Moon, Leaf, HandHelping, Lightbulb, Book, Sparkles, CloudRain } from 'lucide-react';
+import { Check, Moon, Leaf, HandHelping, Lightbulb, Book, Sparkles, CloudRain, Wind } from 'lucide-react';
 import { sanitizeForInput } from '@/lib/sanitize';
 import { rituals as ritualsApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import GuestGate from '@/app/components/GuestGate';
+import { audioManager } from '@/lib/audioManager';
+
+const soundscapes = [
+  { id: 'quiet-library', title: 'The Quiet Library', icon: <Book className="w-5 h-5 text-teal-400" />, url: 'https://nnwuthynlxrbvuxmpjgu.supabase.co/storage/v1/object/public/Soundspaces/library.mp3' },
+  { id: 'moonlit-garden', title: 'Moonlit Garden', icon: <Sparkles className="w-5 h-5 text-teal-400" />, url: 'https://nnwuthynlxrbvuxmpjgu.supabase.co/storage/v1/object/public/Soundspaces/garden.mp3' },
+  { id: 'rainy-window', title: 'Rainy Window', icon: <CloudRain className="w-5 h-5 text-teal-400" />, url: 'https://nnwuthynlxrbvuxmpjgu.supabase.co/storage/v1/object/public/Soundspaces/rain.mp3' },
+];
 
 export default function WindDown() {
   const { user } = useAuth();
@@ -14,11 +21,46 @@ export default function WindDown() {
   const [gratitudes, setGratitudes] = useState(['', '', '']);
   const [audioChoice, setAudioChoice] = useState('');
 
+  // Subscribe to global audioManager
+  useEffect(() => {
+    return audioManager.subscribe((state) => {
+      if (state.isPlaying && state.trackId && state.trackId.startsWith('winddown-')) {
+        setAudioChoice(state.trackId.replace('winddown-', ''));
+      } else {
+        setAudioChoice('');
+      }
+    });
+  }, []);
+
+  const handleAudioChoice = (id: string) => {
+    if (!id) {
+      audioManager.stop();
+      return;
+    }
+    const trackId = `winddown-${id}`;
+    if (audioManager.isPlaying(trackId)) {
+      audioManager.stop();
+    } else {
+      const selected = soundscapes.find(s => s.id === id);
+      if (selected && selected.url) {
+        audioManager.play(trackId, selected.url);
+      }
+    }
+  };
+
+  // Breathing states
+  const [breathingCompleted, setBreathingCompleted] = useState(false);
+  const [isBreathingActive, setIsBreathingActive] = useState(false);
+  const [breathPhase, setBreathPhase] = useState<'idle' | 'inhale' | 'hold' | 'exhale'>('idle');
+  const [breathSeconds, setBreathSeconds] = useState(0);
+  const [breathCycle, setBreathCycle] = useState(1);
+
   // Derived
   const leaveChecked = release.trim().length > 0;
   const gratitudesChecked = gratitudes.every((g) => g.trim().length > 0);
+  const breathingChecked = breathingCompleted;
   const audioChecked = audioChoice !== '';
-  const allChecked = leaveChecked && gratitudesChecked && audioChecked;
+  const allChecked = leaveChecked && gratitudesChecked && breathingChecked && audioChecked;
 
   const [step, setStep] = useState<'checklist' | 'detail' | 'done'>('checklist');
   const [saving, setSaving] = useState(false);
@@ -36,6 +78,74 @@ export default function WindDown() {
       .catch(() => {});
   }, [user]);
 
+  useEffect(() => {
+    if (!isBreathingActive) return;
+
+    let timer: any;
+    
+    timer = setInterval(() => {
+      setBreathSeconds((prev) => {
+        if (prev <= 1) {
+          if (breathPhase === 'idle') {
+            setBreathPhase('inhale');
+            return 4;
+          } else if (breathPhase === 'inhale') {
+            setBreathPhase('hold');
+            return 7;
+          } else if (breathPhase === 'hold') {
+            setBreathPhase('exhale');
+            return 8;
+          } else if (breathPhase === 'exhale') {
+            if (breathCycle >= 4) {
+              setIsBreathingActive(false);
+              setBreathingCompleted(true);
+              setBreathPhase('idle');
+              return 0;
+            } else {
+              setBreathCycle((c) => c + 1);
+              setBreathPhase('inhale');
+              return 4;
+            }
+          }
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isBreathingActive, breathPhase, breathCycle]);
+
+  const startBreathing = () => {
+    setBreathingCompleted(false);
+    setIsBreathingActive(true);
+    setBreathPhase('inhale');
+    setBreathSeconds(4);
+    setBreathCycle(1);
+  };
+
+  // Breathing styles mapping
+  let transitionStyle = 'all 1s ease-in-out';
+  let scaleClass = 'scale-100';
+  let bgGradient = 'from-bg3 to-bg3 border border-border';
+  let glowClass = 'shadow-none';
+
+  if (breathPhase === 'inhale') {
+    transitionStyle = 'transform 4s ease-out, background-color 1s ease-out, shadow 1s ease-out';
+    scaleClass = 'scale-125';
+    bgGradient = 'from-teal/40 via-teal/30 to-accent/20';
+    glowClass = 'shadow-[0_0_40px_rgba(45,212,191,0.45)]';
+  } else if (breathPhase === 'hold') {
+    transitionStyle = 'transform 7s linear, background-color 1s ease-in-out, shadow 1s ease-in-out';
+    scaleClass = 'scale-125';
+    bgGradient = 'from-accent/40 via-accent/30 to-indigo-500/20';
+    glowClass = 'shadow-[0_0_50px_rgba(108,92,231,0.5)]';
+  } else if (breathPhase === 'exhale') {
+    transitionStyle = 'transform 8s ease-in-out, background-color 1s ease-in-out, shadow 1s ease-in-out';
+    scaleClass = 'scale-85';
+    bgGradient = 'from-indigo-500/20 via-teal/15 to-bg3';
+    glowClass = 'shadow-[0_0_20px_rgba(99,102,241,0.25)]';
+  }
+
   const updateGratitude = (index: number, val: string) => {
     const sanitizedVal = sanitizeForInput(val);
     setGratitudes((prev) => prev.map((g, i) => (i === index ? sanitizedVal : g)));
@@ -51,7 +161,7 @@ export default function WindDown() {
           releaseItem: release,
           gratitudes: gratitudes.filter(Boolean),
           audioChoice,
-          timer: '3m',
+          timer: '4m',
         });
       }
       localStorage.setItem('winddown_completed_at', new Date().toISOString());
@@ -81,7 +191,7 @@ export default function WindDown() {
             Back to Dashboard →
           </button>
           <button
-            onClick={() => { setStep('checklist'); setRelease(''); setGratitudes(['', '', '']); setAudioChoice(''); }}
+            onClick={() => { setStep('checklist'); setRelease(''); setGratitudes(['', '', '']); setAudioChoice(''); setBreathingCompleted(false); }}
             className="px-5 py-3 bg-bg3 border border-border text-text3 hover:text-text rounded-full font-medium text-sm hover:bg-bg4 transition-all smooth-hover-btn"
           >
             Reset Routine
@@ -169,6 +279,73 @@ export default function WindDown() {
           </div>
         </div>
 
+        {/* Breathing Ritual */}
+        <div className={`border rounded-[14px] px-5 py-4 transition-all ${breathingChecked ? 'bg-bg2/40 border-green/30' : 'bg-bg2 border-border'}`}>
+          <div className="flex items-center gap-4 mb-3">
+            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${breathingChecked ? 'bg-green border-green' : 'border-border'}`}>
+              {breathingChecked && <Check className="w-4 h-4 text-white" />}
+            </div>
+            <div className="flex-1">
+              <div className="text-sm text-text font-medium">Breathe & Release</div>
+              <div className="text-xs text-text3">
+                {breathingChecked ? (
+                  <span className="text-green font-medium">Completed 4 cycles of 4-7-8 breathing.</span>
+                ) : (
+                  <span>Perform a 4-7-8 breathing exercise to calm your nervous system.</span>
+                )}
+              </div>
+            </div>
+            <div className="text-lg text-teal"><Wind /></div>
+          </div>
+          
+          {isBreathingActive ? (
+            <div className="flex flex-col items-center justify-center py-6 bg-bg3/40 rounded-[12px] border border-border/50 backdrop-blur-sm animate-fadeIn">
+              <div
+                style={{ transition: transitionStyle }}
+                className={`w-40 h-40 rounded-full bg-gradient-to-br ${bgGradient} ${scaleClass} ${glowClass} flex flex-col items-center justify-center relative`}
+              >
+                <div className="absolute inset-0 rounded-full border border-teal/20 animate-ping opacity-10 pointer-events-none" />
+                
+                <span className="text-[10px] uppercase tracking-[0.2em] text-text2 font-semibold mb-1">
+                  {breathPhase}
+                </span>
+                <span className="text-4xl font-light text-text">
+                  {breathSeconds}
+                </span>
+                <span className="text-[9px] text-text3 mt-1.5">
+                  Cycle {breathCycle} of 4
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  setIsBreathingActive(false);
+                  setBreathPhase('idle');
+                }}
+                className="mt-6 px-4 py-1.5 bg-rose/10 hover:bg-rose/20 text-rose border border-rose/20 rounded-full text-xs font-semibold tracking-wide transition-all smooth-hover-btn"
+              >
+                Stop Exercise
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row gap-3 pt-1">
+              <button
+                onClick={startBreathing}
+                className="px-5 py-2.5 bg-teal/15 hover:bg-teal/25 text-teal border border-teal/25 rounded-full text-xs font-semibold tracking-wide transition-all smooth-hover-btn"
+              >
+                {breathingChecked ? 'Restart Breathing Exercise' : 'Start 4-7-8 Breathing (1.5 min)'}
+              </button>
+              {!breathingChecked && (
+                <button
+                  onClick={() => setBreathingCompleted(true)}
+                  className="px-5 py-2.5 bg-bg3 hover:bg-bg4 text-text2 border border-border rounded-full text-xs font-medium transition-all smooth-hover-btn"
+                >
+                  Mark Completed Offline
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Sleep story */}
         <div className={`border rounded-[14px] px-5 py-4 transition-all ${audioChecked ? 'bg-bg2/40 border-green/30' : 'bg-bg2 border-border'}`}>
           <div className="flex items-center gap-4 mb-3">
@@ -188,14 +365,10 @@ export default function WindDown() {
             <div className="text-lg text-teal"><Moon size={18} /></div>
           </div>
           <div className="space-y-2">
-            {[
-              { id: 'quiet-library', title: 'The Quiet Library', icon: <Book className="w-5 h-5 text-teal-400" /> },
-              { id: 'moonlit-garden', title: 'Moonlit Garden', icon: <Sparkles className="w-5 h-5 text-teal-400" /> },
-              { id: 'rainy-window', title: 'Rainy Window', icon: <CloudRain className="w-5 h-5 text-teal-400" /> },
-            ].map((story) => (
+            {soundscapes.map((story) => (
               <button
                 key={story.id}
-                onClick={() => setAudioChoice(story.id)}
+                onClick={() => handleAudioChoice(audioChoice === story.id ? '' : story.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-[10px] text-left transition-all ${
                   audioChoice === story.id
                     ? 'bg-teal/10 border border-teal/30'
@@ -204,7 +377,12 @@ export default function WindDown() {
               >
                 <span className="text-xl">{story.icon}</span>
                 <span className="text-sm text-text">{story.title}</span>
-                {audioChoice === story.id && <span className="ml-auto text-xs text-teal">▶ Selected</span>}
+                {audioChoice === story.id && (
+                  <span className="ml-auto text-xs text-teal flex items-center gap-1.5 font-medium animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal animate-ping" />
+                    Playing (Click to Stop)
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -212,7 +390,7 @@ export default function WindDown() {
 
         {/* Progress */}
         <div className="text-xs text-text3 text-center pt-2">
-          {[leaveChecked, gratitudesChecked, audioChecked].filter(Boolean).length} of 3 sections completed
+          {[leaveChecked, gratitudesChecked, breathingChecked, audioChecked].filter(Boolean).length} of 4 sections completed
         </div>
       </section>
 
@@ -230,7 +408,7 @@ export default function WindDown() {
           {saving ? 'Saving…' : 'Save Reflections & Complete →'}
         </button>
         <p className="text-xs text-text3">
-          {allChecked ? 'Beautiful work. All 3 evening steps are complete. Ready to log your reflections?' : 'Complete all sections above to save your routine.'}
+          {allChecked ? 'Beautiful work. All 4 evening steps are complete. Ready to log your reflections?' : 'Complete all sections above to save your routine.'}
         </p>
       </section>
 

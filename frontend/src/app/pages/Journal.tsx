@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Play, Pause, Loader2, BookOpen, Music, Lock } from 'lucide-react';
+import { Play, Square, Loader2, BookOpen, Music, Lock } from 'lucide-react';
 import { sanitizeForInput } from '@/lib/sanitize';
 import { journal as journalApi, ai as aiApi, mood as moodApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import GuestGate from '@/app/components/GuestGate';
 import { validateJournal } from '@/lib/validation';
+import { audioManager } from '@/lib/audioManager';
 
 const TODAY_PROMPT = "What felt lighter today than it did a week ago?";
 
@@ -14,7 +15,13 @@ export default function Journal() {
   const navigate = useNavigate();
   const [journalText, setJournalText] = useState('');
   const [journalError, setJournalError] = useState('');
-  const [activeTrack, setActiveTrack] = useState<number | null>(null);
+  const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
+
+  useEffect(() => {
+    return audioManager.subscribe((state) => {
+      setActiveTrackId(state.isPlaying ? state.trackId : null);
+    });
+  }, []);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -54,13 +61,27 @@ export default function Journal() {
 
 
   const ambientTracks = [
-    { name: 'Rain on Glass', duration: '15:30' },
-    { name: 'Forest Morning', duration: '18:45' },
-    { name: 'Ocean Waves', duration: '20:15' },
+    { 
+      name: 'Rain on Glass', 
+      url: 'https://nnwuthynlxrbvuxmpjgu.supabase.co/storage/v1/object/public/Soundspaces/rain.mp3' 
+    },
+    { 
+      name: 'Forest Morning', 
+      url: 'https://nnwuthynlxrbvuxmpjgu.supabase.co/storage/v1/object/public/Soundspaces/forest.mp3' 
+    },
+    { 
+      name: 'Ocean Waves', 
+      url: 'https://nnwuthynlxrbvuxmpjgu.supabase.co/storage/v1/object/public/Soundspaces/ocean.mp3' 
+    },
   ];
 
   const togglePlay = (index: number) => {
-    setActiveTrack(activeTrack === index ? null : index);
+    const trackId = `journal-${index}`;
+    if (activeTrackId === trackId) {
+      audioManager.stop();
+    } else {
+      audioManager.play(trackId, ambientTracks[index].url);
+    }
   };
 
   const wordCount = journalText.split(/\s+/).filter(Boolean).length;
@@ -224,27 +245,23 @@ export default function Journal() {
         <div className="space-y-2">
           {ambientTracks.map((track, index) => (
             <div key={index} className="bg-bg2 border border-border rounded-[14px] px-4 py-3 flex items-center gap-4">
-              <button
+               <button
                 onClick={() => togglePlay(index)}
                 className="w-10 h-10 rounded-full bg-accent/20 border border-accent/30 flex items-center justify-center text-accent hover:bg-accent/30 transition-all"
               >
-                {activeTrack === index ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+                {activeTrackId === `journal-${index}` ? <Square className="w-3.5 h-3.5 fill-accent" /> : <Play className="w-4 h-4 ml-0.5" />}
               </button>
 
               <div className="flex-1">
-                <div className="text-sm text-text mb-1">{track.name}</div>
-                <div className="w-full bg-bg4 rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-accent2 to-teal rounded-full transition-all"
-                    style={{ width: activeTrack === index ? '35%' : '0%' }}
-                  />
-                </div>
+                <div className="text-sm text-text">{track.name}</div>
               </div>
 
-              <div className="text-xs text-text3 flex items-center gap-2">
-                <Music size={14} className="text-text3" />
-                <span>{track.duration}</span>
-              </div>
+              {activeTrackId === `journal-${index}` && (
+                <div className="text-xs text-teal flex items-center gap-1.5 font-medium animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal animate-ping" />
+                  Playing
+                </div>
+              )}
             </div>
           ))}
         </div>

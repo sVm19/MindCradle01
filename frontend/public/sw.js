@@ -32,6 +32,11 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Only handle GET requests and HTTP/HTTPS protocols
+  if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
+    return;
+  }
+
   // Network-First for navigation (HTML page) to ensure client gets the latest built files
   if (event.request.mode === 'navigate') {
     event.respondWith(
@@ -53,7 +58,10 @@ self.addEventListener('fetch', event => {
   // Cache-First for static assets with fetch fallback
   event.respondWith(
     caches.match(event.request).then(response => {
-      return response || fetch(event.request);
+      return response || fetch(event.request).catch(error => {
+        console.warn(`[Service Worker] Fetch failed for ${event.request.url}:`, error);
+        return new Response('Network error occurred', { status: 408, statusText: 'Network Error' });
+      });
     })
   );
 });

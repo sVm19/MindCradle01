@@ -37,7 +37,7 @@ export default function MagicLinkRequest() {
   };
 
   useEffect(() => {
-    let intervalId: NodeJS.Timeout;
+    let intervalId: any;
     
     if (sent && waiting && sessionId) {
       let attempts = 0;

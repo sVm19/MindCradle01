@@ -9,19 +9,25 @@ ReactGA.initialize('G-YOUR-GOOGLE-ANALYTICS-ID');
   createRoot(document.getElementById("root")!).render(<App />);
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(reg => {
-        if (import.meta.env.DEV) {
-          console.log('ServiceWorker registration successful with scope: ', reg.scope);
-        }
-      })
-      .catch(err => {
-        if (import.meta.env.DEV) {
+  if (import.meta.env.PROD) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .catch(err => {
           console.error('ServiceWorker registration failed: ', err);
-        }
-      });
-  });
+        });
+    });
+  } else {
+    // In development, unregister any active service worker to prevent caching dev assets
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      for (const registration of registrations) {
+        registration.unregister().then(success => {
+          if (success) {
+            console.log('Unregistered active service worker for development mode');
+          }
+        });
+      }
+    });
+  }
 }
 
   

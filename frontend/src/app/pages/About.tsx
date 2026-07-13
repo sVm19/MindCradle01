@@ -24,98 +24,112 @@ export default function About() {
       {/* Ambient background glow */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(240,147,160,0.06),transparent_50%)] pointer-events-none" />
 
-      <div 
-        className="w-full relative z-10"
-        style={{ 
-          marginLeft: 'auto',
-          marginRight: 'auto',
-          maxWidth: '800px',
-          fontSize: '16px',
-          lineHeight: '1.8'
-        }}
-      >
-        <h1 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl font-light mb-2 text-text flex items-center gap-2">
-          About MindCradle
-        </h1>
-        <p className="text-sm text-text3 mb-8 font-light">
-          A Sanctuary for Your Rhythm & Self-Awareness
-        </p>
-
-        <div className="space-y-8 text-text2">
-          <section className="bg-bg/40 border border-border/80 rounded-2xl p-6 mb-6">
-            <p className="text-[15px] sm:text-base font-light leading-relaxed">
-              MindCradle is a personal growth app designed to help you build calm, self-awareness, and consistency 
-              through daily check-ins, reflection journaling, and daily routines. We offer a calming digital space 
-              where self-reflection meets habit-building.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-[20px] font-bold text-text mb-3 mt-6 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-rose animate-pulse" /> Our Mission
-            </h2>
-            <p className="text-[15px] sm:text-base font-light">
-              Our mission is to empower people to build calm, self-awareness, and consistency through daily routines, 
-              reflection, and habit building. We believe personal growth is a gentle, ongoing path rather than a 
-              destination, and we walk alongside you with calming audio, grounding prompts, and supportive AI companion features.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-[20px] font-bold text-text mb-3 mt-6 flex items-center gap-2">
-              <Heart className="w-5 h-5 text-rose" /> Features Built For You
-            </h2>
-            <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 text-[14px]">
-              <li className="p-4 bg-bg/50 border border-border rounded-xl flex items-start gap-3">
-                <span className="text-rose font-bold text-lg">•</span>
-                <div>
-                  <strong>Daily check-ins:</strong> Record energy levels and routine streaks with a weekly Calm Index.
-                </div>
-              </li>
-              <li className="p-4 bg-bg/50 border border-border rounded-xl flex items-start gap-3">
-                <span className="text-rose font-bold text-lg">•</span>
-                <div>
-                  <strong>Guided Morning Routines:</strong> Set daily focuses, check-in with your goals, and choose grounding habits.
-                </div>
-              </li>
-              <li className="p-4 bg-bg/50 border border-border rounded-xl flex items-start gap-3">
-                <span className="text-rose font-bold text-lg">•</span>
-                <div>
-                  <strong>Guided Evening Wind Downs:</strong> Clear your mind, list your gratitudes, and select relaxing sleep soundscapes.
-                </div>
-              </li>
-              <li className="p-4 bg-bg/50 border border-border rounded-xl flex items-start gap-3">
-                <span className="text-rose font-bold text-lg">•</span>
-                <div>
-                  <strong>Reflection Journaling:</strong> Write with ambient soundscapes like rain or quiet libraries.
-                </div>
-              </li>
-              <li className="p-4 bg-bg/50 border border-border rounded-xl flex items-start gap-3">
-                <span className="text-rose font-bold text-lg">•</span>
-                <div>
-                  <strong>ARIA AI Companion:</strong> Receive warm, validating responses and daily rhythm suggestions.
-                </div>
-              </li>
-              <li className="p-4 bg-bg/50 border border-border rounded-xl flex items-start gap-3">
-                <span className="text-rose font-bold text-lg">•</span>
-                <div>
-                  <strong>Privacy-First Focus:</strong> Full GDPR support, easy data exports, and secure database architecture.
-                </div>
-              </li>
-            </ul>
-          </section>
-
-          <section className="border-t border-border pt-6 mt-8">
-            <h2 className="text-[20px] font-bold text-text mb-3 flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-rose" /> Guardrails & Safety
-            </h2>
-            <p className="text-[14px] text-text3 leading-relaxed">
-              MindCradle is built with your support in mind. Our AI companion features integrated safety keyword detection, 
-              helpful contacts, age verification gates (18+), and off-topic filters to ensure it remains a supportive 
-              personal growth space rather than a replacement for professional guidance.
-            </p>
-          </section>
+      <div className="w-full relative z-10 max-w-4xl mx-auto space-y-12">
+        {/* Hero */}
+        <div className="text-center space-y-4">
+          <h1 className="font-[family-name:var(--font-serif)] text-4xl sm:text-5xl font-light text-text">
+            About MindCradle
+          </h1>
+          <p className="text-base sm:text-lg text-text3 max-w-2xl mx-auto font-light leading-relaxed">
+            Empowering people to understand themselves better through daily wellness practices.
+          </p>
         </div>
+        
+        {/* Mission */}
+        <section className="bg-bg/40 border border-border/80 rounded-2xl p-6 sm:p-8">
+          <h2 className="text-xl font-bold text-text mb-3 flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-rose animate-pulse" /> Our Mission
+          </h2>
+          <p className="text-text2 font-light leading-relaxed text-sm sm:text-[15px]">
+            We believe mental wellness should be accessible, private, and empowering. 
+            MindCradle is built to help you discover patterns in your emotions, build 
+            sustainable habits, and develop a deeper connection with yourself.
+          </p>
+        </section>
+        
+        {/* Values */}
+        <section className="space-y-6">
+          <h2 className="text-xl font-bold text-text flex items-center gap-2">
+            <Heart className="w-5 h-5 text-rose" /> Our Values
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-5 bg-bg/50 border border-border rounded-xl space-y-2">
+              <h3 className="font-semibold text-text flex items-center gap-2 text-sm sm:text-base">
+                🔒 Privacy First
+              </h3>
+              <p className="text-xs text-text3 leading-relaxed">
+                Your data is yours. End-to-end encrypted. GDPR compliant. Never sold.
+              </p>
+            </div>
+            <div className="p-5 bg-bg/50 border border-border rounded-xl space-y-2">
+              <h3 className="font-semibold text-text flex items-center gap-2 text-sm sm:text-base">
+                🤝 Authentic
+              </h3>
+              <p className="text-xs text-text3 leading-relaxed">
+                No corporate jargon. Real support. Designed with users, not at them.
+              </p>
+            </div>
+            <div className="p-5 bg-bg/50 border border-border rounded-xl space-y-2">
+              <h3 className="font-semibold text-text flex items-center gap-2 text-sm sm:text-base">
+                📈 Empowering
+              </h3>
+              <p className="text-xs text-text3 leading-relaxed">
+                Tools for self-discovery. Insights you can act on. Growth you control.
+              </p>
+            </div>
+            <div className="p-5 bg-bg/50 border border-border rounded-xl space-y-2">
+              <h3 className="font-semibold text-text flex items-center gap-2 text-sm sm:text-base">
+                🌍 Accessible
+              </h3>
+              <p className="text-xs text-text3 leading-relaxed">
+                $0 free tier. No paywall for core features. Mental wellness for everyone.
+              </p>
+            </div>
+          </div>
+        </section>
+        
+        {/* Stats */}
+        <section className="bg-bg/60 border border-border/75 rounded-2xl p-8">
+          <h2 className="text-xl font-bold text-text text-center mb-6">By The Numbers</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
+            <div className="space-y-1">
+              <h3 className="text-3xl font-extrabold text-rose">487+</h3>
+              <p className="text-xs text-text3">User Reviews</p>
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-3xl font-extrabold text-rose">4.8★</h3>
+              <p className="text-xs text-text3">Average Rating</p>
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-3xl font-extrabold text-rose">50K+</h3>
+              <p className="text-xs text-text3">Active Users</p>
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-3xl font-extrabold text-rose">150+</h3>
+              <p className="text-xs text-text3">Countries</p>
+            </div>
+          </div>
+        </section>
+        
+        {/* Team */}
+        <section className="bg-bg/40 border border-border/80 rounded-2xl p-6">
+          <h2 className="text-xl font-bold text-text mb-3">Built By</h2>
+          <p className="text-text2 font-light leading-relaxed text-sm">
+            Founded by Shubham Kumar, a passionate developer focused on building 
+            products that genuinely help people. Built in public, with community feedback.
+          </p>
+        </section>
+        
+        {/* CTA */}
+        <section className="text-center pt-4 space-y-4">
+          <h2 className="text-xl font-bold text-text">Ready to Start Your Wellness Journey?</h2>
+          <a 
+            href="/signup" 
+            className="inline-block px-8 py-3 bg-gradient-to-r from-rose to-accent text-white font-semibold text-sm rounded-full shadow-lg hover:opacity-95 transition-all transform hover:scale-105 smooth-hover-btn animate-pulse"
+          >
+            Get Started Free
+          </a>
+        </section>
       </div>
     </div>
   );

@@ -26,6 +26,7 @@ const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Refund = lazy(() => import('./pages/Refund'));
 const About = lazy(() => import('./pages/About'));
+const Features = lazy(() => import('./pages/Features'));
 const Billing = lazy(() => import('./pages/Billing'));
 const BillingSuccess = lazy(() => import('./pages/BillingSuccess'));
 const BillingCancel = lazy(() => import('./pages/BillingCancel'));
@@ -128,6 +129,7 @@ function AppRoutes() {
                 <Route path="/forgot-password" element={<Navigate to="/login" replace />} />
                 <Route path="/reset" element={<Navigate to="/login" replace />} />
                 <Route path="/about" element={<About />} />
+                <Route path="/features" element={<Features />} />
                 <Route path="/blog" element={<Blog />} />
                 <Route path="/blog/:slug" element={<BlogPost />} />
                 <Route path="/docs" element={<Docs />} />

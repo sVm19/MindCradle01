@@ -94,7 +94,7 @@ export default function AriaTerminalCard() {
       const steps = currentSequence.steps || [];
       
       // Reveal each step sequentially
-      const timers: NodeJS.Timeout[] = [];
+      const timers: any[] = [];
       steps.forEach((_, idx) => {
         const t = setTimeout(() => {
           setVisibleStepCount(idx + 1);

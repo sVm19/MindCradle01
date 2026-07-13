@@ -374,6 +374,7 @@ export interface JournalReflectionResponse {
   reflection: string;
   themes: string[];
   emotional_tone: string;
+  linguistic_shift?: string;
 }
 
 export interface MoodAnalysisResponse {
