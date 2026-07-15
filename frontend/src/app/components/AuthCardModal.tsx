@@ -160,6 +160,10 @@ export default function AuthCardModal() {
             <span className="sr-only">{loading ? 'Signing in with Google' : 'Sign up or sign in with Google'}</span>
           </button>
 
+          <p className="text-center text-xs text-rose font-medium">
+            google OAuth is currently unavilable
+          </p>
+
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border" />
             <span className="text-[10px] uppercase tracking-[0.12em] text-text3">or</span>
