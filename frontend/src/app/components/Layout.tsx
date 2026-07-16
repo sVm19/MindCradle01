@@ -27,6 +27,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
 
   const navRef = useRef<HTMLDivElement>(null);
+  const scrollIntervalRef = useRef<number | null>(null);
   
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     if (navRef.current) {
@@ -34,6 +35,45 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         e.preventDefault();
         navRef.current.scrollLeft += e.deltaY;
       }
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const container = navRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const width = rect.width;
+    
+    const zoneWidth = 60; // 60px zone on left/right edges
+
+    if (scrollIntervalRef.current) {
+      cancelAnimationFrame(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+
+    if (x < zoneWidth) {
+      const intensity = (zoneWidth - x) / zoneWidth;
+      const scrollStep = () => {
+        container.scrollLeft -= intensity * 8;
+        scrollIntervalRef.current = requestAnimationFrame(scrollStep);
+      };
+      scrollIntervalRef.current = requestAnimationFrame(scrollStep);
+    } else if (x > width - zoneWidth) {
+      const intensity = (x - (width - zoneWidth)) / zoneWidth;
+      const scrollStep = () => {
+        container.scrollLeft += intensity * 8;
+        scrollIntervalRef.current = requestAnimationFrame(scrollStep);
+      };
+      scrollIntervalRef.current = requestAnimationFrame(scrollStep);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (scrollIntervalRef.current) {
+      cancelAnimationFrame(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
     }
   };
 
@@ -408,6 +448,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div 
             ref={navRef}
             onWheel={handleWheel}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
             className="flex items-center gap-1.5 sm:gap-2 px-5 py-2.5 overflow-x-auto scrollbar-none max-w-[900px] w-full mx-auto bg-bg2/40 backdrop-blur-md border border-border/60 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
           >
             {navItems.map((item) => {
