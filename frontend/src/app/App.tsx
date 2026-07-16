@@ -38,6 +38,7 @@ const GrowthDashboard = lazy(() => import('./pages/GrowthDashboard'));
 const Blog = lazy(() => import('./pages/Blog'));
 const BlogPost = lazy(() => import('./pages/BlogPost'));
 const Docs = lazy(() => import('./pages/Docs'));
+const Resources = lazy(() => import('./pages/Resources'));
 
 
 
@@ -130,6 +131,7 @@ function AppRoutes() {
                 <Route path="/reset" element={<Navigate to="/login" replace />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/features" element={<Features />} />
+                <Route path="/articles" element={<Resources />} />
                 <Route path="/blog" element={<Blog />} />
                 <Route path="/blog/:slug" element={<BlogPost />} />
                 <Route path="/docs" element={<Docs />} />
