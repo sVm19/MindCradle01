@@ -184,18 +184,47 @@ async def create_creem_checkout(
             "Content-Type": "application/json"
         }
         
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{CREEM_API_URL}/checkout",
-                json=payload,
-                headers=headers
+        base_url = CREEM_API_URL.rstrip('/')
+        if "/v1/" in base_url or "/checkout" in base_url:
+            endpoint = base_url
+        else:
+            endpoint = f"{base_url}/v1/checkouts"
+            
+        logger.info("Creating Creem checkout session via endpoint: %s", endpoint)
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    endpoint,
+                    json=payload,
+                    headers=headers,
+                    timeout=10.0
+                )
+        except httpx.RequestError as exc:
+            logger.error("Connection error while contacting Creem API: %s", exc)
+            raise HTTPException(
+                status_code=400,
+                detail="Payment gateway communication failed. Please try again."
             )
             
         if response.status_code == 200:
-            return {"checkout_url": response.json().get("url")}
+            data = response.json()
+            checkout_url = data.get("checkout_url") or data.get("url")
+            if not checkout_url:
+                logger.error("Creem response missing checkout_url: %s", data)
+                raise HTTPException(status_code=400, detail="Payment provider did not return a checkout URL")
+            return {"checkout_url": checkout_url}
         else:
             logger.error("Creem checkout creation failed: %s %s", response.status_code, response.text)
-            raise HTTPException(status_code=502, detail="Failed to create checkout session with Creem")
+            error_msg = "Failed to create checkout session with Creem"
+            try:
+                err_data = response.json()
+                if "message" in err_data:
+                    error_msg = f"{error_msg}: {err_data['message']}"
+            except Exception:
+                if response.text:
+                    error_msg = f"{error_msg}: {response.text[:100]}"
+            raise HTTPException(status_code=400, detail=error_msg)
     except HTTPException:
         raise
     except Exception as e:
