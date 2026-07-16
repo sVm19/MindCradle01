@@ -70,7 +70,7 @@ export default function ARIA() {
   const [isPremium, setIsPremium] = useState(false);
   const [linguisticShift, setLinguisticShift] = useState<string | null>(null);
   const [discovery, setDiscovery] = useState<any | null>(null);
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchExpanded, setSearchExpanded] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -1257,20 +1257,54 @@ export default function ARIA() {
 
       {/* Search history long card */}
       {user && (
-        <button
-          onClick={() => setSearchOpen(true)}
-          title="Search your history (⌘K)"
-          className="w-full flex items-center justify-between bg-bg2 border border-border hover:border-border2 hover:bg-accent/5 rounded-[14px] px-5 py-4 transition-all cursor-pointer group text-left mb-6"
+        <div
+          className={`w-full bg-bg2 border border-border rounded-[14px] overflow-hidden transition-all duration-300 ease-in-out mb-6 ${
+            searchExpanded ? 'max-h-[1000px] border-accent/25 shadow-lg shadow-black/20' : 'max-h-[64px] hover:border-border2 hover:bg-accent/5'
+          }`}
         >
-          <div className="flex items-center gap-3">
-            <div className="text-accent"><Search size={18} className="group-hover:text-accent transition-colors" /></div>
-            <div>
-              <div className="text-sm text-text font-medium">Search history</div>
-              <div className="text-xs text-text3">Find insights and past reflections in your archive</div>
+          {/* Header row (toggles expansion) */}
+          <button
+            type="button"
+            onClick={() => setSearchExpanded(!searchExpanded)}
+            title={searchExpanded ? "Collapse search" : "Expand search history"}
+            className="w-full flex items-center justify-between px-5 py-4 cursor-pointer group text-left outline-none"
+          >
+            <div className="flex items-center gap-3">
+              <div className="text-accent">
+                <Search size={18} className="group-hover:text-accent transition-colors" />
+              </div>
+              <div>
+                <span className="text-sm text-text font-medium">Search history</span>
+                {!searchExpanded && (
+                  <span className="text-xs text-text3 ml-3 font-normal opacity-85 transition-opacity duration-200 hidden sm:inline-block">
+                    Find insights and past reflections in your archive
+                  </span>
+                )}
+              </div>
             </div>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] text-text3 bg-bg3 border border-border px-2 py-0.5 rounded-md opacity-70">⌘K</span>
+              <span className={`text-text3 transform transition-transform duration-200 ${searchExpanded ? 'rotate-180' : ''}`}>
+                ▼
+              </span>
+            </div>
+          </button>
+
+          {/* Unfolding panel */}
+          <div
+            className={`transition-all duration-300 ease-in-out ${
+              searchExpanded ? 'opacity-100 max-h-[800px] border-t border-border/40 p-4 overflow-y-auto' : 'opacity-0 max-h-0 pointer-events-none'
+            }`}
+          >
+            {searchExpanded && (
+              <SemanticSearch
+                embedded
+                open={searchExpanded}
+                onClose={() => setSearchExpanded(false)}
+              />
+            )}
           </div>
-          <span className="text-[10px] text-text3 bg-bg3 border border-border px-2 py-0.5 rounded-md opacity-70">⌘K</span>
-        </button>
+        </div>
       )}
 
       {/* Resources */}
@@ -1551,11 +1585,7 @@ export default function ARIA() {
         </div>
       )}
 
-      {/* Semantic Search overlay */}
-      <SemanticSearch
-        open={searchOpen}
-        onClose={() => setSearchOpen(false)}
-      />
+
     </div>
   );
 }
