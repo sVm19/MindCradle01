@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth, getInitials, getAvatarGradient, UserSketchAvatar } from '@/lib/auth';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi } from '@/lib/api';
 import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, Flame, AlertTriangle, X, User, Award, Sparkles, Search, Lock } from 'lucide-react';
@@ -25,6 +25,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [hasCriticalCrisis, setHasCriticalCrisis] = useState(false);
   const [showCrisisModal, setShowCrisisModal] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+
+  const navRef = useRef<HTMLDivElement>(null);
+  
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (navRef.current) {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        navRef.current.scrollLeft += e.deltaY;
+      }
+    }
+  };
 
   // Global ⌘K / Ctrl+K shortcut
   const handleGlobalKeyDown = useCallback((e: globalThis.KeyboardEvent) => {
@@ -393,8 +404,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Top Horizontal Navigation Bar */}
-        <nav className="w-full bg-transparent mt-4">
-          <div className="flex items-center gap-1.5 sm:gap-2 px-6 md:px-10 py-2 overflow-x-auto scrollbar-none max-w-[900px] w-full mx-auto">
+        <nav className="w-full bg-transparent mt-4 px-4 sm:px-6 md:px-10">
+          <div 
+            ref={navRef}
+            onWheel={handleWheel}
+            className="flex items-center gap-1.5 sm:gap-2 px-5 py-2.5 overflow-x-auto scrollbar-none max-w-[900px] w-full mx-auto bg-bg2/40 backdrop-blur-md border border-border/60 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
+          >
             {navItems.map((item) => {
               const isActive = location.pathname === item.path;
               const isBlocked = item.path === '/aria' && localStorage.getItem('age_verified') === 'false';
