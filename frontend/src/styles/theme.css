@@ -7,7 +7,8 @@
   --font-sans: 'DM Sans', system-ui, sans-serif;
 
   /* Backgrounds */
-  --bg: linear-gradient(135deg, #05020c 0%, #210d35 45%, #5c133a 85%, #000000 100%); /* Purple, Pink, and Black Gradient */
+  --bg-gradient: linear-gradient(135deg, #05020c 0%, #210d35 45%, #5c133a 85%, #000000 100%); /* Purple, Pink, and Black Gradient */
+  --bg: #0c0714; /* Solid base background matching the gradient */
   --bg2: rgba(255, 255, 255, 0.05); /* Sleek transparent white glass card */
   --bg3: rgba(255, 255, 255, 0.12);
   --bg4: rgba(255, 255, 255, 0.18);
@@ -108,7 +109,7 @@
 
   html {
     font-size: var(--font-size);
-    background: var(--bg);
+    background: var(--bg-gradient);
     background-attachment: fixed;
     color: var(--text);
     font-family: var(--font-sans);
@@ -116,7 +117,7 @@
 
   body {
     min-height: 100vh;
-    background: var(--bg);
+    background: var(--bg-gradient);
     background-attachment: fixed;
     color: var(--text);
     position: relative;
