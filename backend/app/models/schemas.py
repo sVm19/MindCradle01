@@ -249,6 +249,17 @@ class AIChatRequest(BaseModel):
         return v
 
 
+class SearchRequest(BaseModel):
+    query: str
+
+    @field_validator('query', mode='before')
+    @classmethod
+    def sanitize_strings(cls, v):
+        if isinstance(v, str):
+            return sanitize(v)
+        return v
+
+
 class CrisisResource(BaseModel):
     name: str
     phone: Optional[str] = None

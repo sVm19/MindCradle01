@@ -11,6 +11,7 @@ from fastapi import APIRouter, Header, HTTPException, BackgroundTasks, Depends
 
 from app.models.schemas import (
     AIChatRequest, AIChatResponse, AIRecommendRequest,
+    SearchRequest,
     JournalReflectionRequest, JournalReflectionResponse,
     MoodAnalysisRequest, MoodAnalysisResponse,
     RememberContextRequest, MemoryInsightUpdate, MemoryInsightResponse,
@@ -4016,6 +4017,83 @@ async def end_conversation(
     except Exception as e:
         logger.error("Failed to end conversation %s: %s", conversation_id, e)
         raise HTTPException(status_code=500, detail=f"Failed to end conversation: {str(e)}")
+
+
+@router.post("/search-history")
+async def search_chat_history(
+    request: SearchRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Search user's chat history"""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token) or "unknown"
+    if user_id == "unknown":
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    try:
+        query = request.query.lower()
+
+        # Get all conversations for user
+        resp = await pb.list_records(
+            "ai_conversations",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 100}
+        )
+        conversations = resp.get("items") or []
+
+        results = []
+        for conv in conversations:
+            messages = conv.get("messages") or []
+
+            # Search in messages
+            for msg in messages:
+                content = msg.get("content", "")
+                if query in content.lower():
+                    results.append({
+                        "message": content,
+                        "created_at": conv.get("created"),
+                        "conversation_id": conv.get("id")
+                    })
+
+        return {
+            "results": results[:50]  # Limit to 50 results
+        }
+    except Exception as e:
+        logger.error("Error searching chat history: %s", e)
+        return {"error": str(e)}
+
+
+@router.post("/clear-chat")
+async def clear_chat(
+    authorization: Optional[str] = Header(None),
+):
+    """Clear all chat history"""
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    user_id = extract_user_id(token) or "unknown"
+    if user_id == "unknown":
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    try:
+        # Delete all conversations for user
+        resp = await pb.list_records(
+            "ai_conversations",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 100}
+        )
+        conversations = resp.get("items") or []
+        for conv in conversations:
+            await pb.delete_record("ai_conversations", conv.get("id"), token=token)
+
+        return {"message": "Chat cleared"}
+    except Exception as e:
+        logger.error("Error clearing chat: %s", e)
+        return {"error": str(e)}
 
 
 @router.get("/check-in", response_model=CheckInResponse)

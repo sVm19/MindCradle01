@@ -591,6 +591,12 @@ export const ai = {
   getActiveConversation: () =>
     request<any>('GET', '/ai/conversations/active'),
 
+  searchHistory: (query: string) =>
+    request<{ results: any[] }>('POST', '/ai/search-history', { query }),
+
+  clearChat: () =>
+    request<{ message: string }>('POST', '/ai/clear-chat'),
+
   endConversation: (conversationId: string) =>
     request<any>('POST', `/ai/conversations/${conversationId}/end`),
 
