@@ -1,4 +1,5 @@
 import { BarChart3, Sun, PenTool, MessageSquare, LineChart, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router';
 import SEO from '@/app/components/SEO';
 
 export default function Features() {
@@ -30,53 +31,71 @@ export default function Features() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
-          <div className="p-6 bg-bg/50 border border-border rounded-xl flex gap-4 items-start">
+          <Link
+            to="/mood"
+            className="p-6 bg-bg/50 border border-border hover:border-border2 hover:bg-bg/80 rounded-xl flex gap-4 items-start transition-all cursor-pointer text-current decoration-none"
+          >
             <div className="p-3 rounded-lg bg-rose/10 text-rose"><BarChart3 className="w-6 h-6" /></div>
             <div className="space-y-1">
-              <h3 className="font-semibold text-text text-sm sm:text-base">📊 Mood Tracking</h3>
+              <h3 className="font-semibold text-text text-sm sm:text-base">Mood Tracking</h3>
               <p className="text-xs text-text3 leading-relaxed">Log your mood daily and spot patterns over weeks and months.</p>
             </div>
-          </div>
+          </Link>
           
-          <div className="p-6 bg-bg/50 border border-border rounded-xl flex gap-4 items-start">
+          <Link
+            to="/morning"
+            className="p-6 bg-bg/50 border border-border hover:border-border2 hover:bg-bg/80 rounded-xl flex gap-4 items-start transition-all cursor-pointer text-current decoration-none"
+          >
             <div className="p-3 rounded-lg bg-teal/10 text-teal"><Sun className="w-6 h-6" /></div>
             <div className="space-y-1">
-              <h3 className="font-semibold text-text text-sm sm:text-base">🌅 Daily Rituals</h3>
+              <h3 className="font-semibold text-text text-sm sm:text-base">Daily Rituals</h3>
               <p className="text-xs text-text3 leading-relaxed">3-minute guided practices to build consistency and calm.</p>
             </div>
-          </div>
+          </Link>
           
-          <div className="p-6 bg-bg/50 border border-border rounded-xl flex gap-4 items-start">
+          <Link
+            to="/journal"
+            className="p-6 bg-bg/50 border border-border hover:border-border2 hover:bg-bg/80 rounded-xl flex gap-4 items-start transition-all cursor-pointer text-current decoration-none"
+          >
             <div className="p-3 rounded-lg bg-indigo-500/10 text-indigo-400"><PenTool className="w-6 h-6" /></div>
             <div className="space-y-1">
-              <h3 className="font-semibold text-text text-sm sm:text-base">📝 Guided Journal</h3>
+              <h3 className="font-semibold text-text text-sm sm:text-base">Guided Journal</h3>
               <p className="text-xs text-text3 leading-relaxed">Reflective prompts and AI-powered insights on your entries.</p>
             </div>
-          </div>
+          </Link>
           
-          <div className="p-6 bg-bg/50 border border-border rounded-xl flex gap-4 items-start">
+          <Link
+            to="/aria"
+            className="p-6 bg-bg/50 border border-border hover:border-border2 hover:bg-bg/80 rounded-xl flex gap-4 items-start transition-all cursor-pointer text-current decoration-none"
+          >
             <div className="p-3 rounded-lg bg-amber-500/10 text-amber-400"><MessageSquare className="w-6 h-6" /></div>
             <div className="space-y-1">
-              <h3 className="font-semibold text-text text-sm sm:text-base">🤖 ARIA Companion</h3>
+              <h3 className="font-semibold text-text text-sm sm:text-base">ARIA Companion</h3>
               <p className="text-xs text-text3 leading-relaxed">AI that learns your context and offers personalized support.</p>
             </div>
-          </div>
+          </Link>
           
-          <div className="p-6 bg-bg/50 border border-border rounded-xl flex gap-4 items-start">
+          <Link
+            to="/insights"
+            className="p-6 bg-bg/50 border border-border hover:border-border2 hover:bg-bg/80 rounded-xl flex gap-4 items-start transition-all cursor-pointer text-current decoration-none"
+          >
             <div className="p-3 rounded-lg bg-green/10 text-green"><LineChart className="w-6 h-6" /></div>
             <div className="space-y-1">
-              <h3 className="font-semibold text-text text-sm sm:text-base">📈 Emotion Analytics</h3>
+              <h3 className="font-semibold text-text text-sm sm:text-base">Emotion Analytics</h3>
               <p className="text-xs text-text3 leading-relaxed">Understand your recovery patterns and emotional trends.</p>
             </div>
-          </div>
+          </Link>
           
-          <div className="p-6 bg-bg/50 border border-border rounded-xl flex gap-4 items-start">
+          <Link
+            to="/privacy"
+            className="p-6 bg-bg/50 border border-border hover:border-border2 hover:bg-bg/80 rounded-xl flex gap-4 items-start transition-all cursor-pointer text-current decoration-none"
+          >
             <div className="p-3 rounded-lg bg-rose/10 text-rose"><ShieldCheck className="w-6 h-6" /></div>
             <div className="space-y-1">
-              <h3 className="font-semibold text-text text-sm sm:text-base">🔐 Privacy First</h3>
+              <h3 className="font-semibold text-text text-sm sm:text-base">Privacy First</h3>
               <p className="text-xs text-text3 leading-relaxed">Your data encrypted, GDPR compliant, never sold.</p>
             </div>
-          </div>
+          </Link>
         </div>
       </div>
     </div>
