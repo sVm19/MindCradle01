@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth, getInitials, getAvatarGradient, UserSketchAvatar } from '@/lib/auth';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi } from '@/lib/api';
-import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, Flame, AlertTriangle, X, User, Award, Sparkles, Search, Lock } from 'lucide-react';
+import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, AlertTriangle, X, User, Award, Sparkles, Search, Lock } from 'lucide-react';
 
 import Logo from './Logo';
 import AuthCardModal from './AuthCardModal';
@@ -485,13 +485,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             })}
 
             <div className="flex items-center gap-3 ml-auto flex-shrink-0">
-              {/* Streak Tracker Pill */}
-              {streak > 0 && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-dim border border-amber/20 rounded-full text-xs text-amber font-medium">
-                  <Flame size={14} className="text-amber animate-pulse" />
-                  <span>{streak} day streak</span>
-                </div>
-              )}
 
               {/* Pricing button */}
               <Link
