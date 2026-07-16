@@ -480,7 +480,7 @@ export default function ARIA() {
   const handleOpenSettings = () => {
     fetchMemoryInsights();
     fetchPersonality();
-    setShowSettingsModal(true);
+    setShowSettingsModal((prev) => !prev);
   };
 
   const handleDeleteInsight = async (id: string) => {
@@ -717,8 +717,249 @@ export default function ARIA() {
             onClick={handleClearChat}
             className="px-4 py-2 bg-rose/5 hover:bg-rose/15 border border-rose/20 hover:border-rose/30 text-rose rounded-full text-xs font-medium transition-all flex items-center gap-2 smooth-hover-btn"
           >
-            🗑️ Clear Chat
+            Clear Chat
           </button>
+        </div>
+      </div>
+
+      {/* Inline Unfolding ARIA Memory Settings */}
+      <div
+        className={`w-full overflow-hidden transition-all duration-300 ease-in-out ${
+          showSettingsModal
+            ? 'max-h-[1400px] border border-border bg-bg2 rounded-[20px] p-6 mt-4 mb-6 opacity-100 shadow-lg shadow-black/20 text-left'
+            : 'max-h-0 opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className="flex items-center justify-between border-b border-border pb-4 mb-5">
+          <h2 className="text-sm font-medium text-text flex items-center gap-2">
+            <Brain size={16} className="text-purple-400" /> Manage ARIA's Memory
+          </h2>
+          <button
+            type="button"
+            onClick={() => {
+              setShowSettingsModal(false);
+              setEditingInsightId(null);
+            }}
+            className="text-text3 hover:text-text text-xs transition-all flex items-center gap-1 cursor-pointer"
+          >
+            <X size={12} /> Close
+          </button>
+        </div>
+
+        {/* Contents of the Settings panel */}
+        <div className="space-y-6">
+          {/* Computed Topics */}
+          <div className="space-y-2.5">
+            <h3 className="text-[10px] font-light tracking-[0.05em] uppercase text-accent">
+              Topics ARIA remembers about you
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {getUniqueTopics().map((topic, i) => (
+                <span
+                  key={i}
+                  className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-full text-xs font-medium text-accent2"
+                >
+                  ✦ {topic}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* ARIA's Profile of Your Style */}
+          <div className="bg-bg3 border border-border rounded-xl p-4 space-y-3">
+            <div className="flex justify-between items-center">
+              <h3 className="text-[10px] font-light tracking-[0.05em] uppercase text-accent">
+                ARIA's Profile of Your Style
+              </h3>
+              {personality && (
+                <button
+                  type="button"
+                  onClick={handleAnalyzePersonality}
+                  disabled={analyzingPersonality}
+                  className="text-xs text-accent2 hover:text-accent font-medium transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {analyzingPersonality ? 'Analyzing...' : 'Re-analyze Style'}
+                </button>
+              )}
+            </div>
+
+            {personality ? (
+              <div className="space-y-3 text-xs">
+                <div>
+                  <strong className="text-text2">Communication Style:</strong>{' '}
+                  <span className="text-text">{personality.communication_style}</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                  <div className="bg-bg2 border border-border rounded-lg p-2.5 text-center">
+                    <div className="text-[10px] text-text3 uppercase tracking-[0.02em]">Advice Type</div>
+                    <div className="text-text font-medium mt-0.5 flex items-center justify-center gap-1.5">
+                      {personality.preference_advice_type === 'direct_advice' ? (
+                        <>
+                          <Zap size={12} className="text-amber-400" /> Direct Advice
+                        </>
+                      ) : (
+                        <>
+                          <Flower2 size={12} className="text-pink-400" /> Gentle Suggestions
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="bg-bg2 border border-border rounded-lg p-2.5 text-center">
+                    <div className="text-[10px] text-text3 uppercase tracking-[0.02em]">Response Length</div>
+                    <div className="text-text font-medium mt-0.5 flex items-center justify-center gap-1.5">
+                      <AlignLeft size={12} className="text-accent" /> {personality.response_length_preference}
+                    </div>
+                  </div>
+                  <div className="bg-bg2 border border-border rounded-lg p-2.5 text-center">
+                    <div className="text-[10px] text-text3 uppercase tracking-[0.02em]">Emotional Openness</div>
+                    <div className="text-text font-medium mt-0.5 flex items-center justify-center gap-1.5">
+                      <HeartHandshake size={12} className="text-accent" /> {personality.emotional_openness}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-text3 italic flex justify-between items-center gap-4 py-1">
+                <span>No style analysis has been performed yet (requires 5+ conversations).</span>
+                <button
+                  type="button"
+                  onClick={handleAnalyzePersonality}
+                  disabled={analyzingPersonality}
+                  className="px-3 py-1.5 bg-accent/10 hover:bg-accent/20 border border-accent/20 text-accent2 hover:text-accent rounded-lg font-medium transition-all text-xs whitespace-nowrap disabled:opacity-50 cursor-pointer"
+                >
+                  {analyzingPersonality ? 'Analyzing...' : 'Analyze Now'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Memory Insights List */}
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-light tracking-[0.05em] uppercase text-accent">
+              Saved memory insights
+            </h3>
+            {memoryInsights.length === 0 ? (
+              <p className="text-xs text-text3 italic py-4">
+                ARIA hasn't saved any memory insights about you yet.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {memoryInsights.map((item) => (
+                  <div
+                    key={item.id}
+                    className="bg-bg3 border border-border rounded-xl p-4 space-y-3 relative group"
+                  >
+                    {editingInsightId === item.id ? (
+                      /* Editing Mode */
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase text-text3">Situation / What Happened</label>
+                          <input
+                            type="text"
+                            value={editFields.situation}
+                            onChange={(e) => setEditFields({ ...editFields, situation: e.target.value })}
+                            className="w-full bg-bg2 border border-border rounded-lg px-3 py-2 text-xs text-text focus:outline-none focus:border-accent"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase text-text3">Associated Emotions</label>
+                          <input
+                            type="text"
+                            value={editFields.emotion}
+                            onChange={(e) => setEditFields({ ...editFields, emotion: e.target.value })}
+                            className="w-full bg-bg2 border border-border rounded-lg px-3 py-2 text-xs text-text focus:outline-none focus:border-accent"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase text-text3">What Helped</label>
+                          <input
+                            type="text"
+                            value={editFields.what_helped}
+                            onChange={(e) => setEditFields({ ...editFields, what_helped: e.target.value })}
+                            className="w-full bg-bg2 border border-border rounded-lg px-3 py-2 text-xs text-text focus:outline-none focus:border-accent"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase text-text3">Follow Up Suggestion</label>
+                          <input
+                            type="text"
+                            value={editFields.follow_up}
+                            onChange={(e) => setEditFields({ ...editFields, follow_up: e.target.value })}
+                            className="w-full bg-bg2 border border-border rounded-lg px-3 py-2 text-xs text-text focus:outline-none focus:border-accent"
+                          />
+                        </div>
+                        <div className="flex gap-2 justify-end pt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEdit(item.id)}
+                            className="px-3 py-1.5 bg-accent hover:bg-accent2 text-white text-xs rounded-lg transition-all cursor-pointer"
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingInsightId(null)}
+                            className="px-3 py-1.5 bg-bg4 border border-border text-text2 hover:text-text text-xs rounded-lg transition-all cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* View Mode */
+                      <>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[10px] text-text3 font-medium bg-bg4 px-2.5 py-0.5 rounded-full border border-border uppercase">
+                              {item.context_type || 'chat'}
+                            </span>
+                            <span className="text-[10px] text-text3 ml-2">
+                              {item.date || item.created?.slice(0, 10) || ''}
+                            </span>
+                          </div>
+                          <div className="flex gap-2 opacity-80 group-hover:opacity-100 transition-all">
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(item)}
+                              className="text-accent2 hover:text-accent hover:underline text-[10px] cursor-pointer"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteInsight(item.id)}
+                              className="text-rose hover:underline text-[10px] cursor-pointer"
+                              title="ARIA, forget about this"
+                            >
+                              Forget
+                            </button>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5 text-xs">
+                          <div>
+                            <strong className="text-text2">Situation:</strong>{' '}
+                            <span className="text-text">{item.situation || item.what_happened}</span>
+                          </div>
+                          <div>
+                            <strong className="text-text2">Emotions:</strong>{' '}
+                            <span className="text-text">{item.emotion}</span>
+                          </div>
+                          <div>
+                            <strong className="text-text2">What Helped:</strong>{' '}
+                            <span className="text-text">{item.what_helped}</span>
+                          </div>
+                          <div>
+                            <strong className="text-text2">Follow Up:</strong>{' '}
+                            <span className="text-text italic">{item.follow_up}</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1347,243 +1588,7 @@ export default function ARIA() {
         </div>
       )}
 
-      {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-bg2 border border-border w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-slideIn">
-            <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-bg3">
-              <h2 className="text-lg font-light text-text flex items-center gap-2">
-                <Brain size={18} className="text-purple-500" /> Manage ARIA's Memory
-              </h2>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowSettingsModal(false);
-                  setEditingInsightId(null);
-                }}
-                className="text-text3 hover:text-text text-sm transition-all flex items-center gap-1"
-              >
-                <X size={14} /> Close
-              </button>
-            </div>
 
-            {/* Modal Content */}
-            <div className="p-6 overflow-y-auto space-y-6 flex-1 text-left">
-              {/* Computed Topics */}
-              <div className="space-y-2.5">
-                <h3 className="text-xs font-light tracking-[0.05em] uppercase text-accent">
-                  Topics ARIA remembers about you
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {getUniqueTopics().map((topic, i) => (
-                    <span
-                      key={i}
-                      className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-full text-xs font-medium text-accent2"
-                    >
-                      ✦ {topic}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* ARIA's Profile of Your Style */}
-              <div className="bg-bg3 border border-border rounded-xl p-4 space-y-3">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-xs font-light tracking-[0.05em] uppercase text-accent">
-                    ARIA's Profile of Your Style
-                  </h3>
-                  {personality && (
-                    <button
-                      type="button"
-                      onClick={handleAnalyzePersonality}
-                      disabled={analyzingPersonality}
-                      className="text-xs text-accent2 hover:text-accent font-medium transition-all disabled:opacity-50"
-                    >
-                      {analyzingPersonality ? 'Analyzing...' : 'Re-analyze Style'}
-                    </button>
-                  )}
-                </div>
-
-                {personality ? (
-                  <div className="space-y-3 text-xs">
-                    <div>
-                      <strong className="text-text2">Communication Style:</strong>{' '}
-                      <span className="text-text">{personality.communication_style}</span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-                      <div className="bg-bg2 border border-border rounded-lg p-2.5 text-center">
-                        <div className="text-[10px] text-text3 uppercase tracking-[0.02em]">Advice Type</div>
-                        <div className="text-text font-medium mt-0.5 flex items-center justify-center gap-1.5">
-                          {personality.preference_advice_type === 'direct_advice' ? (
-                            <>
-                              <Zap size={12} className="text-amber-400" /> Direct Advice
-                            </>
-                          ) : (
-                            <>
-                              <Flower2 size={12} className="text-pink-400" /> Gentle Suggestions
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <div className="bg-bg2 border border-border rounded-lg p-2.5 text-center">
-                        <div className="text-[10px] text-text3 uppercase tracking-[0.02em]">Response Length</div>
-                        <div className="text-text font-medium mt-0.5 flex items-center justify-center gap-1.5">
-                          <AlignLeft size={12} className="text-accent" /> {personality.response_length_preference}
-                        </div>
-                      </div>
-                      <div className="bg-bg2 border border-border rounded-lg p-2.5 text-center">
-                        <div className="text-[10px] text-text3 uppercase tracking-[0.02em]">Emotional Openness</div>
-                        <div className="text-text font-medium mt-0.5 flex items-center justify-center gap-1.5">
-                          <HeartHandshake size={12} className="text-accent" /> {personality.emotional_openness}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-xs text-text3 italic flex justify-between items-center gap-4 py-1">
-                    <span>No style analysis has been performed yet (requires 5+ conversations).</span>
-                    <button
-                      type="button"
-                      onClick={handleAnalyzePersonality}
-                      disabled={analyzingPersonality}
-                      className="px-3 py-1.5 bg-accent/10 hover:bg-accent/20 border border-accent/20 text-accent2 hover:text-accent rounded-lg font-medium transition-all text-xs whitespace-nowrap disabled:opacity-50"
-                    >
-                      {analyzingPersonality ? 'Analyzing...' : 'Analyze Now'}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Memory Insights List */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-light tracking-[0.05em] uppercase text-accent">
-                  Saved memory insights
-                </h3>
-                {memoryInsights.length === 0 ? (
-                  <p className="text-xs text-text3 italic py-4">
-                    ARIA hasn't saved any memory insights about you yet.
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {memoryInsights.map((item) => (
-                      <div
-                        key={item.id}
-                        className="bg-bg3 border border-border rounded-xl p-4 space-y-3 relative group"
-                      >
-                        {editingInsightId === item.id ? (
-                          /* Editing Mode */
-                          <div className="space-y-3">
-                            <div className="space-y-1">
-                              <label className="text-[10px] uppercase text-text3">Situation / What Happened</label>
-                              <input
-                                type="text"
-                                value={editFields.situation}
-                                onChange={(e) => setEditFields({ ...editFields, situation: e.target.value })}
-                                className="w-full bg-bg2 border border-border rounded-lg px-3 py-2 text-xs text-text focus:outline-none focus:border-accent"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] uppercase text-text3">Associated Emotions</label>
-                              <input
-                                type="text"
-                                value={editFields.emotion}
-                                onChange={(e) => setEditFields({ ...editFields, emotion: e.target.value })}
-                                className="w-full bg-bg2 border border-border rounded-lg px-3 py-2 text-xs text-text focus:outline-none focus:border-accent"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] uppercase text-text3">What Helped</label>
-                              <input
-                                type="text"
-                                value={editFields.what_helped}
-                                onChange={(e) => setEditFields({ ...editFields, what_helped: e.target.value })}
-                                className="w-full bg-bg2 border border-border rounded-lg px-3 py-2 text-xs text-text focus:outline-none focus:border-accent"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] uppercase text-text3">Follow Up Suggestion</label>
-                              <input
-                                type="text"
-                                value={editFields.follow_up}
-                                onChange={(e) => setEditFields({ ...editFields, follow_up: e.target.value })}
-                                className="w-full bg-bg2 border border-border rounded-lg px-3 py-2 text-xs text-text focus:outline-none focus:border-accent"
-                              />
-                            </div>
-                            <div className="flex gap-2 justify-end pt-1">
-                              <button
-                                type="button"
-                                onClick={() => handleSaveEdit(item.id)}
-                                className="px-3 py-1.5 bg-accent hover:bg-accent2 text-white text-xs rounded-lg transition-all"
-                              >
-                                Save
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setEditingInsightId(null)}
-                                className="px-3 py-1.5 bg-bg4 border border-border text-text2 hover:text-text text-xs rounded-lg transition-all"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          /* View Mode */
-                          <>
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <span className="text-[10px] text-text3 font-medium bg-bg4 px-2.5 py-0.5 rounded-full border border-border uppercase">
-                                  {item.context_type || 'chat'}
-                                </span>
-                                <span className="text-[10px] text-text3 ml-2">
-                                  {item.date || item.created?.slice(0, 10) || ''}
-                                </span>
-                              </div>
-                              <div className="flex gap-2 opacity-80 group-hover:opacity-100 transition-all">
-                                <button
-                                  type="button"
-                                  onClick={() => handleStartEdit(item)}
-                                  className="text-accent2 hover:text-accent hover:underline text-[10px]"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteInsight(item.id)}
-                                  className="text-rose hover:underline text-[10px]"
-                                  title="ARIA, forget about this"
-                                >
-                                  Forget
-                                </button>
-                              </div>
-                            </div>
-                            <div className="space-y-1.5 text-xs">
-                              <div>
-                                <strong className="text-text2">Situation:</strong>{' '}
-                                <span className="text-text">{item.situation || item.what_happened}</span>
-                              </div>
-                              <div>
-                                <strong className="text-text2">Emotions:</strong>{' '}
-                                <span className="text-text">{item.emotion}</span>
-                              </div>
-                              <div>
-                                <strong className="text-text2">What Helped:</strong>{' '}
-                                <span className="text-text">{item.what_helped}</span>
-                              </div>
-                              <div>
-                                <strong className="text-text2">Follow Up:</strong>{' '}
-                                <span className="text-text italic">{item.follow_up}</span>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
 
     </div>
