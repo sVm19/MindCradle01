@@ -180,22 +180,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex flex-col min-h-screen relative z-[1]">
-        {/* Main Top Header */}
         <header className="w-full bg-transparent relative z-20">
-          <div className="flex items-center justify-between gap-4 px-6 md:px-10 py-4 max-w-[900px] w-full mx-auto">
+          <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-x-4 gap-y-2 px-6 md:px-10 py-4 max-w-[900px] w-full mx-auto">
             {/* Left: Logo */}
-            <div className="flex items-center flex-shrink-0">
+            <div className="flex items-center flex-shrink-0 order-1">
               <Link to="/" className="block">
                 <Logo className="h-10 w-auto text-text" />
               </Link>
             </div>
 
             {/* Center: Date and Greeting */}
-            <div className="flex-1 text-center m-0 min-w-0">
-              <div className="text-[10px] text-text3 tracking-[0.1em] uppercase mb-0.5 truncate">
+            <div className="order-3 md:order-2 w-full md:w-auto md:flex-1 text-center m-0 min-w-0 mt-2 md:mt-0">
+              <div className="text-[10px] text-text3 tracking-[0.1em] uppercase mb-0.5">
                 {formatDate(new Date())}
               </div>
-              <div className="font-[family-name:var(--font-serif)] text-xs sm:text-base md:text-lg font-light text-text italic leading-tight truncate">
+              <div className="font-[family-name:var(--font-serif)] text-xs sm:text-base md:text-lg font-light text-text italic leading-tight whitespace-normal md:truncate">
                 {user ? (
                   didCheckInToday ? (
                     <>Welcome back, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Today's check-in is complete.</>
@@ -224,7 +223,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
 
             {/* Right: Search + Notification Center & Profile Link */}
-            <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
+            <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0 order-2 md:order-3">
               {/* Global Search button (⌘K) */}
               {user && (
                 <button
