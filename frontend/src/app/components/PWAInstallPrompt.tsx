@@ -11,8 +11,10 @@ export function PWAInstallPrompt() {
       e.preventDefault();
       // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
-      // Update UI to notify the user they can install the PWA
-      setShowPrompt(true);
+      // Delay showing the prompt to improve initial load performance & LCP
+      setTimeout(() => {
+        setShowPrompt(true);
+      }, 5000);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);

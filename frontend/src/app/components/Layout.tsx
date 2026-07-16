@@ -184,7 +184,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-x-4 gap-y-2 px-6 md:px-10 py-4 max-w-[900px] w-full mx-auto">
             {/* Left: Logo */}
             <div className="flex items-center flex-shrink-0 order-1">
-              <Link to="/" className="block">
+              <Link to="/" className="block" aria-label="MindCradle Home">
                 <Logo className="h-10 w-auto text-text" />
               </Link>
             </div>
@@ -582,12 +582,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Auth Modals */}
-      <AuthCardModal />
-      <AgeVerificationModal
-        isOpen={verifyModalOpen}
-        onVerified={() => setVerifyModalOpen(false)}
-        onDeclined={() => setVerifyModalOpen(false)}
-      />
+      {authModalOpen && <AuthCardModal />}
+      {verifyModalOpen && (
+        <AgeVerificationModal
+          isOpen={verifyModalOpen}
+          onVerified={() => setVerifyModalOpen(false)}
+          onDeclined={() => setVerifyModalOpen(false)}
+        />
+      )}
       <PrivacyPolicyModal />
 
       {/* Semantic Search overlay (⌘K / Ctrl+K) */}

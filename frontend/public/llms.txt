@@ -4,6 +4,14 @@
 > Developer Spec Reference: project details/BRAIN.md
 > Marketing Pitch: An AI companion that quietly learns from your days, connects moments across time, and compiles a lifelong Personal Knowledge Graph (PKG) to track your personal growth.
 
+## 🔗 Quick Links
+- [Dashboard](https://mindcradle.online/dashboard)
+- [Daily Rituals](https://mindcradle.online/morning)
+- [Mindfulness Blog](https://mindcradle.online/blog)
+- [Developer Documentation](https://mindcradle.online/docs)
+- [Privacy Policy](https://mindcradle.online/privacy)
+- [Terms of Service](https://mindcradle.online/terms)
+
 ---
 
 ## 🔌 MCP Integration Card

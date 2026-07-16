@@ -52,6 +52,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Restore session on mount using the HTTP-only refresh cookie
   useEffect(() => {
     async function restoreSession() {
+      // Skip refresh call for guests to avoid unnecessary 401 console errors
+      if (!localStorage.getItem(STORAGE_USER_KEY)) {
+        setIsLoading(false);
+        return;
+      }
       try {
         const res = await authApi.refresh();
         setAccessToken(res.token);

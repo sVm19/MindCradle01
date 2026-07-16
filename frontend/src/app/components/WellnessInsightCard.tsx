@@ -122,10 +122,10 @@ export const WellnessInsightCard = () => {
         <div className={`w-10 h-10 rounded-xl border flex items-center justify-center flex-shrink-0 ${insight.iconColor}`}>
           <IconComponent className="w-5 h-5" />
         </div>
-        <h3 className="font-[family-name:var(--font-serif)] text-[13px] tracking-[0.14em] uppercase text-rose font-medium flex items-center gap-1.5">
+        <h2 className="font-[family-name:var(--font-serif)] text-[13px] tracking-[0.14em] uppercase text-rose font-medium flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5 animate-pulse" />
           Daily Rhythm Insight
-        </h3>
+        </h2>
       </div>
       
       {/* Insight text */}

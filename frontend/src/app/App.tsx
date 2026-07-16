@@ -108,7 +108,7 @@ function AppRoutes() {
         element={
           <Layout>
             <Suspense fallback={
-              <div className="min-h-[60vh] flex items-center justify-center bg-bg">
+              <div className="min-h-[75vh] flex-grow flex items-center justify-center bg-bg w-full">
                 <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
               </div>
             }>
