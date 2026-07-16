@@ -197,6 +197,9 @@ async def create_creem_checkout(
             if not checkout_url:
                 logger.error("Creem response missing checkout_url: %s", data)
                 return {"error": "Payment provider did not return a checkout URL"}
+            # Route directly to www.creem.io to bypass Vercel's 308 redirect and avoid ERR_HTTP2_PING_FAILED
+            if checkout_url.startswith("https://creem.io"):
+                checkout_url = checkout_url.replace("https://creem.io", "https://www.creem.io", 1)
             return {"checkout_url": checkout_url}
         else:
             logger.error("Creem checkout creation failed: %s %s", response.status_code, response.text)
