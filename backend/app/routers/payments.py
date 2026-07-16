@@ -1,9 +1,8 @@
 import logging
-import re
 import httpx
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException
 from app.config import CREEM_API_KEY, CREEM_API_URL, CREEM_PRODUCT_ID
 from app.services.supabase import pb, extract_user_id, extract_user_email
 from app.core.security import generate_subscription_token
@@ -131,7 +130,6 @@ async def get_trial_status(
 
 @router.post("/creem-checkout")
 async def create_creem_checkout(
-    request: Request,
     authorization: Optional[str] = Header(None)
 ):
     """Create Creem checkout session (after trial ends)"""
@@ -164,16 +162,11 @@ async def create_creem_checkout(
         if not email:
             raise HTTPException(status_code=400, detail="Could not extract email from token")
             
-        # Get Referer or Host for dynamic redirect URLs
-        referer = request.headers.get("referer") or request.headers.get("host") or "https://mindcradle.online"
-        host_match = re.match(r"^(https?://[^/]+)", referer)
-        host = host_match.group(1) if host_match else referer.rstrip("/")
         
         payload = {
-            "email": email,
             "product_id": CREEM_PRODUCT_ID,
-            "success_url": f"{host}/billing?success=true",
-            "cancel_url": f"{host}/billing?success=false",
+            "success_url": "https://mindcradle.online/billing/success",
+            "customer_email": email,
             "metadata": {
                 "user_id": user_id
             }
