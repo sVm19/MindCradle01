@@ -12,8 +12,8 @@ export default function Features() {
   return (
     <div className="bg-bg2 text-text rounded-[28px] border border-border shadow-2xl p-8 sm:p-12 text-left animate-fadeIn relative overflow-hidden">
       <SEO 
-        title="Features | MindCradle"
-        description="Explore the features that make MindCradle a complete wellness app: daily mood logs, guided breathing rituals, reflective journals, and private AI insights."
+        title="Features - MindCradle"
+        description="Mood tracking, daily rituals, journaling, AI companion, and emotion analytics. Everything for wellness."
         schema={featuresSchema}
       />
       {/* Ambient background glow */}
@@ -22,7 +22,7 @@ export default function Features() {
       <div className="w-full relative z-10 max-w-4xl mx-auto space-y-8">
         <div className="text-center space-y-3">
           <h1 className="font-[family-name:var(--font-serif)] text-4xl font-light text-text">
-            Features
+            MindCradle Features
           </h1>
           <p className="text-sm text-text3 max-w-xl mx-auto font-light leading-relaxed">
             Everything you need to track your thoughts, align your energy, and build a consistent routine.

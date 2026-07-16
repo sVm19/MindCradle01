@@ -184,14 +184,14 @@ export default function Pricing() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 sm:py-12 space-y-16 animate-fadeIn text-left">
       <SEO 
-        title="Pricing Plans & Upgrade | MindCradle"
-        description="Choose a MindCradle plan to unlock full Relational Memory, Daily Solstice, and CIE-guided mental wellness analysis. Cancel anytime."
+        title="Pricing - MindCradle"
+        description="Choose your MindCradle plan. Free or Premium at $9.99/month. 7-day trial included."
         schema={pricingSchema}
       />
       {/* Header Section */}
       <header className="text-center space-y-4 max-w-2xl mx-auto">
         <h1 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl lg:text-5xl font-light text-text leading-tight">
-          Invest in Your Consistency & Calm
+          MindCradle Pricing
         </h1>
         <p className="text-sm sm:text-base text-text3 font-light leading-relaxed">
           Choose a plan to deepen your daily routines and self-awareness.

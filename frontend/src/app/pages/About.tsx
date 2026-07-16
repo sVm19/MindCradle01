@@ -17,8 +17,8 @@ export default function About() {
   return (
     <div className="bg-bg2 text-text rounded-[28px] border border-border shadow-2xl p-8 sm:p-12 text-left animate-fadeIn relative overflow-hidden">
       <SEO 
-        title="About Us | MindCradle"
-        description="Discover our mission to empower self-awareness and wellness through daily check-ins, guided rituals, and relational AI companions."
+        title="About MindCradle"
+        description="Learn about MindCradle, a privacy-first wellness app built to help you understand your emotions better."
         schema={aboutSchema}
       />
       {/* Ambient background glow */}
