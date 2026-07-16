@@ -60,6 +60,25 @@ export default function Resources() {
               <ExternalLink className="w-4 h-4 text-text3 group-hover:text-accent transition-colors flex-shrink-0 mt-1" />
             </div>
           </a>
+
+          <a 
+            href="https://medium.com/@imshubham7004/the-missing-layer-between-chatbots-and-human-intelligence-22cdc54b1fcd" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="block p-6 bg-bg/50 border border-border hover:border-border2 hover:bg-bg/85 rounded-2xl transition-all cursor-pointer group"
+          >
+            <div className="flex justify-between items-start gap-4">
+              <div className="space-y-2">
+                <h3 className="font-semibold text-text text-lg group-hover:text-accent transition-colors flex items-center gap-2">
+                  The Missing Layer Between Chatbots and Human Intelligence
+                </h3>
+                <p className="text-xs sm:text-sm text-text3 leading-relaxed">
+                  Bridging the gap between raw generative outputs and compounding personal human intelligence.
+                </p>
+              </div>
+              <ExternalLink className="w-4 h-4 text-text3 group-hover:text-accent transition-colors flex-shrink-0 mt-1" />
+            </div>
+          </a>
         </div>
       </div>
     </div>
