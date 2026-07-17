@@ -11,6 +11,14 @@ import AriaTerminalCard from '@/app/components/AriaTerminalCard';
 
 const SHORT_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
+const TAGLINES = [
+  "Privacy-first wellness platform built by developers, for wellness seekers",
+  "Track moods • Build habits • Discover patterns",
+  "Designed for people serious about their mental wellness",
+  "7-day free trial • No credit card needed • Cancel anytime",
+  "Built with behavioral psychology principles"
+];
+
 export default function Dashboard() {
   const { user, setAuthModalOpen } = useAuth();
   const navigate = useNavigate();
@@ -155,6 +163,21 @@ export default function Dashboard() {
   const [insightPatternsCount, setInsightPatternsCount] = useState<number | null>(null);
   const [journalCount, setJournalCount] = useState<number | null>(null);
   const [journals, setJournals] = useState<any[]>([]);
+
+  // Tagline rotator
+  const [currentTaglineIndex, setCurrentTaglineIndex] = useState(0);
+  const [taglineFade, setTaglineFade] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTaglineFade(false);
+      setTimeout(() => {
+        setCurrentTaglineIndex((prev) => (prev + 1) % TAGLINES.length);
+        setTaglineFade(true);
+      }, 300);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -430,15 +453,11 @@ export default function Dashboard() {
               </Link>
             </div>
 
-            {/* Testimonial Box */}
-            <div className="pt-4 border-t border-border flex flex-col sm:flex-row sm:items-center gap-4 text-[11.5px] text-text3">
-              <div className="flex items-center gap-2">
-                <span className="flex h-2 w-2 rounded-full bg-green shadow-[0_0_8px_var(--green)] animate-pulse" />
-                <span className="font-semibold text-text2">12,547</span> people found calm today
-              </div>
-              <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-border" />
-              <div className="italic">
-                "This app helped me build a daily routine that brings me calm and focus" <span className="text-text2 not-italic font-medium">— Sarah, 23</span>
+            {/* Tagline Box */}
+            <div className="pt-4 border-t border-border flex items-center gap-2.5 text-[11.5px] text-text3 min-h-[32px]">
+              <span className="flex h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_8px_var(--accent)] animate-pulse shrink-0" />
+              <div className={`transition-opacity duration-300 font-medium text-text2 ${taglineFade ? 'opacity-100' : 'opacity-0'}`}>
+                {TAGLINES[currentTaglineIndex]}
               </div>
             </div>
           </div>
