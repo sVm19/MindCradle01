@@ -519,9 +519,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Global Footer */}
         <footer className="w-full border-t border-border/40 mt-auto py-8 relative z-20">
-          <div className="max-w-[900px] mx-auto px-6 md:px-10 flex flex-col items-center gap-6 text-xs text-text3">
-            {/* Nick Launches Verification Badge */}
-            <div className="flex justify-center transition-all duration-300 hover:scale-[1.02]">
+          <div className="max-w-[900px] mx-auto px-6 md:px-10 flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6 text-xs text-text3">
+            {/* Left side: Copyright & Menu links */}
+            <div className="flex flex-col gap-4 text-center sm:text-left">
+              <div className="flex flex-wrap justify-center sm:justify-start gap-x-6 gap-y-2 font-mono">
+                <Link to="/blog" className="hover:text-text text-accent font-semibold transition-all">Blog</Link>
+                <Link to="/docs/introduction" className="hover:text-text text-accent font-semibold transition-all">Docs</Link>
+                <Link to="/pricing" className="hover:text-text transition-all">Pricing</Link>
+                <Link to="/privacy" className="hover:text-text transition-all">Privacy Policy</Link>
+                <Link to="/refund" className="hover:text-text transition-all">Refund Policy</Link>
+                <Link to="/terms" className="hover:text-text transition-all">Terms of Service</Link>
+                <a href="mailto:support@mindcradle.online" className="hover:text-text transition-all">Contact Us</a>
+              </div>
+              <div>
+                &copy; {new Date().getFullYear()} MindCradle. All rights reserved.
+              </div>
+            </div>
+
+            {/* Right side: Nick Launches Verification Badge */}
+            <div className="transition-all duration-300 hover:scale-[1.02] shrink-0">
               <a 
                 href="https://nicklaunches.com/products/mindcradle/?utm_source=mindcradle.online&utm_medium=badge&utm_campaign=featured" 
                 target="_blank" 
@@ -535,21 +551,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   className="rounded-lg shadow-md"
                 />
               </a>
-            </div>
-
-            <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div>
-                &copy; {new Date().getFullYear()} MindCradle. All rights reserved.
-              </div>
-              <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 font-mono">
-                <Link to="/blog" className="hover:text-text text-accent font-semibold transition-all">Blog</Link>
-                <Link to="/docs/introduction" className="hover:text-text text-accent font-semibold transition-all">Docs</Link>
-                <Link to="/pricing" className="hover:text-text transition-all">Pricing</Link>
-                <Link to="/privacy" className="hover:text-text transition-all">Privacy Policy</Link>
-                <Link to="/refund" className="hover:text-text transition-all">Refund Policy</Link>
-                <Link to="/terms" className="hover:text-text transition-all">Terms of Service</Link>
-                <a href="mailto:support@mindcradle.online" className="hover:text-text transition-all">Contact Us</a>
-              </div>
             </div>
           </div>
         </footer>
