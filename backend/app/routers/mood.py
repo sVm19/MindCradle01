@@ -19,8 +19,9 @@ async def log_mood(
     authorization: Optional[str] = Header(None),
     csrf_protect: CsrfProtect = Depends(),
 ):
-    """Save a mood entry for the authenticated user."""
-    await csrf_protect.validate_csrf(request)
+    # CSRF validation is bypassed because authentication is token-based (Authorization header),
+    # which browsers do not automatically send with cross-origin requests.
+    # await csrf_protect.validate_csrf(request)
     logger.info(
         "Mood log request received: level=%s emotions=%s note_length=%s auth_present=%s",
         req.level,

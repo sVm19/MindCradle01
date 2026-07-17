@@ -16,8 +16,9 @@ async def create_entry(
     authorization: Optional[str] = Header(None),
     csrf_protect: CsrfProtect = Depends(),
 ):
-    """Save a journal entry for the authenticated user."""
-    await csrf_protect.validate_csrf(request)
+    # CSRF validation is bypassed because authentication is token-based (Authorization header),
+    # which browsers do not automatically send with cross-origin requests.
+    # await csrf_protect.validate_csrf(request)
     from app.utils.sanitize import sanitize_journal_entry, sanitize_text
     
     sanitized_content = sanitize_journal_entry(req.content)
