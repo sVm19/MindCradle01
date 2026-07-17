@@ -437,13 +437,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Top Horizontal Navigation Bar */}
-        <nav className="w-full bg-transparent mt-4 px-4 sm:px-6 md:px-10">
+        <nav className="w-full bg-transparent mt-4 px-6 md:px-10">
           <div 
             ref={navRef}
             onWheel={handleWheel}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
-            className="flex items-center gap-1.5 sm:gap-2 px-5 py-2.5 overflow-x-auto scrollbar-none max-w-[900px] w-full mx-auto bg-bg2/40 backdrop-blur-md border border-border/60 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
+            className="flex items-center gap-1.5 sm:gap-2 px-5 py-2.5 overflow-x-auto scrollbar-none max-w-[820px] w-full mx-auto bg-bg2/40 backdrop-blur-md border border-border/60 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
           >
             {navItems.map((item) => {
               const isActive = location.pathname === item.path;

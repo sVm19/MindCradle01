@@ -14,9 +14,9 @@ const SHORT_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const TAGLINES = [
   "Privacy-first wellness platform built by developers, for wellness seekers",
   "Track moods • Build habits • Discover patterns",
-  "Designed for people serious about their mental wellness",
+  "Designed for people serious about their wellness",
   "7-day free trial • No credit card needed • Cancel anytime",
-  "Built with behavioral psychology principles"
+  "Built with behavioral principles"
 ];
 
 export default function Dashboard() {
