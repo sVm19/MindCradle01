@@ -3,7 +3,81 @@ import { Check, Star, HelpCircle, ArrowRight, Sparkles, CreditCard, Lock, Refres
 import { Link } from 'react-router';
 import { useAuth } from '@/lib/auth';
 import SEO from '@/app/components/SEO';
-import { billing, profile as profileApi, type ProfileResponse } from '@/lib/api';
+import { billing, payments, profile as profileApi, type ProfileResponse } from '@/lib/api';
+
+function TrialCountdown({ endsAt }: { endsAt: string }) {
+  const [timeLeft, setTimeLeft] = useState<{
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+    expired: boolean;
+  }>({ days: 0, hours: 0, minutes: 0, seconds: 0, expired: false });
+
+  useEffect(() => {
+    const target = new Date(endsAt).getTime();
+
+    function update() {
+      const now = new Date().getTime();
+      const diff = target - now;
+
+      if (diff <= 0) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, expired: true });
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setTimeLeft({ days, hours, minutes, seconds, expired: false });
+    }
+
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [endsAt]);
+
+  if (timeLeft.expired) {
+    return (
+      <div className="text-xs text-rose font-medium mt-1">
+        Trial ended
+      </div>
+    );
+  }
+
+  const pad = (num: number) => String(num).padStart(2, '0');
+
+  return (
+    <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-accent/10 border border-accent/20 animate-pulse mt-2 max-w-[240px] mx-auto">
+      <div className="text-[10px] text-accent font-semibold tracking-wider uppercase">
+        Trial ends in
+      </div>
+      <div className="flex gap-2 text-sm font-mono font-bold text-text">
+        <div className="flex flex-col items-center">
+          <span>{pad(timeLeft.days)}</span>
+          <span className="text-[9px] font-sans font-medium text-text3 uppercase">d</span>
+        </div>
+        <span className="text-accent/60">:</span>
+        <div className="flex flex-col items-center">
+          <span>{pad(timeLeft.hours)}</span>
+          <span className="text-[9px] font-sans font-medium text-text3 uppercase">h</span>
+        </div>
+        <span className="text-accent/60">:</span>
+        <div className="flex flex-col items-center">
+          <span>{pad(timeLeft.minutes)}</span>
+          <span className="text-[9px] font-sans font-medium text-text3 uppercase">m</span>
+        </div>
+        <span className="text-accent/60">:</span>
+        <div className="flex flex-col items-center">
+          <span>{pad(timeLeft.seconds)}</span>
+          <span className="text-[9px] font-sans font-medium text-text3 uppercase">s</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Pricing() {
   const { user } = useAuth();
@@ -11,6 +85,12 @@ export default function Pricing() {
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [emailSubscribed, setEmailSubscribed] = useState(false);
   const [emailInput, setEmailInput] = useState('');
+  const [trialStatus, setTrialStatus] = useState<{
+    trial_active: boolean;
+    days_remaining: number;
+    trial_ends_at?: string;
+    trial_used: boolean;
+  } | null>(null);
 
   // Checkout modal states
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -25,16 +105,23 @@ export default function Pricing() {
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
-  // Load user profile on mount / auth change
+  // Load user profile and trial status on mount / auth change
   useEffect(() => {
     if (user) {
       setLoadingProfile(true);
-      profileApi.get()
-        .then(data => setProfileData(data))
-        .catch(err => console.error("Error fetching profile:", err))
+      Promise.all([
+        profileApi.get(),
+        payments.trialStatus()
+      ])
+        .then(([data, status]) => {
+          setProfileData(data);
+          setTrialStatus(status);
+        })
+        .catch(err => console.error("Error fetching profile or trial status:", err))
         .finally(() => setLoadingProfile(false));
     } else {
       setProfileData(null);
+      setTrialStatus(null);
     }
   }, [user]);
 
@@ -312,14 +399,19 @@ export default function Pricing() {
           <div className="pt-8 space-y-3 text-center">
             {user ? (
               profileData?.is_premium ? (
-                <div
-                  className="w-full h-[48px] text-white rounded-xl text-sm font-semibold flex items-center justify-center select-none"
-                  style={{
-                    backgroundColor: "#10B981",
-                    boxShadow: "0 4px 14px rgba(16, 185, 129, 0.3)"
-                  }}
-                >
-                  ✓ Active Premium Plan
+                <div className="space-y-3 w-full">
+                  <div
+                    className="w-full h-[48px] text-white rounded-xl text-sm font-semibold flex items-center justify-center select-none"
+                    style={{
+                      backgroundColor: "#10B981",
+                      boxShadow: "0 4px 14px rgba(16, 185, 129, 0.3)"
+                    }}
+                  >
+                    ✓ Active Premium Plan
+                  </div>
+                  {trialStatus?.trial_active && trialStatus?.trial_ends_at && (
+                    <TrialCountdown endsAt={trialStatus.trial_ends_at} />
+                  )}
                 </div>
               ) : (
                 <Link
