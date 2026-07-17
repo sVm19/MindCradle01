@@ -13,15 +13,26 @@ def send_signup_welcome(user_email: str):
             "subject": "Welcome to MindCradle 🎉",
             "html": f"""
             <html>
-              <body style="font-family: Arial, sans-serif; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                  <h2 style="color: #E94B6F;">Welcome to MindCradle</h2>
-                  <p>Your account is all set. Let's start your wellness journey.</p>
-                  <a href="https://mindcradle.online/dashboard" style="background: #E94B6F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block; margin-top: 20px;">
+              <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #f0f0f0; border-radius: 16px;">
+                  <h2 style="color: #E94B6F; font-size: 24px; margin-top: 0;">Welcome to MindCradle 🎉</h2>
+                  <p>Your account is all set. Let's start your wellness journey today.</p>
+                  
+                  <div style="background: #FFF5F7; border: 1px solid #FFD3DC; padding: 16px; border-radius: 12px; margin-top: 24px; margin-bottom: 24px;">
+                    <h3 style="color: #E94B6F; margin-top: 0; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+                      🎁 Your 7-Day Free Trial is Active!
+                    </h3>
+                    <p style="margin: 0; font-size: 14px; color: #555; line-height: 1.5;">
+                      As a new user, you have been automatically upgraded to <strong>MindCradle Premium</strong> for the next 7 days.
+                      Enjoy unlimited daily routines, unlimited ARIA conversation, and detailed emotional analytics!
+                    </p>
+                  </div>
+
+                  <a href="https://mindcradle.online/dashboard" style="background: #E94B6F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block; margin-top: 10px; font-weight: bold;">
                     Open Dashboard
                   </a>
-                  <p style="margin-top: 30px; color: #666; font-size: 14px;">
-                    Questions? Email support@mindcradle.online
+                  <p style="margin-top: 30px; color: #666; font-size: 13px; border-t: 1px solid #f0f0f0; padding-top: 15px;">
+                    Questions or feedback? Just reply to this email or contact us at <a href="mailto:support@mindcradle.online" style="color: #E94B6F;">support@mindcradle.online</a>
                   </p>
                 </div>
               </body>

@@ -687,6 +687,13 @@ async def _auto_start_trial_if_needed(user_id: str, token: str):
             }
             await pb.create_record("user_profiles", trial_payload, token=token)
             logger.info(f"Automatically created profile and started 7-day trial for user {user_id}")
+            try:
+                user_email = await pb.get_user_email(token)
+                if user_email:
+                    send_signup_welcome(user_email)
+                    logger.info(f"Sent welcome email with 7-day trial details to {user_email}")
+            except Exception as e_mail:
+                logger.error(f"Failed to send welcome email: {str(e_mail)}")
     except Exception as te:
         logger.error(f"Failed to auto-start trial: {str(te)}")
 
