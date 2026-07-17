@@ -7,7 +7,6 @@ import { GrowthProvider, useGrowth } from '@/context/GrowthContext';
 import { registerFCMToken, listenForMessages } from '@/lib/firebase';
 import { useCSRF } from '@/lib/csrf';
 import Layout from './components/Layout';
-import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
 // Lazy-loaded page components for optimization
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -154,13 +153,25 @@ function AppRoutes() {
 
 export default function App() {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '959765770210-ke5oeq1e67bo6a8051259qgi3ek24ipj.apps.googleusercontent.com';
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      (window as any).deferredPrompt = e;
+      window.dispatchEvent(new CustomEvent('pwa-prompt-available'));
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
   return (
     <GoogleOAuthProvider clientId={clientId}>
       <AuthProvider>
         <GrowthProvider>
           <ARIAProvider>
             <BrowserRouter>
-              <PWAInstallPrompt />
               <AppRoutes />
             </BrowserRouter>
           </ARIAProvider>
