@@ -641,8 +641,34 @@ async def check_session_status(session_id: str, response: Response):
 async def _auto_start_trial_if_needed(user_id: str, token: str):
     """Automatically starts the 7-day free trial on first signin if not already used."""
     try:
-        profile = await pb.get_record("user_profiles", user_id, token=token)
-        if profile and not profile.get("trial_used"):
+        res = await pb.list_records(
+            "user_profiles",
+            token=token,
+            params={"filter": f'user_id="{user_id}"', "perPage": 1}
+        )
+        items = res.get("items") or []
+        
+        if items:
+            profile = items[0]
+            if not profile.get("trial_used"):
+                from app.core.security import generate_subscription_token
+                
+                trial_started = datetime.now(timezone.utc)
+                trial_ends = trial_started + timedelta(days=7)
+                sub_token = generate_subscription_token(user_id, trial_ends)
+                
+                trial_payload = {
+                    "trial_started_at": trial_started.isoformat(),
+                    "trial_ends_at": trial_ends.isoformat(),
+                    "trial_used": True,
+                    "trial_active": True,
+                    "is_premium": True,
+                    "subscription_expires_at": trial_ends.isoformat(),
+                    "subscription_token": sub_token
+                }
+                await pb.update_record("user_profiles", profile["id"], trial_payload, token=token)
+                logger.info(f"Automatically started 7-day trial for user {user_id}")
+        else:
             from app.core.security import generate_subscription_token
             
             trial_started = datetime.now(timezone.utc)
@@ -650,6 +676,7 @@ async def _auto_start_trial_if_needed(user_id: str, token: str):
             sub_token = generate_subscription_token(user_id, trial_ends)
             
             trial_payload = {
+                "user_id": user_id,
                 "trial_started_at": trial_started.isoformat(),
                 "trial_ends_at": trial_ends.isoformat(),
                 "trial_used": True,
@@ -658,8 +685,8 @@ async def _auto_start_trial_if_needed(user_id: str, token: str):
                 "subscription_expires_at": trial_ends.isoformat(),
                 "subscription_token": sub_token
             }
-            await pb.update_record("user_profiles", user_id, trial_payload, token=token)
-            logger.info(f"Automatically started 7-day trial for user {user_id}")
+            await pb.create_record("user_profiles", trial_payload, token=token)
+            logger.info(f"Automatically created profile and started 7-day trial for user {user_id}")
     except Exception as te:
         logger.error(f"Failed to auto-start trial: {str(te)}")
 
