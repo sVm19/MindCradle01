@@ -528,7 +528,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 rel="noopener"
               >
                 <img 
-                  src="https://nicklaunches.com/badges/featured-dark.png" 
+                  src="https://nicklaunches.com/badges/featured.png" 
                   alt="MindCradle on Nick Launches" 
                   width="244" 
                   height="56" 
