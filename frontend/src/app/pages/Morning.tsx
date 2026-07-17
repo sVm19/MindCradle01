@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Frown, Meh, Smile, Sun, Wind, Activity, PenTool, Footprints, Heart, Moon } from 'lucide-react';
 import { sanitizeForInput } from '@/lib/sanitize';
-import { rituals as ritualsApi, mood as moodApi } from '@/lib/api';
+import { rituals as ritualsApi, mood as moodApi, user as userApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useGrowth } from '@/context/GrowthContext';
 import GuestGate from '@/app/components/GuestGate';
@@ -47,9 +47,8 @@ export default function Morning() {
 
   useEffect(() => {
     if (!user) return;
-    moodApi.history('7d').then((res) => {
-      const uniqueDates = new Set(res.items.map((item) => item.created.slice(0, 10)));
-      setStreak(uniqueDates.size);
+    userApi.getStreak().then((res) => {
+      setStreak(res.streak);
     }).catch(() => {});
 
     ritualsApi.getMorningPrompt()

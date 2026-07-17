@@ -826,6 +826,13 @@ export const user = {
   me: () => request<{ id: string; email: string }>('GET', '/user/me'),
   exportData: () => request<any>('GET', '/user/export-data'),
   deleteAccount: (password?: string) => request<{ message: string }>('DELETE', '/user/delete-account', { password }),
+  getStreak: () => request<{
+    streak: number;
+    unique_days_7d: number;
+    did_mood_checkin_today: boolean;
+    did_mood_checkin_yesterday: boolean;
+    dates: string[];
+  }>('GET', '/user/streak'),
 };
 
 // ─── Billing & Subscriptions ──────────────────────────────────────────────────

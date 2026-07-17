@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
@@ -43,6 +43,92 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
     except Exception as e:
         logger.error("Failed to fetch current user: %s", e)
         raise HTTPException(status_code=401, detail="Could not verify token")
+
+@router.get("/streak")
+async def get_user_streak(authorization: Optional[str] = Header(None)):
+    """
+    Calculate and return the user's active streak based on consecutive days of engagement.
+    Engagement includes: mood logs, journal entries, morning rituals, and wind down rituals.
+    Also returns whether mood check-in is complete for today and yesterday.
+    """
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    
+    token = authorization.removeprefix("Bearer ").strip()
+    user_id = extract_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    try:
+        # Retrieve all user's engagement items from the last 30 days to build a robust streak
+        since_30d = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+        filter_user = f'user_id="{user_id}" && created >= "{since_30d}"'
+        
+        # Helper to fetch records
+        async def fetch_records(collection: str, filter_str: str):
+            try:
+                res = await pb.list_records(collection, token=token, params={"filter": filter_str, "perPage": 100})
+                return res.get("items") or []
+            except Exception as e:
+                logger.warning("Failed to fetch %s for streak: %s", collection, e)
+                return []
+
+        moods = await fetch_records("mood_logs", filter_user)
+        journals = await fetch_records("journal_entries", filter_user)
+        mornings = await fetch_records("morning_rituals", filter_user)
+        wind_downs = await fetch_records("wind_down_rituals", filter_user)
+
+        # Collect all engagement dates (YYYY-MM-DD in UTC)
+        engagement_dates = set()
+        for m in moods:
+            if m.get("created"):
+                engagement_dates.add(m["created"][:10])
+        for j in journals:
+            if j.get("created"):
+                engagement_dates.add(j["created"][:10])
+        for mr in mornings:
+            if mr.get("created"):
+                engagement_dates.add(mr["created"][:10])
+        for wd in wind_downs:
+            if wd.get("created"):
+                engagement_dates.add(wd["created"][:10])
+
+        now_utc = datetime.now(timezone.utc)
+        today_str = now_utc.strftime("%Y-%m-%d")
+        yesterday_str = (now_utc - timedelta(days=1)).strftime("%Y-%m-%d")
+        
+        streak_count = 0
+        if yesterday_str in engagement_dates or today_str in engagement_dates:
+            start_date = now_utc
+            if today_str not in engagement_dates:
+                start_date = start_date - timedelta(days=1)
+            while True:
+                date_str = start_date.strftime("%Y-%m-%d")
+                if date_str in engagement_dates:
+                    streak_count += 1
+                    start_date = start_date - timedelta(days=1)
+                else:
+                    break
+        
+        # Calculate also the 7d active days (unique days with activity in last 7 days)
+        since_7d = (now_utc - timedelta(days=7)).strftime("%Y-%m-%d")
+        unique_dates_7d = {d for d in engagement_dates if d >= since_7d}
+        
+        # Check if mood check-in is complete for today and yesterday
+        mood_dates = {m["created"][:10] for m in moods if m.get("created")}
+        did_mood_checkin_today = today_str in mood_dates
+        did_mood_checkin_yesterday = yesterday_str in mood_dates
+        
+        return {
+            "streak": streak_count,
+            "unique_days_7d": len(unique_dates_7d),
+            "did_mood_checkin_today": did_mood_checkin_today,
+            "did_mood_checkin_yesterday": did_mood_checkin_yesterday,
+            "dates": sorted(list(engagement_dates))
+        }
+    except Exception as e:
+        logger.error("Failed to calculate user streak: %s", e)
+        raise HTTPException(status_code=500, detail="Could not calculate streak")
 
 @router.get("/export-data")
 async def export_user_data(authorization: Optional[str] = Header(None)):

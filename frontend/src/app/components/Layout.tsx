@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth, getInitials, getAvatarGradient, UserSketchAvatar } from '@/lib/auth';
-import { mood as moodApi, resources as resourcesApi, ai as aiApi } from '@/lib/api';
+import { mood as moodApi, resources as resourcesApi, ai as aiApi, user as userApi } from '@/lib/api';
 import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, AlertTriangle, X, User, Award, Sparkles, Search, Lock } from 'lucide-react';
 
 import Logo from './Logo';
@@ -99,7 +99,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }, [location, setAuthModalOpen]);
 
-  // Fetch streak from mood history — count unique dates in last 7 days
+  // Fetch streak from user service
   useEffect(() => {
     if (!user) {
       setStreak(0);
@@ -107,17 +107,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       setDidCheckInYesterday(false);
       return;
     }
-    moodApi.history('7d').then((res) => {
-      const uniqueDates = new Set(res.items.map((item) => item.created.slice(0, 10)));
-      setStreak(uniqueDates.size);
-
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().slice(0, 10);
-
-      setDidCheckInToday(res.items.some((item) => item.created.slice(0, 10) === todayStr));
-      setDidCheckInYesterday(res.items.some((item) => item.created.slice(0, 10) === yesterdayStr));
+    userApi.getStreak().then((res) => {
+      setStreak(res.streak);
+      setDidCheckInToday(res.did_mood_checkin_today);
+      setDidCheckInYesterday(res.did_mood_checkin_yesterday);
     }).catch(() => {/* silently ignore if API is unavailable */ });
   }, [user]);
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '@/lib/auth';
 import SEO from '@/app/components/SEO';
-import { mood as moodApi, resources as resourcesApi, ai as aiApi, rituals as ritualsApi, journal as journalApi, payments as paymentsApi } from '@/lib/api';
+import { mood as moodApi, resources as resourcesApi, ai as aiApi, rituals as ritualsApi, journal as journalApi, payments as paymentsApi, user as userApi } from '@/lib/api';
 import type { ResourceItem } from '@/lib/api';
 import { Lock, Award, Moon, Wind, PenTool, CheckCircle2, TrendingUp, Brain, Star, Flame, BookOpen, Target, Sparkles, X, AlertTriangle, Gift } from 'lucide-react';
 import GuestGate from '@/app/components/GuestGate';
@@ -158,14 +158,15 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!user) return;
+    // Fetch streak from user service
+    userApi.getStreak().then((res) => {
+      setStreak(res.streak);
+    }).catch(() => {});
+
     // Fetch mood history
     moodApi.history('7d').then((res) => {
       const items = res.items;
       setMoodItems(items);
-
-      // Unique days with any activity → streak
-      const uniqueDates = new Set(items.map((i) => i.created.slice(0, 10)));
-      setStreak(uniqueDates.size);
 
       // Average level → calm score (scale 1-10 to 0-100)
       if (items.length > 0) {
