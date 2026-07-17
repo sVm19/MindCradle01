@@ -117,7 +117,7 @@ async function request<T>(
   }
 
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method.toUpperCase())) {
-    const csrf = getCsrfToken();
+    const csrf = await getCsrfToken();
     if (csrf) {
       headers['X-CSRF-Token'] = csrf;
     }

@@ -1,23 +1,38 @@
 import { useEffect } from 'react';
 
 let csrfToken: string | null = null;
+let initPromise: Promise<string | null> | null = null;
 
-export const getCsrfToken = (): string | null => csrfToken;
+export const initCSRF = (): Promise<string | null> => {
+  if (csrfToken) return Promise.resolve(csrfToken);
+  if (initPromise) return initPromise;
 
-export const initCSRF = async () => {
-  try {
-    const response = await fetch('/api/csrf-token', {
-      credentials: 'include',
-    });
-    if (response.ok) {
-      const data = await response.json();
-      csrfToken = data.csrf_token;
+  initPromise = (async () => {
+    try {
+      const response = await fetch('/api/csrf-token', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        csrfToken = data.csrf_token;
+        return csrfToken;
+      }
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('Failed to initialize CSRF token:', error);
+      }
+    } finally {
+      initPromise = null;
     }
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.error('Failed to initialize CSRF token:', error);
-    }
-  }
+    return null;
+  })();
+
+  return initPromise;
+};
+
+export const getCsrfToken = async (): Promise<string | null> => {
+  if (csrfToken) return csrfToken;
+  return initCSRF();
 };
 
 // Custom hook to initialize CSRF on app load
