@@ -536,21 +536,41 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            {/* Right side: Nick Launches Verification Badge */}
-            <div className="transition-all duration-300 hover:scale-[1.02] shrink-0">
-              <a 
-                href="https://nicklaunches.com/products/mindcradle/?utm_source=mindcradle.online&utm_medium=badge&utm_campaign=featured" 
-                target="_blank" 
-                rel="noopener"
-              >
-                <img 
-                  src="https://nicklaunches.com/badges/featured.png" 
-                  alt="MindCradle on Nick Launches" 
-                  width="244" 
-                  height="56" 
-                  className="rounded-lg shadow-md"
-                />
-              </a>
+            {/* Right side: Verification Badges */}
+            <div className="flex flex-col sm:flex-row items-center gap-4 shrink-0">
+              {/* Nick Launches Verification Badge */}
+              <div className="transition-all duration-300 hover:scale-[1.02]">
+                <a 
+                  href="https://nicklaunches.com/products/mindcradle/?utm_source=mindcradle.online&utm_medium=badge&utm_campaign=featured" 
+                  target="_blank" 
+                  rel="noopener"
+                >
+                  <img 
+                    src="https://nicklaunches.com/badges/featured.png" 
+                    alt="MindCradle on Nick Launches" 
+                    width="244" 
+                    height="56" 
+                    className="rounded-lg shadow-md"
+                  />
+                </a>
+              </div>
+
+              {/* Aback Launch Verification Badge */}
+              <div className="transition-all duration-300 hover:scale-[1.02]">
+                <a 
+                  href="https://abacklaunch.com" 
+                  target="_blank" 
+                  rel="dofollow"
+                >
+                  <img 
+                    src="https://abacklaunch.com/badges/verified-on-light.svg" 
+                    alt="Listed on Aback Launch" 
+                    width="150" 
+                    height="32" 
+                    className="rounded shadow-sm"
+                  />
+                </a>
+              </div>
             </div>
           </div>
         </footer>
