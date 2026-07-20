@@ -5,6 +5,7 @@
   --font-size: 15px;
   --font-serif: 'Fraunces', Georgia, serif;
   --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-pacifico: 'Pacifico', cursive;
 
   /* Backgrounds */
   --bg-gradient: linear-gradient(135deg, #05020c 0%, #210d35 45%, #5c133a 85%, #000000 100%); /* Purple, Pink, and Black Gradient */
@@ -235,6 +236,10 @@ a.bg-gradient-to-r:hover {
 
 .grid-spacing {
   gap: var(--grid-gap);
+}
+
+.font-pacifico {
+  font-family: var(--font-pacifico);
 }
 
 

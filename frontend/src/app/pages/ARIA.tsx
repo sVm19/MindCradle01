@@ -1418,7 +1418,7 @@ export default function ARIA() {
                 {message.role === 'user' && (
                   <div className="w-8 h-8 rounded-full bg-[#eef2f6] border border-[#b0b8c0] flex items-center justify-center flex-shrink-0 shadow-sm animate-fadeIn" aria-hidden="true">
                     <span
-                      className="font-extrabold font-sans text-xs tracking-wide select-none"
+                      className="font-pacifico text-xs tracking-wide select-none"
                       style={{
                         color: '#612318ff'
                       }}

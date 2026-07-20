@@ -285,7 +285,7 @@ startxref
           <div className="flex items-center gap-5">
             <div className="w-16 h-16 rounded-full bg-[#eef2f6] border border-[#b0b8c0] flex items-center justify-center flex-shrink-0 shadow-[0_4px_12px_rgba(0,0,0,0.15)] animate-fadeIn">
               <span
-                className="font-extrabold font-sans text-2xl tracking-wide select-none"
+                className="font-pacifico text-2xl tracking-wide select-none"
                 style={{
                   color: '#612318ff'
                 }}

@@ -420,7 +420,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   title="Settings / Profile"
                 >
                   <span
-                    className="font-extrabold font-sans text-[15px] tracking-wide select-none animate-fadeIn"
+                    className="font-pacifico text-[15px] tracking-wide select-none animate-fadeIn"
                     style={{
                       color: '#612318ff'
                     }}
