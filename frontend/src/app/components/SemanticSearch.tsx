@@ -389,7 +389,8 @@ export default function SemanticSearch({ open, onClose, embedded = false }: Prop
             {query && !loading && (
               <button
                 onClick={clearAll}
-                className="text-text3 hover:text-text transition-colors flex-shrink-0 cursor-pointer"
+                className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-text3 hover:text-text transition-colors flex-shrink-0 cursor-pointer rounded-lg hover:bg-bg3"
+                aria-label="Clear search query"
               >
                 <X size={14} />
               </button>
@@ -397,7 +398,8 @@ export default function SemanticSearch({ open, onClose, embedded = false }: Prop
             {!embedded && (
               <button
                 onClick={onClose}
-                className="text-text3 hover:text-text transition-colors flex-shrink-0 text-xs border border-border rounded-md px-1.5 py-0.5 cursor-pointer"
+                className="text-text3 hover:text-text transition-colors flex-shrink-0 text-xs border border-border rounded-md px-2.5 py-1.5 min-h-[40px] min-w-[40px] flex items-center justify-center cursor-pointer"
+                aria-label="Close search overlay"
               >
                 esc
               </button>
@@ -413,7 +415,7 @@ export default function SemanticSearch({ open, onClose, embedded = false }: Prop
                 <button
                   key={type}
                   onClick={() => toggleType(type)}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all cursor-pointer ${
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 min-h-[40px] rounded-full text-[11px] font-semibold border transition-all cursor-pointer ${
                     active
                       ? `${cfg.bg} ${cfg.border} ${cfg.color}`
                       : 'bg-transparent border-border text-text3 hover:border-border2 hover:text-text'
@@ -427,7 +429,7 @@ export default function SemanticSearch({ open, onClose, embedded = false }: Prop
 
             <button
               onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 min-h-[40px] rounded-full text-[11px] font-semibold border transition-all cursor-pointer ${
                 showFilters || (startDate || endDate)
                   ? 'border-accent/40 bg-accent/8 text-accent'
                   : 'border-border text-text3 hover:text-text'
@@ -439,7 +441,7 @@ export default function SemanticSearch({ open, onClose, embedded = false }: Prop
             {hasFilters && (
               <button
                 onClick={() => { setActiveTypes(new Set()); setStartDate(''); setEndDate(''); }}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border border-rose-400/30 bg-rose-400/8 text-rose-400 hover:bg-rose-400/15 transition-all cursor-pointer"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 min-h-[40px] rounded-full text-[11px] font-semibold border border-rose-400/30 bg-rose-400/8 text-rose-400 hover:bg-rose-400/15 transition-all cursor-pointer"
               >
                 <X size={10} /> Clear
               </button>

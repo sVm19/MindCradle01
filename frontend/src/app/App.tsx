@@ -49,6 +49,42 @@ function AppRoutes() {
   const location = useLocation();
   useCSRF();
 
+  // Intercept and block sensitive file probes (.env, .git, .bak, config files)
+  const probePath = location.pathname.toLowerCase();
+  const isSensitiveProbe = 
+    probePath.includes('.env') || 
+    probePath.includes('.git') || 
+    probePath.includes('.bak') || 
+    probePath.includes('.sql') || 
+    probePath.includes('.db') || 
+    probePath.includes('.key') || 
+    probePath.includes('.pem') || 
+    probePath.includes('config.json') || 
+    probePath.includes('wp-config') || 
+    probePath.includes('server.js');
+
+  if (isSensitiveProbe) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0c0714] text-white p-8 text-center font-sans">
+        <div className="max-w-md space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-rose/10 border border-rose/30 flex items-center justify-center text-rose mx-auto text-2xl font-bold">
+            404
+          </div>
+          <h1 className="text-xl font-semibold">404 — Access Restricted / Not Found</h1>
+          <p className="text-sm text-text3 leading-relaxed">
+            The requested file path or configuration resource does not exist or access is strictly blocked.
+          </p>
+          <a
+            href="/"
+            className="inline-block px-6 py-3 bg-gradient-to-r from-accent2 to-accent text-[#05020c] font-bold text-xs rounded-full hover:opacity-90 transition-all shadow-md"
+          >
+            Return to MindCradle →
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   // Auto-track pageviews
   useEffect(() => {
     if (user) {

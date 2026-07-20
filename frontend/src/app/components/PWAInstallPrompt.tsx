@@ -49,7 +49,7 @@ export function PWAInstallPrompt() {
       {/* Close button */}
       <button 
         onClick={() => setShowPrompt(false)}
-        className="absolute top-4 right-4 text-text3 hover:text-text cursor-pointer transition-colors p-1 rounded-full hover:bg-white/5"
+        className="absolute top-3 right-3 text-text3 hover:text-text cursor-pointer transition-colors w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full hover:bg-white/10"
         aria-label="Close prompt"
       >
         <X className="w-4 h-4" />
@@ -74,14 +74,14 @@ export function PWAInstallPrompt() {
           <div className="flex gap-2">
             <button 
               onClick={handleInstall}
-              className="inline-flex items-center justify-center gap-1.5 h-9 px-4 bg-gradient-to-r from-[#E94B6F] to-[#f0739c] text-white hover:opacity-95 text-xs font-semibold rounded-full shadow-md shadow-[#E94B6F]/20 active:scale-[0.98] transition-all cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 h-10 min-h-[40px] px-4 bg-gradient-to-r from-[#E94B6F] to-[#f0739c] text-white hover:opacity-95 text-xs font-semibold rounded-full shadow-md shadow-[#E94B6F]/20 active:scale-[0.98] transition-all cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               Install
             </button>
             <button 
               onClick={() => setShowPrompt(false)}
-              className="h-9 px-4 border border-border2 hover:border-text3 text-text2 hover:text-text text-xs font-semibold rounded-full bg-transparent active:scale-[0.98] transition-all cursor-pointer"
+              className="h-10 min-h-[40px] px-4 border border-border2 hover:border-text3 text-text2 hover:text-text text-xs font-semibold rounded-full bg-transparent active:scale-[0.98] transition-all cursor-pointer"
             >
               Not now
             </button>

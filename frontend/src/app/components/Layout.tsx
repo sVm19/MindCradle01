@@ -11,6 +11,7 @@ import PrivacyPolicyModal from './PrivacyPolicyModal';
 import SemanticSearch from './SemanticSearch';
 import { TelemetryProvider } from '@/context/TelemetryContext';
 import SEO from './SEO';
+import ARIAIcon from './ARIAIcon';
 
 function formatDate(d: Date): string {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -185,7 +186,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { path: '/morning', label: 'Morning Focus', icon: <Sun size={15} /> },
     { path: '/mood', label: 'Reflections', icon: <Smile size={15} /> },
     { path: '/journal', label: 'Journal', icon: <BookOpen size={15} /> },
-    { path: '/aria', label: 'ARIA', icon: <Brain size={15} /> },
+    { path: '/aria', label: 'ARIA', icon: <ARIAIcon size={15} /> },
     { path: '/insights', label: 'AI Insights', icon: <Sparkles size={15} /> },
     { path: '/wind-down', label: 'Wind Down', icon: <Moon size={15} /> },
   ];
@@ -224,7 +225,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex flex-col min-h-screen relative z-[1]">
-        <header className="w-full bg-transparent relative z-20">
+        {/* Skip Link for Keyboard Accessibility */}
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-[#05020c] focus:font-bold focus:rounded-lg">
+          Skip to main content
+        </a>
+
+        <header role="banner" className="w-full bg-transparent relative z-20">
           <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-x-4 gap-y-2 px-6 md:px-10 py-4 max-w-[900px] w-full mx-auto">
             {/* Left: Logo */}
             <div className="flex items-center flex-shrink-0 order-1">
@@ -383,7 +389,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                     <button
                                       disabled={sendingReply[n.id] || !replyText[n.id]?.trim()}
                                       onClick={() => handleSendReply(n.id)}
-                                      className="bg-accent text-white px-3 py-1 rounded-md text-[11px] font-medium hover:bg-accent/80 transition-all disabled:opacity-50"
+                                      className="bg-accent text-white px-3.5 py-2 min-h-[40px] rounded-md text-[11px] font-medium hover:bg-accent/80 transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer"
                                     >
                                       {sendingReply[n.id] ? 'Sending…' : 'Send'}
                                     </button>
@@ -391,7 +397,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                 </div>
                               ) : (
                                 <div className="bg-bg4/35 border border-border/30 rounded-lg p-2.5 text-xs text-text3 italic">
-                                  <div className="text-[9px] uppercase tracking-wider text-text3/60 mb-1">
+                                  <div className="text-[9px] uppercase tracking-wider text-text3 mb-1">
                                     Your response
                                   </div>
                                   "{n.actual_response}"
@@ -426,10 +432,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   onClick={() => setAuthModalOpen(true)}
-                  className="w-11 h-11 rounded-full bg-bg2/50 border border-border flex items-center justify-center text-text2 hover:text-text hover:border-border2 hover:bg-white/5 cursor-pointer transition-all flex-shrink-0 backdrop-blur-md"
-                  title="Sign In / Create Account"
+                  className="px-4 py-2 bg-gradient-to-r from-accent2 to-accent text-[#05020c] font-bold text-xs rounded-full hover:opacity-95 transition-all shadow-md cursor-pointer flex items-center gap-1.5 min-h-[40px] shrink-0"
+                  title="Get Started Free / Sign In"
                 >
-                  <UserSketchAvatar className="w-5 h-5 text-text2" />
+                  <UserSketchAvatar className="w-4 h-4 text-[#05020c]" />
+                  <span className="hidden sm:inline">Get Started Free</span>
+                  <span className="sm:hidden">Sign In</span>
                 </button>
               )}
             </div>
@@ -437,7 +445,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Top Horizontal Navigation Bar */}
-        <nav className="w-full bg-transparent mt-4 px-6 md:px-10">
+        <nav role="navigation" aria-label="Main Navigation" className="w-full bg-transparent mt-4 px-6 md:px-10">
           <div 
             ref={navRef}
             onWheel={handleWheel}
@@ -463,7 +471,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       setAuthModalOpen(true);
                     }
                   }}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap ${isBlocked
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap min-h-[40px] ${isBlocked
                     ? 'opacity-40 cursor-not-allowed text-text3 hover:bg-transparent'
                     : isActive
                       ? 'bg-accent-glow text-accent border border-accent/20'
@@ -482,7 +490,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {/* Pricing button */}
               <Link
                 to="/pricing"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap ${location.pathname === '/pricing'
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap min-h-[40px] ${location.pathname === '/pricing'
                   ? 'bg-accent-glow text-accent border border-accent/20'
                   : 'text-text2 hover:bg-white/5 hover:text-text'
                   }`}
@@ -500,7 +508,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     setAuthModalOpen(true);
                   }
                 }}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap ${location.pathname === '/settings'
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap min-h-[40px] ${location.pathname === '/settings'
                   ? 'bg-accent-glow text-accent border border-accent/20'
                   : 'text-text2 hover:bg-white/5 hover:text-text'
                   }`}
@@ -513,23 +521,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Main Content Area (Full width) */}
-        <main className="flex-1 p-6 md:p-10 max-w-[900px] w-full mx-auto">
+        <main id="main-content" role="main" className="flex-1 p-6 md:p-10 max-w-[900px] w-full mx-auto">
           {children}
         </main>
 
         {/* Global Footer */}
-        <footer className="w-full border-t border-border/40 mt-auto py-8 relative z-20">
+        <footer role="contentinfo" className="w-full border-t border-border/40 mt-auto py-8 relative z-20">
           <div className="max-w-[900px] mx-auto px-6 md:px-10 flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6 text-xs text-text3">
             {/* Left side: Copyright & Menu links */}
             <div className="flex flex-col gap-4 text-center sm:text-left">
-              <div className="flex flex-wrap justify-center sm:justify-start gap-x-6 gap-y-2 font-mono">
-                <Link to="/blog" className="hover:text-text text-accent font-semibold transition-all">Blog</Link>
-                <Link to="/docs/introduction" className="hover:text-text text-accent font-semibold transition-all">Docs</Link>
-                <Link to="/pricing" className="hover:text-text transition-all">Pricing</Link>
-                <Link to="/privacy" className="hover:text-text transition-all">Privacy Policy</Link>
-                <Link to="/refund" className="hover:text-text transition-all">Refund Policy</Link>
-                <Link to="/terms" className="hover:text-text transition-all">Terms of Service</Link>
-                <a href="mailto:support@mindcradle.online" className="hover:text-text transition-all">Contact Us</a>
+              <div className="flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-2 font-mono">
+                <Link to="/blog" className="hover:text-text text-accent font-semibold transition-all min-h-[40px] inline-flex items-center px-1">Blog</Link>
+                <Link to="/docs/introduction" className="hover:text-text text-accent font-semibold transition-all min-h-[40px] inline-flex items-center px-1">Docs</Link>
+                <Link to="/pricing" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Pricing</Link>
+                <Link to="/privacy" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Privacy Policy</Link>
+                <Link to="/refund" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Refund Policy</Link>
+                <Link to="/terms" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Terms of Service</Link>
+                <a href="mailto:support@mindcradle.online" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Contact Us</a>
               </div>
               <div>
                 &copy; {new Date().getFullYear()} MindCradle. All rights reserved.
@@ -586,7 +594,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 onClick={() => setShowCrisisModal(false)}
-                className="text-text3 hover:text-text text-sm transition-all"
+                className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-text3 hover:text-text hover:bg-bg4 rounded-lg text-sm transition-all cursor-pointer"
+                aria-label="Close crisis support modal"
               >
                 <X size={16} />
               </button>

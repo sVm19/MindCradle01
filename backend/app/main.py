@@ -213,11 +213,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Content Security Policy (strict)
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' https://cdnjs.cloudflare.com; "
-            "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https:; "
-            "font-src 'self' https://fonts.gstatic.com; "
-            "connect-src 'self' https://api.openrouter.io https://api.firebase.com; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://cdn.jsdelivr.net https://abacklaunch.com https://nicklaunches.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "img-src 'self' data: blob: https:; "
+            "font-src 'self' https://fonts.gstatic.com data:; "
+            "connect-src 'self' https: wss:; "
+            "frame-src 'self' https://accounts.google.com https://abacklaunch.com https://nicklaunches.com; "
             "frame-ancestors 'none';"
         )
         

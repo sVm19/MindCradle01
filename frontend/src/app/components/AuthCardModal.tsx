@@ -92,7 +92,7 @@ export default function AuthCardModal() {
         <button
           type="button"
           onClick={handleClose}
-          className="absolute top-5 right-5 text-text3 hover:text-text cursor-pointer transition-colors"
+          className="absolute top-5 right-5 w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-text3 hover:text-text hover:bg-bg3/60 rounded-full cursor-pointer transition-colors"
           aria-label="Close"
         >
           <X size={18} />
@@ -118,15 +118,15 @@ export default function AuthCardModal() {
         )}
 
         <div className="space-y-6">
-          <div className="flex items-start gap-2.5 w-full text-left">
+          <div className="flex items-center gap-2.5 w-full text-left min-h-[40px] py-1">
             <input
               type="checkbox"
               id="privacy-check-modal"
               checked={privacyAccepted}
               onChange={(e) => setPrivacyAccepted(e.target.checked)}
-              className="rounded border-border text-accent focus:ring-accent mt-0.5 cursor-pointer"
+              className="w-4 h-4 rounded border-border text-accent focus:ring-accent shrink-0 cursor-pointer"
             />
-            <label htmlFor="privacy-check-modal" className="text-[11px] text-text3 leading-snug cursor-pointer">
+            <label htmlFor="privacy-check-modal" className="text-[11px] text-text3 leading-snug cursor-pointer select-none">
               I agree to the{' '}
               <Link to="/privacy" onClick={handleClose} className="text-accent hover:underline">
                 Privacy Policy

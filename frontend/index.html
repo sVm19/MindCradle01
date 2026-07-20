@@ -13,17 +13,20 @@
       <!-- FIXED: Title (48 chars) -->
       <title>MindCradle - Wellness App for Mood Tracking</title>
       
-      <!-- FIXED: Description (138 chars) -->
-      <meta name="description" content="Track moods, build daily habits, and discover emotional patterns with MindCradle's AI wellness companion. Free tier available.">
+      <!-- FIXED: Description (157 chars) -->
+      <meta name="description" content="Overcome daily overwhelm with MindCradle. Track moods, log ambient routines, and uncover emotional patterns using ARIA's AI memory engine. Start free today.">
+      
+      <!-- Security Headers -->
+      <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://cdn.jsdelivr.net https://abacklaunch.com https://nicklaunches.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; frame-src 'self' https://accounts.google.com https://abacklaunch.com https://nicklaunches.com;" />
       
       <!-- SEO -->
       <meta name="robots" content="index, follow">
-      <meta name="keywords" content="wellness app, mood tracker, mental health, journaling app">
+      <meta name="keywords" content="wellness app, mood tracker, AI journal with memory, emotional resilience, self reflection app">
       <link rel="canonical" href="https://mindcradle.online/">
       
       <!-- Open Graph -->
-      <meta property="og:title" content="MindCradle - Wellness App for Mood Tracking">
-      <meta property="og:description" content="Track moods, build daily habits, discover emotional patterns with AI support.">
+      <meta property="og:title" content="MindCradle — The AI Wellness Companion & Mood Journal with Memory">
+      <meta property="og:description" content="Overcome daily overwhelm with MindCradle. Track moods, log ambient routines, and uncover emotional patterns using ARIA's AI memory engine. Start free today.">
       <meta property="og:image" content="https://mindcradle.online/mindcradle-logo.svg">
       
       <!-- Icons -->
@@ -240,6 +243,76 @@
     <body>
       
       <div id="root">
+        <!-- Skip to main content link for keyboard accessibility -->
+        <a href="#main-content" style="position: absolute; left: -9999px; z-index: 999; padding: 0.5rem 1rem; background: #ffffff; color: #000000; font-weight: 700; text-decoration: none;" onfocus="this.style.left='10px'; this.style.top='10px';" onblur="this.style.left='-9999px';">
+          Skip to main content
+        </a>
+
+        <!-- Static Hero Header Fallback -->
+        <header role="banner" style="padding: 2.5rem 1.5rem; text-align: center; font-family: sans-serif; background: #0c0714; color: #ffffff;">
+          <h1 style="font-size: 2.2rem; font-weight: 400; margin-bottom: 1rem; color: #ffffff; line-height: 1.25;">
+            Turn Daily Overwhelm into Clarity with MindCradle's AI Memory Companion
+          </h1>
+          <p style="font-size: 1.05rem; max-width: 640px; margin: 0 auto 1.5rem; color: rgba(255,255,255,0.75); line-height: 1.6;">
+            Built for busy individuals and regular journalers seeking emotional balance. MindCradle tracks your mood, guides morning and evening routines, and uses ARIA's longitudinal AI memory engine to help you uncover recurring patterns and build lasting resilience.
+          </p>
+          <div style="margin-top: 1.5rem;">
+            <a href="https://mindcradle.online/login" style="display: inline-block; padding: 0.85rem 2rem; background: #ffffff; color: #05020c; font-weight: 700; font-size: 1rem; border-radius: 9999px; text-decoration: none; box-shadow: 0 0 24px rgba(255,255,255,0.3);">
+              Get Started Free — Try MindCradle →
+            </a>
+          </div>
+        </header>
+
+        <!-- Static Nav Landmark -->
+        <nav role="navigation" aria-label="Main Navigation" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem 1.5rem; padding: 0.85rem; background: #150c24; color: #ffffff; font-family: sans-serif; font-size: 0.9rem;">
+          <a href="https://mindcradle.online/" style="color: #ffffff; text-decoration: none;">Home</a>
+          <a href="https://mindcradle.online/features" style="color: #ffffff; text-decoration: none;">Features</a>
+          <a href="https://mindcradle.online/pricing" style="color: #ffffff; text-decoration: none;">Pricing</a>
+          <a href="https://mindcradle.online/about" style="color: #ffffff; text-decoration: none;">About</a>
+          <a href="https://mindcradle.online/blog" style="color: #ffffff; text-decoration: none;">Blog</a>
+          <a href="https://mindcradle.online/docs" style="color: #ffffff; text-decoration: none;">Docs</a>
+        </nav>
+
+        <!-- Static Main Landmark -->
+        <main id="main-content" role="main" style="padding: 2rem 1.5rem; max-width: 900px; margin: 0 auto; color: #ffffff; font-family: sans-serif;">
+          <h2 style="font-size: 1.4rem; font-weight: 400; margin-bottom: 0.5rem;">How MindCradle Works</h2>
+          <p style="font-size: 0.95rem; color: rgba(255,255,255,0.8); margin-bottom: 1rem;">Log moods, build daily rituals, and track emotional balance over time with complete privacy.</p>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px;">
+              <h3 style="font-size: 1.05rem; margin-bottom: 0.5rem;">01. Micro-Checkins & Routines</h3>
+              <p style="font-size: 0.85rem; color: rgba(255,255,255,0.7); margin-bottom: 0.5rem;">Log energy, mood, and daily routines in under 30 seconds.</p>
+              <a href="https://mindcradle.online/morning" style="color: #4ecdc4; font-size: 0.85rem;">Explore Routines →</a>
+            </div>
+            <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px;">
+              <h3 style="font-size: 1.05rem; margin-bottom: 0.5rem;">02. Longitudinal AI Memory (ARIA)</h3>
+              <p style="font-size: 0.85rem; color: rgba(255,255,255,0.7); margin-bottom: 0.5rem;">Recognize emotional trends across weeks and months automatically.</p>
+              <a href="https://mindcradle.online/aria" style="color: #4ecdc4; font-size: 0.85rem;">Meet ARIA →</a>
+            </div>
+            <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px;">
+              <h3 style="font-size: 1.05rem; margin-bottom: 0.5rem;">03. Personal Solstice & Search</h3>
+              <p style="font-size: 0.85rem; color: rgba(255,255,255,0.7); margin-bottom: 0.5rem;">Query past journal entries using natural language hybrid search.</p>
+              <a href="https://mindcradle.online/timeline" style="color: #4ecdc4; font-size: 0.85rem;">View Hybrid Search →</a>
+            </div>
+          </div>
+          <h2 style="font-size: 1.4rem; font-weight: 400; margin-bottom: 0.5rem;">Trust, Security & Verified Proof</h2>
+          <p style="font-size: 0.95rem; color: rgba(255,255,255,0.8);">100% end-to-end encrypted, GDPR compliant, and 4.9/5 star rated.</p>
+        </main>
+
+        <!-- Static Footer Landmark -->
+        <footer role="contentinfo" style="padding: 1.5rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); font-family: sans-serif; font-size: 0.85rem;">
+          <p style="margin-bottom: 0.75rem;">
+            <a href="https://mindcradle.online/features" style="color: #ffffff; margin: 0 0.5rem;">Features</a> |
+            <a href="https://mindcradle.online/pricing" style="color: #ffffff; margin: 0 0.5rem;">Pricing</a> |
+            <a href="https://mindcradle.online/about" style="color: #ffffff; margin: 0 0.5rem;">About</a> |
+            <a href="https://mindcradle.online/blog" style="color: #ffffff; margin: 0 0.5rem;">Blog</a> |
+            <a href="https://mindcradle.online/docs" style="color: #ffffff; margin: 0 0.5rem;">Docs</a> |
+            <a href="https://mindcradle.online/privacy" style="color: #ffffff; margin: 0 0.5rem;">Privacy Policy</a> |
+            <a href="https://mindcradle.online/terms" style="color: #ffffff; margin: 0 0.5rem;">Terms of Service</a> |
+            <a href="https://mindcradle.online/refund" style="color: #ffffff; margin: 0 0.5rem;">Refund Policy</a>
+          </p>
+          <p>&copy; 2026 MindCradle. All rights reserved.</p>
+        </footer>
+
         <a href="https://nicklaunches.com/products/mindcradle/?utm_source=mindcradle.online&utm_medium=badge&utm_campaign=featured" target="_blank" rel="noopener">
           <img src="https://nicklaunches.com/badges/featured.png" alt="MindCradle on Nick Launches" width="244" height="56" />
         </a>
@@ -248,7 +321,6 @@
         </a>
       </div>
       <script type="module" src="/src/main.tsx"></script>
-      
     </body>
   </html>
   

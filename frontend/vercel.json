@@ -1,51 +1,12 @@
 {
-  "rewrites": [
-    {
-      "source": "/sitemap.xml",
-      "destination": "https://mindcradle01-959765770210.europe-west1.run.app/api/seo/sitemap.xml"
-    },
-    {
-      "source": "/sitemap-pages.xml",
-      "destination": "https://mindcradle01-959765770210.europe-west1.run.app/api/seo/sitemap-pages.xml"
-    },
-    {
-      "source": "/sitemap-blog.xml",
-      "destination": "https://mindcradle01-959765770210.europe-west1.run.app/api/seo/sitemap-blog.xml"
-    },
-    {
-      "source": "/sitemap-docs.xml",
-      "destination": "https://mindcradle01-959765770210.europe-west1.run.app/api/seo/sitemap-docs.xml"
-    },
-    {
-      "source": "/robots.txt",
-      "destination": "https://mindcradle01-959765770210.europe-west1.run.app/api/seo/robots.txt"
-    },
-    {
-      "source": "/rss.xml",
-      "destination": "https://mindcradle01-959765770210.europe-west1.run.app/api/seo/rss.xml"
-    },
-    {
-      "source": "/api/:path*",
-      "destination": "https://mindcradle01-959765770210.europe-west1.run.app/api/:path*"
-    },
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
-    }
-  ],
   "headers": [
-    {
-      "source": "/assets/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
     {
       "source": "/(.*)",
       "headers": [
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains; preload"
+        },
         {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
@@ -59,8 +20,8 @@
           "value": "strict-origin-when-cross-origin"
         },
         {
-          "key": "Permissions-Policy",
-          "value": "geolocation=(), microphone=(), camera=()"
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://cdn.jsdelivr.net https://abacklaunch.com https://nicklaunches.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; frame-src 'self' https://accounts.google.com https://abacklaunch.com https://nicklaunches.com;"
         }
       ]
     }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Heart, Sparkles, Wand2 } from 'lucide-react';
 
 // Steps list matching the product requirements
 const TERMINAL_SEQUENCES = [
@@ -16,7 +17,7 @@ const TERMINAL_SEQUENCES = [
   },
   {
     type: 'message',
-    icon: '💜',
+    icon: <Heart className="w-5 h-5 text-rose fill-rose/20" />,
     content: (
       <div className="space-y-4">
         <p className="text-sm font-medium text-text">I noticed something.</p>
@@ -40,7 +41,7 @@ const TERMINAL_SEQUENCES = [
   },
   {
     type: 'message',
-    icon: '✦',
+    icon: <Sparkles className="w-5 h-5 text-teal" />,
     content: (
       <div className="space-y-4 text-left">
         <div className="space-y-1.5 opacity-80">
@@ -67,7 +68,7 @@ const TERMINAL_SEQUENCES = [
   },
   {
     type: 'message',
-    icon: '🔮',
+    icon: <Wand2 className="w-5 h-5 text-amber" />,
     content: (
       <div className="space-y-4">
         <p className="text-[15px] font-light leading-relaxed text-text2">
