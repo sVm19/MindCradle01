@@ -105,6 +105,7 @@ async function request<T>(
   body?: unknown,
   requiresAuth = true,
   _isRetry = false,
+  options?: { signal?: AbortSignal },
 ): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -128,6 +129,7 @@ async function request<T>(
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
     credentials: 'include',
+    signal: options?.signal,
   });
 
   // Handle 401 — attempt token refresh, then retry once
@@ -517,14 +519,15 @@ export const ai = {
     message: string,
     conversationId?: string,
     responseType?: string,
-    contextData?: Record<string, any>
+    contextData?: Record<string, any>,
+    options?: { signal?: AbortSignal },
   ) =>
     request<AIChatResponse>('POST', '/ai/chat', {
       message,
       conversation_id: conversationId ?? null,
       response_type: responseType ?? null,
       context_data: contextData ?? null,
-    }),
+    }, true, false, options),
 
   reflect: (journalContent: string, userId: string) =>
     request<JournalReflectionResponse>('POST', '/ai/journal-reflection', {

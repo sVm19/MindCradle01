@@ -563,22 +563,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </a>
               </div>
 
-              {/* Aback Launch Verification Badge */}
-              <div className="transition-all duration-300 hover:scale-[1.02]">
-                <a 
-                  href="https://abacklaunch.com" 
-                  target="_blank" 
-                  rel="dofollow"
-                >
-                  <img 
-                    src="https://abacklaunch.com/badges/verified-on-light.svg" 
-                    alt="Listed on Aback Launch" 
-                    width="150" 
-                    height="32" 
-                    className="rounded shadow-sm"
-                  />
-                </a>
-              </div>
+
             </div>
           </div>
         </footer>

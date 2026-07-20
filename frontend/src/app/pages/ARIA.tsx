@@ -5,12 +5,13 @@ import { ai as aiApi, resources as resourcesApi, mood as moodApi, journal as jou
 import type { ResourceItem, MoodItem, JournalItem } from '@/lib/api';
 import { useAuth, getInitials, getAvatarGradient, UserSketchAvatar } from '@/lib/auth';
 import { useARIA } from '@/context/ARIAContext';
-import { Lock, Heart, Brain, Target, Lightbulb, Sparkles, Phone, MessageSquare, ThumbsUp, ThumbsDown, Meh, Wind, PhoneCall, X, Zap, Flower2, AlignLeft, HeartHandshake, Search } from 'lucide-react';
+import { Lock, Heart, Brain, Target, Lightbulb, Sparkles, Phone, MessageSquare, ThumbsUp, ThumbsDown, Meh, Wind, PhoneCall, X, Zap, Flower2, AlignLeft, HeartHandshake, Search, Pause } from 'lucide-react';
 import AgeVerificationModal from '@/app/components/AgeVerificationModal';
 import { auth as authApi } from '@/lib/api';
 import GuestGate from '@/app/components/GuestGate';
 import Logo from '@/app/components/Logo';
 import SemanticSearch from '@/app/components/SemanticSearch';
+import ARIAIcon from '@/app/components/ARIAIcon';
 
 interface Message {
   role: 'user' | 'aria';
@@ -131,6 +132,7 @@ export default function ARIA() {
   const [checkInConvoId, setCheckInConvoId] = useState<string | null>(null);
   const [crisisDetected, setCrisisDetected] = useState(false);
   const [crisisSeverity, setCrisisSeverity] = useState<number | string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -290,8 +292,30 @@ export default function ARIA() {
     }
   }, [messages, loading]);
 
-  const sendMessage = async (text: string, responseType?: string, contextData?: Record<string, any>) => {
+  const handleStopThinking = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setLoading(false);
+    setShowContextIndicator(false);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: 'aria',
+        content: 'Reflection paused.'
+      }
+    ]);
+  };
+
+  const sendMessage = async (text: string, responseType?: string, contextData?: any) => {
     if (!text.trim() || loading) return;
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     const userMsg: Message = { role: 'user', content: text };
     setMessages((prev) => [...prev, userMsg]);
@@ -303,7 +327,7 @@ export default function ARIA() {
     }
 
     try {
-      const res = await aiApi.chat(text, conversationId, responseType, contextData);
+      const res = await aiApi.chat(text, conversationId, responseType, contextData, { signal: controller.signal });
       const nextConvoId = res.conversation_id;
       if (!conversationId) setConversationId(nextConvoId);
       setMessages((prev) => [
@@ -337,7 +361,10 @@ export default function ARIA() {
       if (responseType) {
         setShowMemoryPrompt(true);
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.name === 'AbortError' || controller.signal.aborted) {
+        return;
+      }
       const errorMsg = (err as any)?.response?.data?.detail || (err as Error)?.message || "I'm having trouble connecting right now. Please try again in a moment.";
       if (errorMsg.includes("Age verification") || errorMsg.includes("403") || errorMsg.includes("age_restricted")) {
         setAgeVerified(false);
@@ -345,6 +372,9 @@ export default function ARIA() {
       }
       setMessages((prev) => [...prev, { role: 'aria', content: errorMsg }]);
     } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
       setLoading(false);
       setShowContextIndicator(false);
     }
@@ -686,7 +716,8 @@ export default function ARIA() {
         <div>
           <div className="text-xs text-accent tracking-[0.1em] uppercase mb-4">Private Reflections</div>
           <h1 className="text-3xl font-light text-text mb-2 flex items-center gap-3">
-            ARIA
+            <ARIAIcon size={26} />
+            <span>ARIA</span>
             <span className="text-[10px] font-normal bg-bg3 border border-border px-2 py-0.5 rounded-md text-text3">
               {messages.length} messages cached
             </span>
@@ -1104,8 +1135,8 @@ export default function ARIA() {
       {/* Initial Prompt */}
       {messages.length === 0 && (
         <section className="bg-bg2 border border-border rounded-[20px] px-8 py-10 text-center space-y-6">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-accent2 to-teal mx-auto flex items-center justify-center text-3xl">
-            <Sparkles size={32} className="text-white animate-pulse" />
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500/20 via-indigo-500/30 to-accent/20 border border-purple-400/30 mx-auto flex items-center justify-center shadow-[0_0_25px_rgba(168,153,255,0.35)]">
+            <ARIAIcon size={36} className="text-white animate-pulse" />
           </div>
           <div>
             <h2 className="text-xl font-light text-text mb-3">
@@ -1142,7 +1173,16 @@ export default function ARIA() {
               View My Insights →
             </button>
           </div>
-          <div className="flex flex-wrap gap-3 justify-center">
+          <div className="flex flex-wrap gap-3 justify-center items-center">
+            <button
+              onClick={() => handleQuickResponseClick('rough_day')}
+              disabled={loading}
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 via-indigo-600 to-accent text-white rounded-full text-sm font-semibold hover:opacity-95 transition-all shadow-[0_0_20px_rgba(139,124,248,0.35)] flex items-center gap-2 cursor-pointer smooth-hover-btn"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>Talk to ARIA</span>
+              <Sparkles className="w-4 h-4 text-yellow-300" />
+            </button>
             <button
               onClick={() => handleQuickResponseClick('rough_day')}
               disabled={loading}
@@ -1259,8 +1299,8 @@ export default function ARIA() {
                 className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {message.role === 'aria' && (
-                  <div className="w-8 h-8 rounded-full bg-bg3/60 border border-border/60 flex items-center justify-center flex-shrink-0 backdrop-blur-md" aria-hidden="true">
-                    <Logo showText={false} className="w-7 h-7" />
+                  <div className="w-8 h-8 rounded-full bg-purple-500/15 border border-purple-400/30 flex items-center justify-center flex-shrink-0 backdrop-blur-md shadow-[0_0_10px_rgba(168,153,255,0.3)]" aria-hidden="true">
+                    <ARIAIcon size={18} className="text-purple-300" />
                   </div>
                 )}
                 <div className="flex flex-col gap-1 max-w-[75%]">
@@ -1393,22 +1433,31 @@ export default function ARIA() {
             {/* Typing/Thinking indicator */}
             {loading && (
               <div className="flex gap-3 justify-start animate-fadeIn" role="status" aria-live="polite">
-                <div className="w-8 h-8 rounded-full bg-bg3/60 border border-border/60 flex items-center justify-center flex-shrink-0 backdrop-blur-md" aria-hidden="true">
-                  <Logo showText={false} spin={true} className="w-7 h-7" />
+                <div className="w-8 h-8 rounded-full bg-purple-500/15 border border-purple-400/30 flex items-center justify-center flex-shrink-0 backdrop-blur-md shadow-[0_0_15px_rgba(168,153,255,0.45)] animate-pulse" aria-hidden="true">
+                  <ARIAIcon size={18} className="text-purple-300 animate-spin" />
                 </div>
                 <div className="flex flex-col gap-1 max-w-[75%]">
-                  <div className="text-gray-500 text-sm italic flex items-center gap-1.5 mb-1.5 opacity-80 animate-pulse">
-                    <Brain size={14} className="text-purple-500" />
+                  <div className="text-gray-500 text-sm italic flex items-center gap-2 mb-1.5 opacity-90">
+                    <Brain size={14} className="text-purple-500 animate-pulse" />
                     <span>
                       {showContextIndicator
                         ? "I'm putting this together with what I know about you..."
                         : "Thinking..."}
                     </span>
+                    <button
+                      type="button"
+                      onClick={handleStopThinking}
+                      className="ml-2 px-2.5 py-0.5 bg-rose/15 hover:bg-rose/25 border border-rose/30 text-rose rounded-full text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer not-italic shadow-sm hover:scale-105"
+                      title="Pause ARIA from thinking"
+                    >
+                      <Pause size={11} className="fill-rose" />
+                      <span>Pause</span>
+                    </button>
                   </div>
                   <div className="bg-bg3 border border-border px-4 py-3 rounded-[14px] flex items-center gap-1.5 w-fit">
-                    <span className="w-1.5 h-1.5 rounded-full bg-text3 animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-text3 animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-text3 animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
                 </div>
               </div>
@@ -1484,13 +1533,25 @@ export default function ARIA() {
                     : "ARIA will remember this conversation"}
                 </span>
               </div>
-              <button
-                type="submit"
-                disabled={!input.trim() || loading}
-                className="px-6 py-3 bg-accent text-white rounded-lg font-medium text-sm hover:bg-accent2 transition-all disabled:opacity-40 disabled:cursor-not-allowed h-fit smooth-hover-btn"
-              >
-                Send
-              </button>
+              {loading ? (
+                <button
+                  type="button"
+                  onClick={handleStopThinking}
+                  className="px-5 py-3 bg-rose/20 hover:bg-rose/30 border border-rose/40 text-rose rounded-xl font-semibold text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer h-fit smooth-hover-btn"
+                  title="Pause ARIA from thinking"
+                >
+                  <Pause size={14} className="fill-rose" />
+                  <span>Pause</span>
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!input.trim()}
+                  className="px-6 py-3 bg-accent text-white rounded-lg font-medium text-sm hover:bg-accent2 transition-all disabled:opacity-40 disabled:cursor-not-allowed h-fit smooth-hover-btn"
+                >
+                  Send
+                </button>
+              )}
             </form>
           )}
         </section>

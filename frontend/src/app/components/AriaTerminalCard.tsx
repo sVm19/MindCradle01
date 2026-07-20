@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, Sparkles, Wand2 } from 'lucide-react';
+import { Heart, Sparkles, Wand2, MessageSquare } from 'lucide-react';
 
 // Steps list matching the product requirements
 const TERMINAL_SEQUENCES = [
@@ -84,6 +85,7 @@ const TERMINAL_SEQUENCES = [
 ];
 
 export default function AriaTerminalCard() {
+  const navigate = useNavigate();
   const [sequenceIndex, setSequenceIndex] = useState(0);
   const [visibleStepCount, setVisibleStepCount] = useState(0);
   const currentSequence = TERMINAL_SEQUENCES[sequenceIndex];
@@ -130,7 +132,7 @@ export default function AriaTerminalCard() {
         repeat: Infinity,
         ease: 'easeInOut'
       }}
-      className="relative w-full max-w-[400px] aspect-[4/3] rounded-[24px] bg-[#0c0819]/40 border border-white/10 p-5 backdrop-blur-xl shadow-[0_30px_70px_rgba(139,124,248,0.12)] overflow-hidden flex flex-col text-left group"
+      className="relative w-full max-w-[400px] rounded-[24px] bg-[#0c0819]/40 border border-white/10 p-5 backdrop-blur-xl shadow-[0_30px_70px_rgba(139,124,248,0.12)] overflow-hidden flex flex-col text-left group"
     >
       {/* Decorative Glow inside the card */}
       <div className="absolute -right-20 -top-20 w-44 h-44 rounded-full bg-accent/15 blur-3xl pointer-events-none group-hover:bg-accent/20 transition-all duration-1000" />
@@ -150,7 +152,7 @@ export default function AriaTerminalCard() {
       </div>
 
       {/* Dynamic Content Window */}
-      <div className="flex-1 flex flex-col justify-center relative font-mono text-xs text-text2">
+      <div className="flex-1 min-h-[120px] flex flex-col justify-center relative font-mono text-xs text-text2">
         <AnimatePresence mode="wait">
           {currentSequence.type === 'analysis' ? (
             <motion.div
@@ -216,6 +218,17 @@ export default function AriaTerminalCard() {
           <span>CONNECTED</span>
         </span>
       </div>
+
+      {/* Prominent Talk to ARIA CTA Button for New Users */}
+      <button
+        onClick={() => navigate('/aria')}
+        className="w-full mt-3 py-2.5 px-4 bg-gradient-to-r from-purple-600 via-indigo-600 to-accent text-white rounded-xl font-sans text-xs font-semibold hover:opacity-95 transition-all shadow-[0_0_20px_rgba(139,124,248,0.3)] flex items-center justify-center gap-2 group/btn cursor-pointer"
+      >
+        <MessageSquare className="w-3.5 h-3.5" />
+        <span>Talk to ARIA</span>
+        <Sparkles className="w-3.5 h-3.5 text-yellow-300 group-hover/btn:rotate-12 transition-transform" />
+      </button>
     </motion.div>
   );
 }
+

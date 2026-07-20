@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth';
 import SEO from '@/app/components/SEO';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi, rituals as ritualsApi, journal as journalApi, payments as paymentsApi, user as userApi } from '@/lib/api';
 import type { ResourceItem } from '@/lib/api';
-import { Lock, Award, Moon, Wind, PenTool, CheckCircle2, TrendingUp, Brain, Star, Flame, BookOpen, Target, Sparkles, X, AlertTriangle, Gift, ShieldCheck, Trophy, BarChart3, Sunrise, Zap } from 'lucide-react';
+import { Lock, Award, Moon, Wind, PenTool, CheckCircle2, TrendingUp, Brain, Star, Flame, BookOpen, Target, Sparkles, X, AlertTriangle, Gift, ShieldCheck, Trophy, BarChart3, Sunrise, Zap, MessageSquare } from 'lucide-react';
 import GuestGate from '@/app/components/GuestGate';
 import { WellnessInsightCard } from '@/app/components/WellnessInsightCard';
 import AriaTerminalCard from '@/app/components/AriaTerminalCard';
@@ -702,8 +702,13 @@ export default function Dashboard() {
                   ARIA synthesizes your journal logs across weeks and months, recognizing recurring stressors and emotional themes without asking you to repeat yourself.
                 </p>
               </div>
-              <Link to="/aria" className="text-xs text-teal hover:underline inline-flex items-center gap-1 font-medium pt-2">
-                Meet ARIA Companion →
+              <Link
+                to="/aria"
+                className="w-full py-2 px-3.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-accent text-white rounded-xl text-xs font-semibold hover:opacity-95 transition-all shadow-md flex items-center justify-center gap-1.5 mt-2 cursor-pointer"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Talk to ARIA</span>
+                <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
               </Link>
             </div>
 
