@@ -139,7 +139,7 @@ export default function Dashboard() {
     if (!discovery) return;
     try {
       await aiApi.updateDiscoveryFeedback(discovery.id, { is_dismissed: true });
-      setDiscovery(prev => prev ? { ...prev, is_dismissed: true } : null);
+      setDiscovery((prev: any) => prev ? { ...prev, is_dismissed: true } : null);
     } catch (err) {
       console.error("Failed to dismiss discovery:", err);
     }
@@ -152,7 +152,7 @@ export default function Dashboard() {
       setDiscoveryShared(true);
       setTimeout(() => setDiscoveryShared(false), 3000);
       await aiApi.updateDiscoveryFeedback(discovery.id, { is_shared: true });
-      setDiscovery(prev => prev ? { ...prev, is_shared: true } : null);
+      setDiscovery((prev: any) => prev ? { ...prev, is_shared: true } : null);
     } catch (err) {
       console.error("Failed to share discovery:", err);
     }
