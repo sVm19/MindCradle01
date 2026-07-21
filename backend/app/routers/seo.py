@@ -28,7 +28,7 @@ async def get_sitemap_index():
     <loc>{BASE_URL}/sitemap-docs.xml</loc>
   </sitemap>
 </sitemapindex>"""
-    return Response(content=xml, media_type="application/xml")
+    return Response(content=xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=900"})
 
 # ── Split Sitemaps ─────────────────────────────────────────────────────────────
 
@@ -60,7 +60,7 @@ async def get_sitemap_pages():
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 {xml_content}
 </urlset>"""
-    return Response(content=xml, media_type="application/xml")
+    return Response(content=xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=900"})
 
 
 @router.get("/seo/sitemap-blog.xml")
@@ -89,7 +89,7 @@ async def get_sitemap_blog():
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 {xml_content}
 </urlset>"""
-    return Response(content=xml, media_type="application/xml")
+    return Response(content=xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=900"})
 
 
 @router.get("/seo/sitemap-docs.xml")
@@ -117,7 +117,7 @@ async def get_sitemap_docs():
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 {xml_content}
 </urlset>"""
-    return Response(content=xml, media_type="application/xml")
+    return Response(content=xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=900"})
 
 # ── Robots.txt ────────────────────────────────────────────────────────────────
 
@@ -134,7 +134,7 @@ Disallow: /timeline/
 
 Sitemap: {BASE_URL}/sitemap.xml
 """
-    return Response(content=robots, media_type="text/plain")
+    return Response(content=robots, media_type="text/plain", headers={"Cache-Control": "public, max-age=900"})
 
 # ── RSS XML Feed ──────────────────────────────────────────────────────────────
 
@@ -176,7 +176,7 @@ async def get_rss_feed():
 {xml_content}
   </channel>
 </rss>"""
-    return Response(content=xml, media_type="application/xml")
+    return Response(content=xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=900"})
 
 # ── Content REST Endpoints ────────────────────────────────────────────────────
 
