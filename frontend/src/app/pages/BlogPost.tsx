@@ -148,10 +148,13 @@ export default function BlogPost() {
     year: 'numeric',
   });
 
+  const postTitleClean = post.title.length > 45 ? `${post.title.slice(0, 42)}...` : post.title;
+  const seoTitle = `${postTitleClean} | MindCradle`;
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 sm:py-12 space-y-12 animate-fadeIn text-left">
       <SEO
-        title={`${post.title} | MindCradle Blog`}
+        title={seoTitle}
         description={post.summary}
         ogImage={post.image}
         schema={[articleSchema, breadcrumbsSchema]}

@@ -137,7 +137,8 @@ export default function Docs() {
     ]
   } : undefined;
 
-  const seoTitle = activeDoc ? `${activeDoc.title} | MindCradle Docs` : 'Documentation | MindCradle';
+  const docTitleClean = activeDoc ? (activeDoc.title.length > 45 ? `${activeDoc.title.slice(0, 42)}...` : activeDoc.title) : '';
+  const seoTitle = activeDoc ? `${docTitleClean} | MindCradle` : 'Documentation | MindCradle';
   const seoDesc = activeDoc ? `Explore MindCradle support guides and developer references for ${activeDoc.title}.` : 'Search guides and references for the MindCradle wellness companion.';
 
   return (
