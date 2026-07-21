@@ -348,7 +348,7 @@ export default function Dashboard() {
     <div className="space-y-8 animate-fadeIn">
       <SEO 
         title="MindCradle — The AI Wellness Companion & Mood Journal with Memory"
-        description="Overcome daily overwhelm with MindCradle. Track moods, log ambient routines, and uncover emotional patterns using ARIA's AI memory engine. Start free today."
+        description="Overcome daily overwhelm with MindCradle. Track moods, log ambient routines, and uncover emotional patterns with ARIA's AI memory engine."
         robots={user ? "noindex, nofollow" : "index, follow"}
       />
       {discovery && !discovery.is_dismissed && (
