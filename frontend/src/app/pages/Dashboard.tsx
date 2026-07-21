@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth';
 import SEO from '@/app/components/SEO';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi, rituals as ritualsApi, journal as journalApi, payments as paymentsApi, user as userApi } from '@/lib/api';
 import type { ResourceItem } from '@/lib/api';
-import { Lock, Award, Moon, Wind, PenTool, CheckCircle2, TrendingUp, Brain, Star, Flame, BookOpen, Target, Sparkles, X, AlertTriangle, Gift, ShieldCheck, Trophy, BarChart3, Sunrise, Zap, MessageSquare } from 'lucide-react';
+import { Lock, Award, Moon, Wind, PenTool, CheckCircle2, TrendingUp, Brain, Star, Flame, BookOpen, Target, Sparkles, X, AlertTriangle, Gift, ShieldCheck, Trophy, BarChart3, Sunrise, Zap, MessageSquare, HelpCircle } from 'lucide-react';
 import GuestGate from '@/app/components/GuestGate';
 import { WellnessInsightCard } from '@/app/components/WellnessInsightCard';
 import AriaTerminalCard from '@/app/components/AriaTerminalCard';
@@ -1133,6 +1133,57 @@ export default function Dashboard() {
                 </p>
                 <p className="text-[10.5px] text-text3 font-medium">— Elena R., Product Designer</p>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Frequently Asked Questions & Wellness Guide Section */}
+      <section className="section-spacing">
+        <h2 className="font-[family-name:var(--font-serif)] text-lg sm:text-xl font-light text-text mb-4 flex items-center gap-2">
+          <HelpCircle className="w-5 h-5 text-indigo-400" />
+          <span>Frequently Asked Questions & Wellness Guide</span>
+        </h2>
+        <div className="bg-bg2 border border-border rounded-[20px] p-6 space-y-4 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-bg3/50 border border-border/70 rounded-xl p-4 space-y-2">
+              <h3 className="text-sm font-semibold text-text flex items-center gap-2">
+                <Brain className="w-4 h-4 text-rose" />
+                How does AI mood tracking work in MindCradle?
+              </h3>
+              <p className="text-xs text-text3 leading-relaxed font-light">
+                MindCradle pairs 30-second daily mood and energy logs with ARIA, our longitudinal memory engine. Instead of static charts, ARIA synthesizes your reflections across weeks to identify emotional triggers, recovery patterns, and personalized wellness tips.
+              </p>
+            </div>
+
+            <div className="bg-bg3/50 border border-border/70 rounded-xl p-4 space-y-2">
+              <h3 className="text-sm font-semibold text-text flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-teal" />
+                How does MindCradle protect my personal mental health data?
+              </h3>
+              <p className="text-xs text-text3 leading-relaxed font-light">
+                We follow a strict zero data-selling policy. All journal entries and mood logs are protected with end-to-end encryption. You retain complete ownership of your data with 1-click export and account erasure rights under GDPR.
+              </p>
+            </div>
+
+            <div className="bg-bg3/50 border border-border/70 rounded-xl p-4 space-y-2">
+              <h3 className="text-sm font-semibold text-text flex items-center gap-2">
+                <Gift className="w-4 h-4 text-accent" />
+                What is included in the 7-day free trial?
+              </h3>
+              <p className="text-xs text-text3 leading-relaxed font-light">
+                The free trial unlocks full access to ARIA AI interactions, daily morning and wind-down rituals, emotion analytics, and natural language journal search. No credit card is required to begin.
+              </p>
+            </div>
+
+            <div className="bg-bg3/50 border border-border/70 rounded-xl p-4 space-y-2">
+              <h3 className="text-sm font-semibold text-text flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-amber" />
+                Is MindCradle a substitute for professional therapy?
+              </h3>
+              <p className="text-xs text-text3 leading-relaxed font-light">
+                No. MindCradle is designed as a daily self-reflection tool, wellness tracker, and habit builder. It is not a clinical service or replacement for professional medical mental health care.
+              </p>
             </div>
           </div>
         </div>
