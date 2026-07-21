@@ -37,6 +37,7 @@ async def get_sitemap_pages():
     # Public static pages
     pages = [
         {"path": "", "priority": "1.0", "changefreq": "daily"},
+        {"path": "/features", "priority": "0.9", "changefreq": "monthly"},
         {"path": "/about", "priority": "0.8", "changefreq": "monthly"},
         {"path": "/pricing", "priority": "0.9", "changefreq": "weekly"},
         {"path": "/privacy", "priority": "0.5", "changefreq": "monthly"},
