@@ -12,7 +12,7 @@
  * in client-side code — the proxy/rewrite handles it transparently.
  */
 
-import { getCsrfToken } from './csrf';
+import { getCsrfToken, clearCsrfToken } from './csrf';
 
 const BASE = '/api';
 
@@ -162,7 +162,6 @@ async function request<T>(
       }
 
       if (isCsrfError) {
-        const { clearCsrfToken } = await import('./csrf');
         clearCsrfToken();
         return request<T>(method, path, body, requiresAuth, true, options);
       }
