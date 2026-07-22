@@ -1,5 +1,8 @@
 import { useEffect } from 'react';
 
+let csrfToken: string | null = null;
+let initPromise: Promise<string | null> | null = null;
+
 export const clearCsrfToken = () => {
   csrfToken = null;
   initPromise = null;
