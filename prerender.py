@@ -71,6 +71,92 @@ def md_to_html(md_text):
             
     return '\n'.join(p_htmls)
 
+# Extract content from simple static components (About, Features)
+def extract_tsx_content(page_name):
+    filepath = os.path.join(FRONTEND_DIR, 'src', 'app', 'pages', f'{page_name}.tsx')
+    if not os.path.exists(filepath):
+        print(f"WARNING: Source file {filepath} not found for pre-rendering fallback.")
+        return ""
+    
+    with open(filepath, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # Grab return block content inside the component
+    match = re.search(r'return\s*\(\s*<div[^>]*>([\s\S]*?)</div>\s*\);\s*\}', content)
+    if not match:
+        match = re.search(r'return\s*\(\s*([\s\S]*?)\s*\);\s*\}', content)
+        
+    if not match:
+        print(f"WARNING: Could not parse return block in {filepath}")
+        return ""
+        
+    html = match.group(1)
+    
+    # Remove SEO tags
+    html = re.sub(r'<SEO[\s\S]*?/>', '', html)
+    
+    # Replace React date placeholder
+    html = html.replace('{todayDate}', 'June 28, 2026')
+    
+    # Remove React-specific comments
+    html = re.sub(r'\{\/\*[\s\S]*?\*\/\s*\}', '', html)
+    
+    # Strip layout classNames and inline styles
+    html = re.sub(r'\s*className="[^"]*"', '', html)
+    html = re.sub(r'\s*style=\{\{[\s\S]*?\}\}', '', html)
+    
+    # Replace Lucide icons <Icon ... /> with empty space
+    html = re.sub(r'<[A-Z][a-zA-Z0-9]*\s*[^>]*/>', '', html)
+    
+    # Replace Link tags with plain anchors
+    html = re.sub(r'<Link\s+to="([^"]*)"([^>]*)>', r'<a href="\1"\2>', html)
+    html = html.replace('</Link>', '</a>')
+    
+    # Clean up empty lines
+    html = re.sub(r'\n\s*\n', '\n', html)
+    
+    return html.strip()
+
+# Extract content from legal components (Privacy, Terms, Refund)
+def extract_legal_content(page_name):
+    filepath = os.path.join(FRONTEND_DIR, 'src', 'app', 'pages', f'{page_name}.tsx')
+    if not os.path.exists(filepath):
+        print(f"WARNING: Source file {filepath} not found for pre-rendering fallback.")
+        return ""
+    
+    with open(filepath, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # Match starting from <div className="w-full" style={{ marginLeft: '2rem' ... }} to the matching closing div
+    match = re.search(r'(<div\s+className="w-full"\s+style=\{\{\s*marginLeft:\s*\'2rem\'[\s\S]*?)</div>\s*</div>\s*\);\s*\}', content)
+    if not match:
+        match = re.search(r'(<div\s+className="w-full"[\s\S]*?)</div>\s*</div>', content)
+        
+    if not match:
+        print(f"WARNING: Could not parse legal block in {filepath}")
+        return ""
+        
+    html = match.group(1)
+    
+    # Replace React date placeholder
+    html = html.replace('{todayDate}', 'June 28, 2026')
+    
+    # Remove React-specific comments
+    html = re.sub(r'\{\/\*[\s\S]*?\*\/\s*\}', '', html)
+    
+    # Strip layout classNames and inline styles
+    html = re.sub(r'\s*className="[^"]*"', '', html)
+    html = re.sub(r'\s*style=\{\{[\s\S]*?\}\}', '', html)
+    
+    # Replace Link tags with plain anchors
+    html = re.sub(r'<Link\s+to="([^"]*)"([^>]*)>', r'<a href="\1"\2>', html)
+    html = html.replace('</Link>', '</a>')
+    
+    # Clean up empty lines
+    html = re.sub(r'\n\s*\n', '\n', html)
+    
+    return html.strip()
+
 def render_page(path_sub, title, description, content_html):
     # Set up clean URL
     canonical = f"https://mindcradle.online{path_sub}"
@@ -118,59 +204,14 @@ def render_page(path_sub, title, description, content_html):
 
 # 1. PRE-RENDER STATIC PAGES
 # --- About ---
-about_content = """
-<header style="text-align: center; margin-bottom: 2.5rem;">
-  <h1 style="font-size: 2.2rem; font-weight: 400; margin-bottom: 1rem; color: #ffffff;">About MindCradle</h1>
-  <p style="font-size: 1.1rem; color: rgba(255,255,255,0.7); max-width: 640px; margin: 0 auto;">Empowering people to understand themselves better through daily wellness practices.</p>
-</header>
-<section style="margin-bottom: 2.5rem; background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
-  <h2 style="color: #f093a0; font-size: 1.5rem; font-weight: 400; margin-bottom: 1rem;">Our Mission</h2>
-  <p style="line-height: 1.7; color: rgba(255,255,255,0.85);">We believe mental wellness should be accessible, private, and empowering. MindCradle is built to help you discover patterns in your emotions, build sustainable habits, and develop a deeper connection with yourself.</p>
-</section>
-<section style="margin-bottom: 2.5rem;">
-  <h2 style="font-size: 1.5rem; font-weight: 400; margin-bottom: 1.25rem;">Our Core Values</h2>
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.25rem;">
-    <div style="background: rgba(255,255,255,0.05); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-      <h3 style="color: #4ecdc4; font-size: 1.1rem; margin-bottom: 0.5rem;">🔒 Privacy First</h3>
-      <p style="font-size: 0.88rem; color: rgba(255,255,255,0.75); line-height: 1.6;">Your journals, logs, and emotional data belong to you. We protect your data with end-to-end encryption and never monetize or share it.</p>
-    </div>
-    <div style="background: rgba(255,255,255,0.05); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-      <h3 style="color: #ffd166; font-size: 1.1rem; margin-bottom: 0.5rem;">🌱 Compounding Self-Discovery</h3>
-      <p style="font-size: 0.88rem; color: rgba(255,255,255,0.75); line-height: 1.6;">We value longitudinal connection. MindCradle connects your daily intentions and mood states across chapters to highlight long-term emotional evolution.</p>
-    </div>
-  </div>
-</section>
-"""
+about_content = extract_tsx_content('About')
 render_page("/about", "About Us — MindCradle", "Learn about the mission behind MindCradle — a premium, privacy-first companion built for emotional resilience and self-discovery.", about_content)
 
 # --- Features ---
-features_content = """
-<header style="text-align: center; margin-bottom: 2.5rem;">
-  <h1 style="font-size: 2.2rem; font-weight: 400; margin-bottom: 1rem; color: #ffffff;">MindCradle Features</h1>
-  <p style="font-size: 1.1rem; color: rgba(255,255,255,0.7); max-width: 640px; margin: 0 auto;">Everything you need to track your thoughts, align your energy, and build a consistent routine.</p>
-</header>
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
-  <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-    <h3 style="color: #f093a0; font-size: 1.2rem; margin-bottom: 0.75rem;">01. 30-Second Micro-Checkins</h3>
-    <p style="font-size: 0.9rem; color: rgba(255,255,255,0.75); line-height: 1.6;">Log mood, sleep, and energy levels seamlessly in under 30 seconds. Spot recurring emotional trends over weeks and months.</p>
-  </div>
-  <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-    <h3 style="color: #4ecdc4; font-size: 1.2rem; margin-bottom: 0.75rem;">02. Longitudinal AI Memory (ARIA)</h3>
-    <p style="font-size: 0.9rem; color: rgba(255,255,255,0.75); line-height: 1.6;">ARIA synthesizes your journal reflections across weeks to uncover hidden burnout risks, behavioral shifts, and growth milestones.</p>
-  </div>
-  <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-    <h3 style="color: #8b7cf8; font-size: 1.2rem; margin-bottom: 0.75rem;">03. Guided Journal & Hybrid Search</h3>
-    <p style="font-size: 0.9rem; color: rgba(255,255,255,0.75); line-height: 1.6;">Express your thoughts with structured prompts. Search past entries naturally using semantic vector search—ask questions like 'When did I feel most relaxed last month?'</p>
-  </div>
-  <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-    <h3 style="color: #ffd166; font-size: 1.2rem; margin-bottom: 0.75rem;">04. Guided Morning & Evening Rituals</h3>
-    <p style="font-size: 0.9rem; color: rgba(255,255,255,0.75); line-height: 1.6;">Ground your morning with intent setting and wind down your evening with ambient reflection. Build healthy habits with daily streak tracking.</p>
-  </div>
-</div>
-"""
+features_content = extract_tsx_content('Features')
 render_page("/features", "Features — MindCradle", "Explore MindCradle's key capabilities: Mood Tracking, Daily Rituals, Guided Journaling, and AI Insights.", features_content)
 
-# --- Pricing ---
+# --- Pricing (Curated Long-form HTML for rich E-E-A-T indexing) ---
 pricing_content = """
 <header style="text-align: center; margin-bottom: 2.5rem;">
   <h1 style="font-size: 2.2rem; font-weight: 400; margin-bottom: 1rem; color: #ffffff;">Pricing Plans</h1>
@@ -181,12 +222,12 @@ pricing_content = """
     <h2 style="font-size: 1.5rem; font-weight: 400; margin-bottom: 0.5rem;">MindCradle Free</h2>
     <p style="font-size: 2rem; font-weight: 300; margin-bottom: 1.5rem; color: #ffffff;">$0 <span style="font-size: 0.9rem; color: rgba(255,255,255,0.6);">/ month</span></p>
     <ul style="list-style: none; padding: 0; text-align: left; margin-bottom: 2rem; font-size: 0.9rem; color: rgba(255,255,255,0.75); line-height: 1.8;">
-      <li>✓ Basic Mood Logging</li>
-      <li>✓ 1 Active Daily Ritual</li>
+      <li>✓ Basic Mood Logging & Trends</li>
+      <li>✓ 1 Active Daily Ritual (Morning or Evening)</li>
       <li>✓ Limited ARIA Chat (5 messages/day)</li>
-      <li>✓ 7-Day History Window</li>
+      <li>✓ 7-Day Context History Window</li>
     </ul>
-    <a href="https://mindcradle.online/login" style="display: block; padding: 0.75rem; background: rgba(255,255,255,0.1); color: #ffffff; border-radius: 9999px; text-decoration: none; font-weight: 600; font-size: 0.9rem;">Get Started</a>
+    <a href="https://mindcradle.online/login" style="display: block; padding: 0.75rem; background: rgba(255,255,255,0.1); color: #ffffff; border-radius: 9999px; text-decoration: none; font-weight: 600; font-size: 0.9rem;">Get Started Free</a>
   </div>
   <div style="background: linear-gradient(135deg, rgba(240,147,160,0.08), rgba(244,117,162,0.08)); padding: 2rem; border-radius: 16px; border: 1px solid rgba(240,147,160,0.25); text-align: center; position: relative;">
     <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #E94B6F; color: #ffffff; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em;">RECOMMENDED</div>
@@ -194,58 +235,55 @@ pricing_content = """
     <p style="font-size: 2rem; font-weight: 300; margin-bottom: 1.5rem; color: #ffffff;">$9.99 <span style="font-size: 0.9rem; color: rgba(255,255,255,0.6);">/ month</span></p>
     <ul style="list-style: none; padding: 0; text-align: left; margin-bottom: 2rem; font-size: 0.9rem; color: rgba(255,255,255,0.75); line-height: 1.8;">
       <li>✓ <strong>Unlimited</strong> ARIA memory & messages</li>
-      <li>✓ Compounding Personal Knowledge Graph</li>
-      <li>✓ Monthly/Seasonal Solstice Letter</li>
-      <li>✓ Advanced Emotion Analytics & Trends</li>
-      <li>✓ Hybrid Semantic Search of all history</li>
+      <li>✓ Compounding Personal Knowledge Graph (PKG)</li>
+      <li>✓ Monthly/Seasonal Personal Solstice Letters</li>
+      <li>✓ Advanced Emotion Analytics & Theme Spotting</li>
+      <li>✓ Hybrid Semantic Search across all historical logs</li>
     </ul>
     <a href="https://mindcradle.online/login" style="display: block; padding: 0.75rem; background: #ffffff; color: #05020c; border-radius: 9999px; text-decoration: none; font-weight: 700; font-size: 0.9rem; box-shadow: 0 4px 15px rgba(233,75,111,0.2);">Start 7-Day Free Trial</a>
   </div>
 </div>
+
+<section style="margin-bottom: 3rem; background: rgba(255,255,255,0.02); padding: 2rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06);">
+  <h2 style="font-size: 1.6rem; font-weight: 400; margin-bottom: 1.5rem; text-align: center; color: #f093a0;">Why Upgrade to Premium?</h2>
+  <p style="line-height: 1.7; color: rgba(255,255,255,0.8); margin-bottom: 1rem;">
+    While the Free plan provides basic tracking tools for self-awareness, MindCradle Premium unlocks the full potential of our **Compounding Intelligence Engine**. Rather than treating your mood logs and journals as static records, Premium builds a secure, structured database of your life. 
+  </p>
+  <p style="line-height: 1.7; color: rgba(255,255,255,0.8);">
+    With **Longitudinal Relational Memory**, ARIA remembers connections across weeks and months, recognizing cycles in your stress and reminding you of coping mechanisms that worked in previous chapters. Your subscription directly supports a privacy-first wellness platform, and your data is never sold or shared.
+  </p>
+</section>
+
+<section style="margin-bottom: 2.5rem;">
+  <h2 style="font-size: 1.6rem; font-weight: 400; margin-bottom: 1.5rem; text-align: center;">Frequently Asked Questions</h2>
+  <div style="display: grid; gap: 1.25rem;">
+    <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+      <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: #ffffff;">How does the 7-day free trial work?</h3>
+      <p style="font-size: 0.9rem; color: rgba(255,255,255,0.7); line-height: 1.6;">You receive complete access to all Premium features immediately for 7 days. If you cancel before the trial concludes, you will not be charged. You can cancel with one click from your billing page.</p>
+    </div>
+    <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+      <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: #ffffff;">Is my emotional and journal data private?</h3>
+      <p style="font-size: 0.9rem; color: rgba(255,255,255,0.7); line-height: 1.6;">Absolutely. MindCradle is privacy-first. We protect your data with end-to-end encryption in transit and at rest. We never sell, rent, or share your journals or conversation logs with third parties or advertising brokers.</p>
+    </div>
+    <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+      <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: #ffffff;">Can I cancel my subscription anytime?</h3>
+      <p style="font-size: 0.9rem; color: rgba(255,255,255,0.7); line-height: 1.6;">Yes. You can cancel your subscription easily through your profile settings page. Your access will remain active until the end of your paid billing period, and you will not be billed again.</p>
+    </div>
+  </div>
+</section>
 """
 render_page("/pricing", "Pricing — MindCradle", "Choose the right plan for your wellness journey. Start with our free tier or upgrade to Premium for unlimited ARIA memory and analytics.", pricing_content)
 
 # --- Privacy ---
-privacy_content = """
-<h1>Privacy Policy</h1>
-<p style="font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-bottom: 2rem;">Last Updated: June 28, 2026</p>
-<section style="line-height: 1.7; color: rgba(255,255,255,0.85); space-y-4;">
-  <h2>1. Data Collection & Privacy First Approach</h2>
-  <p>MindCradle is built on a privacy-first foundation. We gather minimal personal information required to run the core features of the dashboard, including credentials, daily check-in logs, and journal reflections. Your data is end-to-end encrypted.</p>
-  <h2>2. AI Integrations & Prompt Privacy</h2>
-  <p>All interactions with our AI companion ARIA are processed using secure APIs. We do not use your personal entries to train public LLM models.</p>
-  <h2>3. Your Rights</h2>
-  <p>You have full ownership of your data. You can export your history or delete your account permanently with a single click in your settings.</p>
-</section>
-"""
+privacy_content = extract_legal_content('Privacy')
 render_page("/privacy", "Privacy Policy — MindCradle", "Your emotional privacy is our priority. Read our privacy policy to understand how we secure your data.", privacy_content)
 
 # --- Terms ---
-terms_content = """
-<h1>Terms of Service</h1>
-<p style="font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-bottom: 2rem;">Last Updated: June 28, 2026</p>
-<section style="line-height: 1.7; color: rgba(255,255,255,0.85); space-y-4;">
-  <h2>1. Use of Services</h2>
-  <p>By registering for a MindCradle account, you agree to these Terms of Service. MindCradle is a self-reflection wellness tool and is not a clinical therapeutic utility.</p>
-  <h2>2. Subscriptions & Payments</h2>
-  <p>Payments for Premium subscriptions are handled securely through Creem. Subscriptions renew automatically until cancelled.</p>
-  <h2>3. Governing Law</h2>
-  <p>These terms are governed by the applicable local regulations. You agree to use the service in compliance with all relevant laws.</p>
-</section>
-"""
+terms_content = extract_legal_content('Terms')
 render_page("/terms", "Terms of Service — MindCradle", "Read the terms of service governing your use of the MindCradle platform and services.", terms_content)
 
 # --- Refund ---
-refund_content = """
-<h1>Refund Policy</h1>
-<p style="font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-bottom: 2rem;">Last Updated: June 28, 2026</p>
-<section style="line-height: 1.7; color: rgba(255,255,255,0.85); space-y-4;">
-  <h2>1. Subscription Cancellations</h2>
-  <p>You can cancel your MindCradle Premium subscription at any time via the billing dashboard. Your access will remain active until the end of your current billing period.</p>
-  <h2>2. Refund Requests</h2>
-  <p>If you are not satisfied with your purchase, you can request a refund within 14 days of your initial transaction by emailing support@mindcradle.online. Approved refunds will be credited back to your original payment method.</p>
-</section>
-"""
+refund_content = extract_legal_content('Refund')
 render_page("/refund", "Refund Policy — MindCradle", "Review our refund policy for MindCradle Premium subscription cancellations and refund requests.", refund_content)
 
 
