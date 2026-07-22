@@ -144,6 +144,33 @@ async function request<T>(
     throw new Error('Session expired. Please log in again.');
   }
 
+  // Handle 403 — check if it's a CSRF error and retry once with fresh tokens
+  if (res.status === 403 && !_isRetry) {
+    try {
+      const text = await res.clone().text();
+      let isCsrfError = false;
+      try {
+        const err = JSON.parse(text);
+        const msg = (err.detail || err.message || '').toLowerCase();
+        if (msg.includes('csrf') || msg.includes('token') || msg.includes('cookie') || msg.includes('missing')) {
+          isCsrfError = true;
+        }
+      } catch {
+        if (text.toLowerCase().includes('csrf')) {
+          isCsrfError = true;
+        }
+      }
+
+      if (isCsrfError) {
+        const { clearCsrfToken } = await import('./csrf');
+        clearCsrfToken();
+        return request<T>(method, path, body, requiresAuth, true, options);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
   if (!res.ok) {
     let detail = `HTTP ${res.status}`;
     try {

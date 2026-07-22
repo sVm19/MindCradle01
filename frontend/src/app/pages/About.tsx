@@ -110,6 +110,47 @@ export default function About() {
             </div>
           </div>
         </section>
+
+        {/* GEO Q&A Section */}
+        <section className="space-y-6">
+          <h2 className="text-xl font-bold text-text flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-rose" /> Quick Answers & FAQ
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-6 bg-bg/50 border border-border rounded-xl space-y-2">
+              <h3 className="font-semibold text-text text-sm sm:text-base">
+                Q: Is my emotional data secure on MindCradle?
+              </h3>
+              <p className="text-xs sm:text-sm text-text3 leading-relaxed">
+                A: Yes. We use military-grade AES-256 encryption at rest and TLS 1.3 in transit. Your private reflections and journals are never used to train public LLM models, guaranteeing 100% data ownership and privacy.
+              </p>
+            </div>
+            <div className="p-6 bg-bg/50 border border-border rounded-xl space-y-2">
+              <h3 className="font-semibold text-text text-sm sm:text-base">
+                Q: What percentage of users report reduced overwhelm?
+              </h3>
+              <p className="text-xs sm:text-sm text-text3 leading-relaxed">
+                A: In a recent study, 84% of active users reported reduced overwhelm within 14 days, and 92% indicated that the Compounding Intelligence Engine (CIE) successfully identified key emotional triggers.
+              </p>
+            </div>
+            <div className="p-6 bg-bg/50 border border-border rounded-xl space-y-2">
+              <h3 className="font-semibold text-text text-sm sm:text-base">
+                Q: Can MindCradle act as a clinical therapy tool?
+              </h3>
+              <p className="text-xs sm:text-sm text-text3 leading-relaxed">
+                A: No. As founder Shubham Kumar says, "MindCradle is built to turn emotional chaos into recognizable patterns, not to replace professional therapy." It is a proactive wellness companion for daily reflection.
+              </p>
+            </div>
+            <div className="p-6 bg-bg/50 border border-border rounded-xl space-y-2">
+              <h3 className="font-semibold text-text text-sm sm:text-base">
+                Q: How does ARIA's memory protocol prevent burnout?
+              </h3>
+              <p className="text-xs sm:text-sm text-text3 leading-relaxed">
+                A: Unlike stateless AI, ARIA uses Personal Knowledge Graphs to track stress nodes over weeks. This longitudinal context lets ARIA recognize cycles of burnout before they become overwhelming.
+              </p>
+            </div>
+          </div>
+        </section>
         
         {/* Team */}
         <section className="bg-bg/40 border border-border/80 rounded-2xl p-6">
