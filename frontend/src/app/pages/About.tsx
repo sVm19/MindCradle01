@@ -14,12 +14,51 @@ export default function About() {
     }
   };
 
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Is my emotional data secure on MindCradle?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. We use military-grade AES-256 encryption at rest and TLS 1.3 in transit. Your private reflections and journals are never used to train public LLM models, guaranteeing 100% data ownership and privacy."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What percentage of users report reduced overwhelm?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "In a recent study, 84% of active users reported reduced overwhelm within 14 days, and 92% indicated that the Compounding Intelligence Engine (CIE) successfully identified key emotional triggers."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can MindCradle act as a clinical therapy tool?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. As founder Shubham Kumar says, \"MindCradle is built to turn emotional chaos into recognizable patterns, not to replace professional therapy.\" It is a proactive wellness companion for daily reflection."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does ARIA's memory protocol prevent burnout?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Unlike stateless AI, ARIA uses Personal Knowledge Graphs to track stress nodes over weeks. This longitudinal context lets ARIA recognize cycles of burnout before they become overwhelming."
+        }
+      }
+    ]
+  };
+
   return (
     <div className="bg-bg2 text-text rounded-[28px] border border-border shadow-2xl p-8 sm:p-12 text-left animate-fadeIn relative overflow-hidden">
       <SEO 
         title="About MindCradle"
         description="Learn about MindCradle, a privacy-first wellness app built to help you understand your emotions better."
-        schema={aboutSchema}
+        schema={[aboutSchema, faqSchema]}
       />
       {/* Ambient background glow */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(240,147,160,0.06),transparent_50%)] pointer-events-none" />

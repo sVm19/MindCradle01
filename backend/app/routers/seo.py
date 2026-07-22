@@ -40,6 +40,8 @@ async def get_sitemap_pages():
         {"path": "/features", "priority": "0.9", "changefreq": "monthly"},
         {"path": "/about", "priority": "0.8", "changefreq": "monthly"},
         {"path": "/pricing", "priority": "0.9", "changefreq": "weekly"},
+        {"path": "/blog", "priority": "0.8", "changefreq": "daily"},
+        {"path": "/docs", "priority": "0.7", "changefreq": "daily"},
         {"path": "/privacy", "priority": "0.5", "changefreq": "monthly"},
         {"path": "/terms", "priority": "0.5", "changefreq": "monthly"},
         {"path": "/refund", "priority": "0.3", "changefreq": "monthly"},
@@ -124,7 +126,58 @@ async def get_sitemap_docs():
 
 @router.get("/seo/robots.txt")
 async def get_robots_txt():
-    robots = f"""User-agent: *
+    robots = f"""# Allow all search engine crawlers and specifically encourage AI search bots
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /billing/
+Disallow: /insights/
+Disallow: /discoveries/
+Disallow: /timeline/
+
+# OpenAI GPTBot
+User-agent: GPTBot
+Allow: /
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /billing/
+Disallow: /insights/
+Disallow: /discoveries/
+Disallow: /timeline/
+
+# Anthropic ClaudeBot
+User-agent: ClaudeBot
+Allow: /
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /billing/
+Disallow: /insights/
+Disallow: /discoveries/
+Disallow: /timeline/
+
+# Perplexity AI Bot
+User-agent: PerplexityBot
+Allow: /
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /billing/
+Disallow: /insights/
+Disallow: /discoveries/
+Disallow: /timeline/
+
+# Google AI Extended (Gemini)
+User-agent: Google-Extended
+Allow: /
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /billing/
+Disallow: /insights/
+Disallow: /discoveries/
+Disallow: /timeline/
+
+# Applebot Extended (Apple Intelligence)
+User-agent: Applebot-Extended
 Allow: /
 Disallow: /admin/
 Disallow: /settings/
