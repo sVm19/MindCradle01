@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { Analytics } from '@vercel/analytics/react';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ARIAProvider } from '@/context/ARIAContext';
 import { GrowthProvider, useGrowth } from '@/context/GrowthContext';
@@ -213,6 +214,7 @@ export default function App() {
           </ARIAProvider>
         </GrowthProvider>
       </AuthProvider>
+      <Analytics />
     </GoogleOAuthProvider>
   );
 }
