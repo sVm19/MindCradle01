@@ -10,7 +10,7 @@ print(f"Current Working Directory: {os.getcwd()}")
 print(f"Python Version: {sys.version}")
 
 # Keep track of all pre-rendered URLs for IndexNow submission
-rendered_urls = ["https://mindcradle.online/", "https://mindcradle.online"]
+rendered_urls = ["https://www.mindcradle.online/", "https://www.mindcradle.online"]
 
 # Preflight monorepo checks
 BACKEND_DIR = os.path.join(os.path.dirname(__file__), 'backend')
@@ -164,7 +164,7 @@ def extract_legal_content(page_name):
 
 def render_page(path_sub, title, description, content_html):
     # Set up clean URL
-    canonical = f"https://mindcradle.online{path_sub}"
+    canonical = f"https://www.mindcradle.online{path_sub}"
     
     # Replacement of metadata
     html = template_html
@@ -456,11 +456,11 @@ print("================ PRE-RENDER COMPLETE ================")
 
 # Submit pre-rendered pages to IndexNow API
 def submit_indexnow(urls):
-    key = "a755d76ec49340338cbdd0f70ab3b0cd"
+    key = "a712d266b95d45d5998969662249f988"
     payload = {
-        "host": "mindcradle.online",
+        "host": "www.mindcradle.online",
         "key": key,
-        "keyLocation": f"https://mindcradle.online/{key}.txt",
+        "keyLocation": f"https://www.mindcradle.online/{key}.txt",
         "urlList": urls
     }
     data = json.dumps(payload).encode("utf-8")
