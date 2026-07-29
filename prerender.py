@@ -2,10 +2,15 @@
 import os
 import sys
 import re
+import urllib.request
+import json
 
 print("================ PRE-RENDER START ================")
 print(f"Current Working Directory: {os.getcwd()}")
 print(f"Python Version: {sys.version}")
+
+# Keep track of all pre-rendered URLs for IndexNow submission
+rendered_urls = ["https://mindcradle.online/", "https://mindcradle.online"]
 
 # Preflight monorepo checks
 BACKEND_DIR = os.path.join(os.path.dirname(__file__), 'backend')
@@ -191,7 +196,8 @@ def render_page(path_sub, title, description, content_html):
     # Replace main landmark fallback
     main_pattern = r'<main id="main-content" role="main" style="[^"]*">[\s\S]*?</main>'
     main_replacement = f'<main id="main-content" role="main" style="padding: 2rem 1.5rem; max-width: 900px; margin: 0 auto; color: #ffffff; font-family: sans-serif;">\n{content_html}\n</main>'
-    html = re.sub(main_pattern, main_replacement, html)
+    main_replacement_escaped = main_replacement.replace('\\', '\\\\')
+    html = re.sub(main_pattern, main_replacement_escaped, html)
     
     # Output path
     out_dir = os.path.join(DIST_DIR, path_sub.lstrip('/'))
@@ -201,6 +207,9 @@ def render_page(path_sub, title, description, content_html):
     with open(out_file, 'w', encoding='utf-8') as f:
         f.write(html)
     print(f"Generated pre-rendered file: {out_file}")
+    
+    # Track the URL for IndexNow submission
+    rendered_urls.append(canonical)
 
 # 1. PRE-RENDER STATIC PAGES
 # --- About ---
@@ -213,10 +222,10 @@ render_page("/features", "Features — MindCradle", "Explore MindCradle's key ca
 
 # --- Pricing (Curated Long-form HTML for rich E-E-A-T indexing) ---
 pricing_content = """
-<header style="text-align: center; margin-bottom: 2.5rem;">
+<div class="pricing-header" style="text-align: center; margin-bottom: 2.5rem;">
   <h1 style="font-size: 2.2rem; font-weight: 400; margin-bottom: 1rem; color: #ffffff;">Pricing Plans</h1>
   <p style="font-size: 1.1rem; color: rgba(255,255,255,0.7); max-width: 640px; margin: 0 auto;">Choose the right plan for your wellness journey. Start for free or unlock unlimited growth insights.</p>
-</header>
+</div>
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; max-width: 800px; margin: 0 auto 3rem;">
   <div style="background: rgba(255,255,255,0.03); padding: 2rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); text-align: center;">
     <h2 style="font-size: 1.5rem; font-weight: 400; margin-bottom: 0.5rem;">MindCradle Free</h2>
@@ -251,6 +260,16 @@ pricing_content = """
   </p>
   <p style="line-height: 1.7; color: rgba(255,255,255,0.8);">
     With **Longitudinal Relational Memory**, ARIA remembers connections across weeks and months, recognizing cycles in your stress and reminding you of coping mechanisms that worked in previous chapters. Your subscription directly supports a privacy-first wellness platform, and your data is never sold or shared.
+  </p>
+</section>
+
+<section style="margin-bottom: 3rem; background: rgba(255,255,255,0.02); padding: 2rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06);">
+  <h2 style="font-size: 1.6rem; font-weight: 400; margin-bottom: 1.5rem; text-align: center; color: #f093a0;">Billing Transparency & Satisfaction Guarantee</h2>
+  <p style="line-height: 1.7; color: rgba(255,255,255,0.8); margin-bottom: 1rem;">
+    We believe in direct relationships, not dark patterns. Your subscription is handled securely through our payment integration system using Stripe and Creem, which utilizes bank-grade cryptographic protocols to protect your billing credentials. There are no setup fees, minimum terms, or cancellation penalties.
+  </p>
+  <p style="line-height: 1.7; color: rgba(255,255,255,0.8);">
+    If you cancel during your 7-day free trial, we guarantee that you will not be billed. If you forget to cancel or are unsatisfied with Premium, you can contact our support team within 14 days of any payment for a full refund. Your trust is our priority, and we keep all subscription management simple and direct.
   </p>
 </section>
 
@@ -289,10 +308,18 @@ render_page("/refund", "Refund Policy — MindCradle", "Review our refund policy
 
 # 2. PRE-RENDER DYNAMIC BLOG POSTS
 blog_index_html = """
-<header style="text-align: center; margin-bottom: 2.5rem;">
+<div class="blog-header" style="text-align: center; margin-bottom: 2.5rem;">
   <h1 style="font-size: 2.2rem; font-weight: 400; margin-bottom: 1rem; color: #ffffff;">MindCradle Blog</h1>
-  <p style="font-size: 1.1rem; color: rgba(255,255,255,0.7); max-width: 640px; margin: 0 auto;">Insights on persistent AI memory, longitudinal context, and relational wellness companions.</p>
-</header>
+  <p style="font-size: 1.1rem; color: rgba(255,255,255,0.7); max-width: 640px; margin: 0 auto; margin-bottom: 1.5rem;">Insights on persistent AI memory, longitudinal context, and relational wellness companions.</p>
+  <p style="font-size: 0.95rem; color: rgba(255,255,255,0.6); max-width: 720px; margin: 0 auto 2.5rem; line-height: 1.6;">
+    Welcome to the MindCradle Publications. Here we explore the intersection of artificial intelligence, digital therapeutics, cognitive journaling, and human-agent relationships. Our engineering team and wellness researchers write weekly articles sharing technical insights, user case studies, and scientific research on building resilient, privacy-first wellness systems.
+  </p>
+</div>
+<section style="margin-bottom: 2.5rem; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); font-size: 0.95rem; color: rgba(255,255,255,0.8); line-height: 1.7;">
+  <p style="margin: 0;">
+    At MindCradle, we believe that emotional health requires tools that grow and learn alongside you. Our blog articles explore key topics in mental resilience, intention setting, and modern agent architectures. Discover how structured journaling, memory-assisted AI reflections, and behavioral streak tracking can help you ground your daily routines and notice emotional triggers.
+  </p>
+</section>
 <div style="display: grid; gap: 2rem;">
 """
 
@@ -347,10 +374,33 @@ render_page("/blog", "Mindfulness & AI Memory Blog — MindCradle", "Explore ins
 
 # 3. PRE-RENDER DYNAMIC DOCS PAGES
 docs_index_html = """
-<header style="text-align: center; margin-bottom: 2.5rem;">
+<div class="docs-header" style="text-align: center; margin-bottom: 2.5rem;">
   <h1 style="font-size: 2.2rem; font-weight: 400; margin-bottom: 1rem; color: #ffffff;">Developer Documentation</h1>
-  <p style="font-size: 1.1rem; color: rgba(255,255,255,0.7); max-width: 640px; margin: 0 auto;">Learn how MindCradle's Compounding Intelligence Engine and Memory Protocol work under the hood.</p>
-</header>
+  <p style="font-size: 1.1rem; color: rgba(255,255,255,0.7); max-width: 640px; margin: 0 auto; margin-bottom: 1.5rem;">Learn how MindCradle's Compounding Intelligence Engine and Memory Protocol work under the hood.</p>
+  <p style="font-size: 0.95rem; color: rgba(255,255,255,0.6); max-width: 720px; margin: 0 auto 2.5rem; line-height: 1.6;">
+    Welcome to the MindCradle Developer Portal. This documentation hub is designed to help software engineers, data scientists, and security researchers understand our underlying technologies, API integration pathways, and privacy architectures. Whether you are looking to build custom clients, run local semantic models, or verify our security claims, you will find comprehensive guides and code specifications below.
+  </p>
+</div>
+<section style="margin-bottom: 2rem; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem; color: rgba(255,255,255,0.8); line-height: 1.7;">
+  <h2 style="font-size: 1.25rem; margin-top: 0; margin-bottom: 0.75rem; color: #8b7cf8;">Documentation Overview</h2>
+  <p style="margin-bottom: 0.75rem;">
+    MindCradle's codebase is designed as a modular monorepo, separating frontend client views from backend logic and database structures. The documentation is divided into three key areas to help developers navigate the project easily:
+  </p>
+  <ul style="margin-left: 1.25rem; margin-bottom: 1rem;">
+    <li><strong>Getting Started:</strong> Basic onboarding guides, CIE overviews, and answers to common developer or user questions.</li>
+    <li><strong>Core Concepts:</strong> Detailed explanations of the Memory Protocol, Personal Knowledge Graph (PKG) models, and security principles.</li>
+    <li><strong>API & Architecture:</strong> Technical specifications of FastAPI endpoints, database schemas, and Google Cloud Run deployment topologies.</li>
+  </ul>
+  <p style="margin-bottom: 0.75rem;">
+    We recommend that new developers start with the [Introduction to MindCradle](/docs/introduction) to understand our design philosophy, and then review the [Memory Protocol](/docs/memory-protocol) to see how relational memory is maintained across chat sessions.
+  </p>
+  <p style="margin-bottom: 0.75rem;">
+    For local development setup, configuration variables, and custom schema migrations, refer to the [System Architecture](/docs/architecture) and [API Reference](/docs/api) sections. If you encounter issues, search the [Frequently Asked Questions](/docs/faq) or reach out to the development team on GitHub. All developer endpoints are protected by rate limiters to ensure performance and prevent denial-of-service issues.
+  </p>
+  <p style="margin-bottom: 0;">
+    We also encourage community contributions; if you find typos, outdated schemas, or want to contribute new documentation pages, please submit a Pull Request following our styling and code guidelines.
+  </p>
+</section>
 <div style="display: grid; gap: 1.5rem; max-width: 800px; margin: 0 auto;">
 """
 
@@ -403,3 +453,31 @@ docs_index_html += "</div>"
 render_page("/docs", "Developer Documentation — MindCradle", "Learn how MindCradle's Compounding Intelligence Engine and Memory Protocol work under the hood.", docs_index_html)
 
 print("================ PRE-RENDER COMPLETE ================")
+
+# Submit pre-rendered pages to IndexNow API
+def submit_indexnow(urls):
+    key = "a755d76ec49340338cbdd0f70ab3b0cd"
+    payload = {
+        "host": "mindcradle.online",
+        "key": key,
+        "keyLocation": f"https://mindcradle.online/{key}.txt",
+        "urlList": urls
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.indexnow.org/indexnow",
+        data=data,
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        method="POST"
+    )
+    print(f"Submitting {len(urls)} URLs to IndexNow API...")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            status = response.status
+            body = response.read().decode("utf-8")
+            print(f"IndexNow Response Status: {status}")
+            print(f"IndexNow Response Body: {body}")
+    except Exception as e:
+        print(f"WARNING: IndexNow submission failed: {e}")
+
+submit_indexnow(rendered_urls)

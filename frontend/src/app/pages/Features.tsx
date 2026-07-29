@@ -26,7 +26,7 @@ export default function Features() {
             MindCradle Features
           </h1>
           <p className="text-sm text-text3 max-w-xl mx-auto font-light leading-relaxed">
-            Everything you need to track your thoughts, align your energy, and build a consistent routine.
+            Everything you need to track your thoughts, align your energy, and build a consistent routine. Our systems combine the latest breakthroughs in generative language modeling with classic cognitive-behavioral principles. Explore the key systems below that work together in complete privacy to help you build self-awareness and maintain emotional resilience.
           </p>
         </div>
         
@@ -38,7 +38,7 @@ export default function Features() {
             <div className="p-3 rounded-lg bg-rose/10 text-rose"><BarChart3 className="w-6 h-6" /></div>
             <div className="space-y-1">
               <h3 className="font-semibold text-text text-sm sm:text-base">Mood Tracking</h3>
-              <p className="text-xs text-text3 leading-relaxed">Log your mood daily and spot patterns over weeks and months.</p>
+              <p className="text-xs text-text3 leading-relaxed">Log your mood, energy levels, and sleep duration daily to map your emotional trajectory. Our intuitive check-in interface takes under 30 seconds, helping you systematically spot trends, isolate environmental stressors, and understand how your recovery metrics correlate with your overall well-being over weeks, months, and seasons.</p>
             </div>
           </Link>
           
@@ -49,7 +49,7 @@ export default function Features() {
             <div className="p-3 rounded-lg bg-teal/10 text-teal"><Sun className="w-6 h-6" /></div>
             <div className="space-y-1">
               <h3 className="font-semibold text-text text-sm sm:text-base">Daily Rituals</h3>
-              <p className="text-xs text-text3 leading-relaxed">3-minute guided practices to build consistency and calm.</p>
+              <p className="text-xs text-text3 leading-relaxed">Engage in guided morning intention-setting and ambient evening reflections designed to anchor your mind. Complete brief, science-backed 3-minute exercises to regulate your nervous system, build consistency, and cultivate mindful habits that build emotional resilience and lower cognitive overwhelm.</p>
             </div>
           </Link>
           
@@ -60,7 +60,7 @@ export default function Features() {
             <div className="p-3 rounded-lg bg-indigo-500/10 text-indigo-400"><PenTool className="w-6 h-6" /></div>
             <div className="space-y-1">
               <h3 className="font-semibold text-text text-sm sm:text-base">Guided Journal</h3>
-              <p className="text-xs text-text3 leading-relaxed">Reflective prompts and AI-powered insights on your entries.</p>
+              <p className="text-xs text-text3 leading-relaxed">Express your thoughts with structured prompts that guide your reflections. Search past entries naturally using semantic hybrid vector search, and receive secure, personalized insights that help you understand the themes of your thoughts, your personal breakthroughs, and your progress.</p>
             </div>
           </Link>
           
@@ -71,7 +71,7 @@ export default function Features() {
             <div className="p-3 rounded-lg bg-amber-500/10 text-amber-400"><MessageSquare className="w-6 h-6" /></div>
             <div className="space-y-1">
               <h3 className="font-semibold text-text text-sm sm:text-base">ARIA Companion</h3>
-              <p className="text-xs text-text3 leading-relaxed">AI that learns your context and offers personalized support.</p>
+              <p className="text-xs text-text3 leading-relaxed">Meet ARIA, a supportive AI companion with longitudinal relational memory. Operating via our secure Memory Protocol, ARIA remembers your history, recognizes recurring stress cycles, and provides validating, personalized guidance tailored to your specific growth journey.</p>
             </div>
           </Link>
           
@@ -82,7 +82,7 @@ export default function Features() {
             <div className="p-3 rounded-lg bg-green/10 text-green"><LineChart className="w-6 h-6" /></div>
             <div className="space-y-1">
               <h3 className="font-semibold text-text text-sm sm:text-base">Emotion Analytics</h3>
-              <p className="text-xs text-text3 leading-relaxed">Understand your recovery patterns and emotional trends.</p>
+              <p className="text-xs text-text3 leading-relaxed">Visualize your recovery patterns, energy peaks, and emotional triggers with detailed dashboard charts. Our Compounding Intelligence Engine identifies themes in your logs, giving you actionable analytics to understand your stress limits and prevent burnout before it starts.</p>
             </div>
           </Link>
           
@@ -93,7 +93,7 @@ export default function Features() {
             <div className="p-3 rounded-lg bg-rose/10 text-rose"><ShieldCheck className="w-6 h-6" /></div>
             <div className="space-y-1">
               <h3 className="font-semibold text-text text-sm sm:text-base">Privacy First</h3>
-              <p className="text-xs text-text3 leading-relaxed">Your data encrypted, GDPR compliant, never sold.</p>
+              <p className="text-xs text-text3 leading-relaxed">Your personal growth and private thoughts are protected with end-to-end encryption in transit and at rest. We adhere to strict GDPR standards, run on fully segregated database schemas, and guarantee that your personal entries will never be sold or used to train public LLM models.</p>
             </div>
           </Link>
         </div>
