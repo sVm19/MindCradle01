@@ -562,8 +562,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   />
                 </a>
               </div>
-
-
+              {/* Product Hunt Badge */}
+              <div className="transition-all duration-300 hover:scale-[1.02]">
+                <a 
+                  href="https://www.producthunt.com/products/mindcradle?utm_source=badge-follow&utm_medium=badge&utm_source=badge-mindcradle" 
+                  target="_blank" 
+                  rel="noopener"
+                >
+                  <img 
+                    src="https://api.producthunt.com/widgets/embed-image/v1/follow.svg?product_id=1276161&theme=dark&size=small" 
+                    alt="MindCradle - The wellness app built for serious self-discovery | Product Hunt" 
+                    style={{ width: "86px", height: "32px" }} 
+                    width="86" 
+                    height="32" 
+                    className="rounded shadow-md"
+                  />
+                </a>
+              </div>
             </div>
           </div>
         </footer>
