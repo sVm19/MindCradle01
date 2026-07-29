@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Analytics } from '@vercel/analytics/react';
+import Clarity from '@microsoft/clarity';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ARIAProvider } from '@/context/ARIAContext';
 import { GrowthProvider, useGrowth } from '@/context/GrowthContext';
@@ -192,6 +193,15 @@ export default function App() {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '959765770210-ke5oeq1e67bo6a8051259qgi3ek24ipj.apps.googleusercontent.com';
 
   useEffect(() => {
+    // Initialize Microsoft Clarity tracking
+    try {
+      Clarity.init('xpyu3w39lk');
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error('Clarity failed to initialize:', err);
+      }
+    }
+
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       (window as any).deferredPrompt = e;
