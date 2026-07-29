@@ -1,0 +1,61 @@
+# Allow all search engine crawlers and specifically encourage AI search bots
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /billing/
+Disallow: /insights/
+Disallow: /discoveries/
+Disallow: /timeline/
+
+# OpenAI GPTBot
+User-agent: GPTBot
+Allow: /
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /billing/
+Disallow: /insights/
+Disallow: /discoveries/
+Disallow: /timeline/
+
+# Anthropic ClaudeBot
+User-agent: ClaudeBot
+Allow: /
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /billing/
+Disallow: /insights/
+Disallow: /discoveries/
+Disallow: /timeline/
+
+# Perplexity AI Bot
+User-agent: PerplexityBot
+Allow: /
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /billing/
+Disallow: /insights/
+Disallow: /discoveries/
+Disallow: /timeline/
+
+# Google AI Extended (Gemini)
+User-agent: Google-Extended
+Allow: /
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /billing/
+Disallow: /insights/
+Disallow: /discoveries/
+Disallow: /timeline/
+
+# Applebot Extended (Apple Intelligence)
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /billing/
+Disallow: /insights/
+Disallow: /discoveries/
+Disallow: /timeline/
+
+Sitemap: https://mindcradle.online/sitemap.xml
