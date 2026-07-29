@@ -1,0 +1,3 @@
+# Treat IndexNow key files as binary to prevent git from converting line endings or adding newlines
+a712d266b95d45d5998969662249f988.txt -text
+frontend/public/a712d266b95d45d5998969662249f988.txt -text
