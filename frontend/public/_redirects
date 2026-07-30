@@ -1,3 +1,9 @@
-/api/*  https://mindcradle01-959765770210.europe-west1.run.app/api/:splat  200
-/*      /index.html                                                        200
+/sitemap.xml         https://mindcradle01-959765770210.europe-west1.run.app/api/seo/sitemap.xml         200
+/sitemap-pages.xml   https://mindcradle01-959765770210.europe-west1.run.app/api/seo/sitemap-pages.xml   200
+/sitemap-blog.xml    https://mindcradle01-959765770210.europe-west1.run.app/api/seo/sitemap-blog.xml    200
+/sitemap-docs.xml    https://mindcradle01-959765770210.europe-west1.run.app/api/seo/sitemap-docs.xml    200
+/rss.xml             https://mindcradle01-959765770210.europe-west1.run.app/api/seo/rss.xml             200
+/robots.txt          https://mindcradle01-959765770210.europe-west1.run.app/api/seo/robots.txt          200
+/api/*               https://mindcradle01-959765770210.europe-west1.run.app/api/:splat                  200
+/*                   /index.html                                                                        200
 

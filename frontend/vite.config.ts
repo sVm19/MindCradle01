@@ -45,7 +45,43 @@ export default defineConfig(({ mode }) => {
 
     server: {
       proxy: {
-        // Forward all /api requests to the FastAPI backend.
+        '/sitemap.xml': {
+          target: apiTarget,
+          changeOrigin: true,
+          secure: !apiTarget.includes('localhost'),
+          rewrite: () => '/api/seo/sitemap.xml',
+        },
+        '/sitemap-pages.xml': {
+          target: apiTarget,
+          changeOrigin: true,
+          secure: !apiTarget.includes('localhost'),
+          rewrite: () => '/api/seo/sitemap-pages.xml',
+        },
+        '/sitemap-blog.xml': {
+          target: apiTarget,
+          changeOrigin: true,
+          secure: !apiTarget.includes('localhost'),
+          rewrite: () => '/api/seo/sitemap-blog.xml',
+        },
+        '/sitemap-docs.xml': {
+          target: apiTarget,
+          changeOrigin: true,
+          secure: !apiTarget.includes('localhost'),
+          rewrite: () => '/api/seo/sitemap-docs.xml',
+        },
+        '/robots.txt': {
+          target: apiTarget,
+          changeOrigin: true,
+          secure: !apiTarget.includes('localhost'),
+          rewrite: () => '/api/seo/robots.txt',
+        },
+        '/rss.xml': {
+          target: apiTarget,
+          changeOrigin: true,
+          secure: !apiTarget.includes('localhost'),
+          rewrite: () => '/api/seo/rss.xml',
+        },
+        // Forward all other /api requests to the FastAPI backend.
         // The api.ts client always uses relative /api paths — no changes needed there.
         '/api': {
           target: apiTarget,
