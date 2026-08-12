@@ -298,10 +298,10 @@ export default function Dashboard() {
   const morningCompletedToday = localStorage.getItem('morning_completed_at')?.slice(0, 10) === todayStr;
   const morningCompletedYesterday = localStorage.getItem('morning_completed_at')?.slice(0, 10) === yesterdayStr;
 
-  let heroTitle = "Turn Daily Overwhelm into Clarity with MindCradle's AI Memory Companion";
+  let heroTitle = "Finally Understand Why You Feel The Way You Do";
   let heroDesc: React.ReactNode = (
     <>
-      Built for <span className="text-accent font-medium">busy professionals</span> and <span className="text-teal font-medium">daily journalers</span> seeking emotional balance. MindCradle tracks your mood, guides ambient routines, and uses <span className="text-[#f093a0] font-semibold">ARIA's AI memory engine</span> to help you uncover recurring patterns and build lasting resilience.
+      Stop repeating your story to therapists and apps. <span className="text-[#f093a0] font-semibold">ARIA remembers your patterns</span>—across weeks, months, years—so you can see what's really triggering your stress.
     </>
   );
 
@@ -334,10 +334,10 @@ export default function Dashboard() {
       </>
     );
   } else if (moodItems.length === 0) {
-    heroTitle = "Turn Daily Overwhelm into Clarity with MindCradle's AI Memory Companion";
+    heroTitle = "Finally Understand Why You Feel The Way You Do";
     heroDesc = (
       <>
-        Built for busy individuals seeking emotional balance. MindCradle tracks your mood, guides ambient routines, and uses ARIA's longitudinal AI memory engine to help you uncover recurring patterns and build lasting resilience.
+        Stop repeating your story to therapists and apps. ARIA remembers your patterns—across weeks, months, years—so you can see what's really triggering your stress.
       </>
     );
   }
@@ -459,11 +459,11 @@ export default function Dashboard() {
 
             <div>
               <Link
-                to="/mood"
+                to={user ? "/mood" : "/login"}
                 className="inline-flex items-center justify-center px-7 py-3.5 bg-gradient-to-r from-accent2 via-accent to-rose text-[#05020c] font-extrabold text-sm tracking-wide rounded-full shadow-[0_0_24px_rgba(240,238,255,0.4)] hover:scale-105 transition-all cursor-pointer border border-white/20"
               >
                 <Sparkles className="w-4 h-4 mr-2" />
-                Get Started Free — Try MindCradle →
+                {user ? "Track Your Mood Today →" : "Start free. No credit card. 7 days to your first insight."}
               </Link>
             </div>
 
@@ -1064,21 +1064,13 @@ export default function Dashboard() {
         </h2>
         <div className="bg-bg2 border border-border rounded-[20px] p-6 space-y-6">
           {/* Security & Guarantee Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-bg3/60 border border-border/80 rounded-xl p-4 space-y-2 text-left">
               <div className="flex items-center gap-2 text-teal font-semibold text-xs uppercase tracking-wider">
                 <ShieldCheck className="w-4 h-4" /> Privacy-First
               </div>
               <p className="text-xs text-text2 font-medium">100% End-to-End Encrypted</p>
               <p className="text-[11px] text-text3 leading-relaxed">GDPR compliant. Zero data selling or third-party tracking guarantee.</p>
-            </div>
-
-            <div className="bg-bg3/60 border border-border/80 rounded-xl p-4 space-y-2 text-left">
-              <div className="flex items-center gap-2 text-amber font-semibold text-xs uppercase tracking-wider">
-                <Star className="w-4 h-4" fill="currentColor" /> Verified Reviews
-              </div>
-              <p className="text-xs text-text2 font-medium">4.9 / 5 Star Rating</p>
-              <p className="text-[11px] text-text3 leading-relaxed">Trusted by 480+ daily journalers and wellness seekers worldwide.</p>
             </div>
 
             <div className="bg-bg3/60 border border-border/80 rounded-xl p-4 space-y-2 text-left">
@@ -1095,44 +1087,6 @@ export default function Dashboard() {
               </div>
               <p className="text-xs text-text2 font-medium">7-Day Free Trial</p>
               <p className="text-[11px] text-text3 leading-relaxed">No credit card required. Cancel anytime with zero hidden fees.</p>
-            </div>
-          </div>
-
-          {/* Customer Testimonials / Verified Quotes */}
-          <div className="border-t border-border pt-5 space-y-3">
-            <div className="text-xs font-semibold text-text3 uppercase tracking-wider text-left">
-              Verified User Experience Reports
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-              <div className="bg-bg/40 border border-border/60 rounded-xl p-4 space-y-2">
-                <div className="flex items-center gap-1 text-amber text-xs">
-                  ★★★★★ <span className="text-text3 text-[10px] ml-1">Verified Member</span>
-                </div>
-                <p className="text-xs text-text2 italic leading-relaxed">
-                  "ARIA recognized patterns in my work stress before I noticed them myself. MindCradle's memory engine makes self-reflection effortless."
-                </p>
-                <p className="text-[10.5px] text-text3 font-medium">— Sarah M., Regular Journaler</p>
-              </div>
-
-              <div className="bg-bg/40 border border-border/60 rounded-xl p-4 space-y-2">
-                <div className="flex items-center gap-1 text-amber text-xs">
-                  ★★★★★ <span className="text-text3 text-[10px] ml-1">Verified Member</span>
-                </div>
-                <p className="text-xs text-text2 italic leading-relaxed">
-                  "The end-to-end privacy guarantee was essential for me. Having a personal AI that remembers my journey without selling data is rare."
-                </p>
-                <p className="text-[10.5px] text-text3 font-medium">— David K., Software Engineer</p>
-              </div>
-
-              <div className="bg-bg/40 border border-border/60 rounded-xl p-4 space-y-2">
-                <div className="flex items-center gap-1 text-amber text-xs">
-                  ★★★★★ <span className="text-text3 text-[10px] ml-1">Verified Member</span>
-                </div>
-                <p className="text-xs text-text2 italic leading-relaxed">
-                  "The Personal Solstice quarterly summary is like a Spotify Wrapped for my mental growth. Can't imagine starting my day without it."
-                </p>
-                <p className="text-[10.5px] text-text3 font-medium">— Elena R., Product Designer</p>
-              </div>
             </div>
           </div>
         </div>

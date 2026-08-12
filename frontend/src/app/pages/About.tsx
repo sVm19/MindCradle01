@@ -26,14 +26,7 @@ export default function About() {
           "text": "Yes. We use military-grade AES-256 encryption at rest and TLS 1.3 in transit. Your private reflections and journals are never used to train public LLM models, guaranteeing 100% data ownership and privacy."
         }
       },
-      {
-        "@type": "Question",
-        "name": "What percentage of users report reduced overwhelm?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "In a recent study, 84% of active users reported reduced overwhelm within 14 days, and 92% indicated that the Compounding Intelligence Engine (CIE) successfully identified key emotional triggers."
-        }
-      },
+
       {
         "@type": "Question",
         "name": "Can MindCradle act as a clinical therapy tool?",
@@ -127,28 +120,6 @@ export default function About() {
           </div>
         </section>
         
-        {/* Stats */}
-        <section className="bg-bg/60 border border-border/75 rounded-2xl p-8">
-          <h2 className="text-xl font-bold text-text text-center mb-6">By The Numbers</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
-            <div className="space-y-1">
-              <h3 className="text-3xl font-extrabold text-rose">487+</h3>
-              <p className="text-xs text-text3">User Reviews</p>
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-3xl font-extrabold text-rose">4.8★</h3>
-              <p className="text-xs text-text3">Average Rating</p>
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-3xl font-extrabold text-rose">50K+</h3>
-              <p className="text-xs text-text3">Active Users</p>
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-3xl font-extrabold text-rose">150+</h3>
-              <p className="text-xs text-text3">Countries</p>
-            </div>
-          </div>
-        </section>
 
         {/* GEO Q&A Section */}
         <section className="space-y-6">
@@ -162,14 +133,6 @@ export default function About() {
               </h3>
               <p className="text-xs sm:text-sm text-text3 leading-relaxed">
                 A: Yes. We use military-grade AES-256 encryption at rest and TLS 1.3 in transit. Your private reflections and journals are never used to train public LLM models, guaranteeing 100% data ownership and privacy.
-              </p>
-            </div>
-            <div className="p-6 bg-bg/50 border border-border rounded-xl space-y-2">
-              <h3 className="font-semibold text-text text-sm sm:text-base">
-                Q: What percentage of users report reduced overwhelm?
-              </h3>
-              <p className="text-xs sm:text-sm text-text3 leading-relaxed">
-                A: In a recent study, 84% of active users reported reduced overwhelm within 14 days, and 92% indicated that the Compounding Intelligence Engine (CIE) successfully identified key emotional triggers.
               </p>
             </div>
             <div className="p-6 bg-bg/50 border border-border rounded-xl space-y-2">
@@ -204,7 +167,7 @@ export default function About() {
         <section className="text-center pt-4 space-y-4">
           <h2 className="text-xl font-bold text-text">Ready to Start Your Wellness Journey?</h2>
           <a 
-            href="/signup" 
+            href="/login" 
             className="inline-block px-8 py-3 bg-gradient-to-r from-rose to-accent text-white font-semibold text-sm rounded-full shadow-lg hover:opacity-95 transition-all transform hover:scale-105 smooth-hover-btn animate-pulse"
           >
             Get Started Free
