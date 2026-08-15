@@ -519,11 +519,19 @@ class ProfileResponse(BaseModel):
     is_premium: bool = False
     subscription_expires_at: Optional[str] = None
     created: str
+    widget_personalized_enabled: Optional[bool] = True
+    widget_memories_enabled: Optional[bool] = True
+    widget_aria_personalized_enabled: Optional[bool] = True
+    widget_sensitive_enabled: Optional[bool] = False
 
 
 class ProfileUpdate(BaseModel):
     emergency_contact: Optional[str] = None
     notify_on_crisis: Optional[bool] = None
+    widget_personalized_enabled: Optional[bool] = None
+    widget_memories_enabled: Optional[bool] = None
+    widget_aria_personalized_enabled: Optional[bool] = None
+    widget_sensitive_enabled: Optional[bool] = None
 
     @field_validator('emergency_contact', mode='before')
     @classmethod

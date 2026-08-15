@@ -843,11 +843,22 @@ export interface ProfileResponse {
   is_premium?: boolean;
   subscription_expires_at?: string | null;
   created: string;
+  widget_personalized_enabled?: boolean;
+  widget_memories_enabled?: boolean;
+  widget_aria_personalized_enabled?: boolean;
+  widget_sensitive_enabled?: boolean;
 }
 
 export const profile = {
   get: () => request<ProfileResponse>('GET', '/profile'),
-  update: (data: { emergency_contact?: string; notify_on_crisis?: boolean }) => request<ProfileResponse>('PATCH', '/profile', data),
+  update: (data: {
+    emergency_contact?: string;
+    notify_on_crisis?: boolean;
+    widget_personalized_enabled?: boolean;
+    widget_memories_enabled?: boolean;
+    widget_aria_personalized_enabled?: boolean;
+    widget_sensitive_enabled?: boolean;
+  }) => request<ProfileResponse>('PATCH', '/profile', data),
   patchMilestones: (unlockedBadges: string[]) => request<any>('PATCH', '/profile/milestones', { unlockedBadges }),
 };
 

@@ -15,6 +15,12 @@ export default function Settings() {
   const [notifyOnCrisis, setNotifyOnCrisis] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  
+  // Widget Preferences States in Settings page
+  const [widgetPersonalized, setWidgetPersonalized] = useState(true);
+  const [widgetMemories, setWidgetMemories] = useState(true);
+  const [widgetAriaPersonalized, setWidgetAriaPersonalized] = useState(true);
+  const [widgetSensitive, setWidgetSensitive] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
   const [ageVerified, setAgeVerified] = useState(false);
@@ -63,6 +69,10 @@ export default function Settings() {
       .then((res) => {
         setEmergencyContact(res.emergency_contact || '');
         setNotifyOnCrisis(res.notify_on_crisis || false);
+        setWidgetPersonalized(res.widget_personalized_enabled ?? true);
+        setWidgetMemories(res.widget_memories_enabled ?? true);
+        setWidgetAriaPersonalized(res.widget_aria_personalized_enabled ?? true);
+        setWidgetSensitive(res.widget_sensitive_enabled ?? false);
       })
       .catch((err) => {
         if (import.meta.env.DEV) {
@@ -118,6 +128,29 @@ export default function Settings() {
       setTimeout(() => setSaveStatus(null), 3000);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleWidgetToggle = async (key: string, value: boolean) => {
+    if (key === 'personalized') setWidgetPersonalized(value);
+    if (key === 'memories') setWidgetMemories(value);
+    if (key === 'aria') setWidgetAriaPersonalized(value);
+    if (key === 'sensitive') setWidgetSensitive(value);
+
+    try {
+      await profileApi.update({
+        widget_personalized_enabled: key === 'personalized' ? value : widgetPersonalized,
+        widget_memories_enabled: key === 'memories' ? value : widgetMemories,
+        widget_aria_personalized_enabled: key === 'aria' ? value : widgetAriaPersonalized,
+        widget_sensitive_enabled: key === 'sensitive' ? value : widgetSensitive,
+      });
+    } catch (err) {
+      console.error('Failed to update widget preference:', err);
+      // Rollback
+      if (key === 'personalized') setWidgetPersonalized(!value);
+      if (key === 'memories') setWidgetMemories(!value);
+      if (key === 'aria') setWidgetAriaPersonalized(!value);
+      if (key === 'sensitive') setWidgetSensitive(!value);
     }
   };
 
@@ -509,6 +542,108 @@ startxref
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
             </button>
+          </div>
+        </section>
+
+        {/* Home Screen Widgets */}
+        <section className="bg-bg2 border border-border rounded-[20px] px-6 py-6 space-y-4">
+          <div className="text-xs text-accent uppercase tracking-wider mb-2">Home Screen Widgets</div>
+          <div className="space-y-4">
+            <div>
+              <div className="text-base font-medium text-text">Widgets Configuration</div>
+              <div className="text-xs text-text3 mt-1 leading-relaxed">
+                Add MindCradle widgets to your phone's Home Screen to check your active streak, log your mood, and see ARIA prompts.
+              </div>
+            </div>
+
+            {/* Widget Privacy toggles */}
+            <div className="border-t border-border/20 pt-4 space-y-3.5">
+              <div className="text-xs font-semibold text-text uppercase tracking-wider mb-2">Widget Privacy Settings</div>
+              
+              <div className="flex items-start gap-3">
+                <input
+                  id="widget-personalized"
+                  type="checkbox"
+                  checked={widgetPersonalized}
+                  onChange={(e) => handleWidgetToggle('personalized', e.target.checked)}
+                  className="w-4 h-4 rounded border-border text-accent bg-bg3 mt-0.5 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                />
+                <div className="space-y-0.5">
+                  <label htmlFor="widget-personalized" className="text-xs text-text font-medium cursor-pointer">
+                    Personalized Content
+                  </label>
+                  <p className="text-[10px] text-text3">
+                    Allow widgets to access recent mood logs, habits, and chapter metrics.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <input
+                  id="widget-memories"
+                  type="checkbox"
+                  checked={widgetMemories}
+                  onChange={(e) => handleWidgetToggle('memories', e.target.checked)}
+                  className="w-4 h-4 rounded border-border text-accent bg-bg3 mt-0.5 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                />
+                <div className="space-y-0.5">
+                  <label htmlFor="widget-memories" className="text-xs text-text font-medium cursor-pointer">
+                    Show Memories
+                  </label>
+                  <p className="text-[10px] text-text3">
+                    Display highlights from your personal growth history.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <input
+                  id="widget-aria"
+                  type="checkbox"
+                  checked={widgetAriaPersonalized}
+                  onChange={(e) => handleWidgetToggle('aria', e.target.checked)}
+                  className="w-4 h-4 rounded border-border text-accent bg-bg3 mt-0.5 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                />
+                <div className="space-y-0.5">
+                  <label htmlFor="widget-aria" className="text-xs text-text font-medium cursor-pointer">
+                    ARIA Personalization
+                  </label>
+                  <p className="text-[10px] text-text3">
+                    Allow ARIA to show custom mood reflections and daily focus recommendations.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <input
+                  id="widget-sensitive"
+                  type="checkbox"
+                  checked={widgetSensitive}
+                  onChange={(e) => handleWidgetToggle('sensitive', e.target.checked)}
+                  className="w-4 h-4 rounded border-border text-accent bg-bg3 mt-0.5 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                />
+                <div className="space-y-0.5">
+                  <label htmlFor="widget-sensitive" className="text-xs text-text font-medium cursor-pointer">
+                    Show Sensitive Content
+                  </label>
+                  <p className="text-[10px] text-text3">
+                    Allow potentially private emotional details to display in lock-screen contexts.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                onClick={() => navigate('/settings/widgets')}
+                className="px-5 py-2.5 bg-accent hover:bg-accent2 text-[#0c0714] border border-transparent rounded-[10px] text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <span>Manage Widgets & Previews</span>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
           </div>
         </section>
 

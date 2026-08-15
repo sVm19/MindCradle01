@@ -18,6 +18,7 @@ const Journal = lazy(() => import('./pages/Journal'));
 const ARIA = lazy(() => import('./pages/ARIA'));
 const WindDown = lazy(() => import('./pages/WindDown'));
 const Settings = lazy(() => import('./pages/Settings'));
+const WidgetGallery = lazy(() => import('./pages/WidgetGallery'));
 const Login = lazy(() => import('./pages/Login'));
 const AuthCallback = lazy(() => import('./pages/AuthCallback'));
 const MagicLinkRequest = lazy(() => import('./pages/MagicLinkRequest'));
@@ -158,6 +159,7 @@ function AppRoutes() {
                 <Route path="/aria" element={<ARIA />} />
                 <Route path="/wind-down" element={<WindDown />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/settings/widgets" element={<WidgetGallery />} />
                 <Route path="/settings/understanding" element={<Understanding />} />
                 <Route path="/signup" element={<Navigate to="/login" replace />} />
                 <Route path="/pricing" element={<Pricing />} />

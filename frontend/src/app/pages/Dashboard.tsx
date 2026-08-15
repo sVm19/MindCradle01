@@ -8,6 +8,7 @@ import { Lock, Award, Moon, Wind, PenTool, CheckCircle2, TrendingUp, Brain, Star
 import GuestGate from '@/app/components/GuestGate';
 import { WellnessInsightCard } from '@/app/components/WellnessInsightCard';
 import AriaTerminalCard from '@/app/components/AriaTerminalCard';
+import { AppWindow, ArrowRight } from 'lucide-react';
 
 const SHORT_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -748,7 +749,39 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <WellnessInsightCard />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
+        <WellnessInsightCard />
+        <div className="border border-border/80 rounded-[20px] p-6 relative overflow-hidden bg-bg2 backdrop-blur-md shadow-xl flex flex-col justify-between hover:border-accent/30 transition-all group text-left">
+          {/* Ambient glow in background */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(254,180,123,0.06),transparent_50%)] pointer-events-none" />
+          
+          <div className="relative z-10">
+            {/* Header with icon */}
+            <div className="flex items-center gap-3.5 mb-4 select-none">
+              <div className="w-10 h-10 rounded-xl border border-accent/20 bg-accent/5 flex items-center justify-center flex-shrink-0 text-accent">
+                <AppWindow className="w-5 h-5" />
+              </div>
+              <h2 className="font-[family-name:var(--font-serif)] text-[13px] tracking-[0.14em] uppercase text-accent font-medium flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                Home Widgets
+              </h2>
+            </div>
+            
+            <p className="font-[family-name:var(--font-serif)] text-[15px] sm:text-base font-light text-text2 leading-relaxed italic my-4">
+              Bring MindCradle directly to your home screen. Track your streak, check in with ARIA, and log your thoughts instantly.
+            </p>
+          </div>
+          
+          <div className="mt-4 relative z-10">
+            <button
+              onClick={() => navigate('/settings/widgets')}
+              className="inline-flex items-center justify-center gap-2 h-[46px] px-6 bg-accent/10 hover:bg-accent/25 text-accent border border-accent/30 hover:border-accent/50 rounded-full text-xs font-semibold tracking-wider transition-all cursor-pointer"
+            >
+              Configure Widgets <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Quick Stats Summary */}
       <section className="section-spacing">

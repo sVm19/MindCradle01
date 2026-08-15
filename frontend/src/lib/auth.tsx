@@ -80,6 +80,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(STORAGE_USER_KEY);
     setUser(null);
     authApi.logout().catch(() => { });
+
+    // Sync auth session logout to native iOS/Android webview hosts
+    try {
+      if ((window as any).webkit?.messageHandlers?.authHandler) {
+        (window as any).webkit.messageHandlers.authHandler.postMessage(JSON.stringify(null));
+      }
+      if ((window as any).AndroidAuthBridge?.syncAuth) {
+        (window as any).AndroidAuthBridge.syncAuth(JSON.stringify(null));
+      }
+    } catch (e) {
+      console.warn("Failed to sync logout with native host:", e);
+    }
   }, []);
 
   // Register the global token-expired callback so the API layer
@@ -94,6 +106,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken(u.token);
     localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(u));
     setUser(u);
+
+    // Sync auth session login to native iOS/Android webview hosts
+    try {
+      if ((window as any).webkit?.messageHandlers?.authHandler) {
+        (window as any).webkit.messageHandlers.authHandler.postMessage(JSON.stringify(u));
+      }
+      if ((window as any).AndroidAuthBridge?.syncAuth) {
+        (window as any).AndroidAuthBridge.syncAuth(JSON.stringify(u));
+      }
+    } catch (e) {
+      console.warn("Failed to sync auth with native host:", e);
+    }
 
     // Sync privacy acceptance to database now that we have a user token
     const localAccepted = localStorage.getItem('privacy_accepted') === 'true';

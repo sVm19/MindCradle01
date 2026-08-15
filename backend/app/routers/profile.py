@@ -55,7 +55,11 @@ async def get_profile(
                 notify_on_crisis=i.get("notify_on_crisis", False),
                 is_premium=is_premium,
                 subscription_expires_at=expires_at,
-                created=i.get("created") or i.get("created_at") or ""
+                created=i.get("created") or i.get("created_at") or "",
+                widget_personalized_enabled=i.get("widget_personalized_enabled", True),
+                widget_memories_enabled=i.get("widget_memories_enabled", True),
+                widget_aria_personalized_enabled=i.get("widget_aria_personalized_enabled", True),
+                widget_sensitive_enabled=i.get("widget_sensitive_enabled", False)
             )
         # Create a new profile if it doesn't exist
         new_prof = await pb.create_record("user_profiles", {"user": user_id}, token=token)
@@ -68,7 +72,11 @@ async def get_profile(
             notify_on_crisis=new_prof.get("notify_on_crisis", False),
             is_premium=False,
             subscription_expires_at=None,
-            created=new_prof.get("created") or new_prof.get("created_at") or ""
+            created=new_prof.get("created") or new_prof.get("created_at") or "",
+            widget_personalized_enabled=new_prof.get("widget_personalized_enabled", True),
+            widget_memories_enabled=new_prof.get("widget_memories_enabled", True),
+            widget_aria_personalized_enabled=new_prof.get("widget_aria_personalized_enabled", True),
+            widget_sensitive_enabled=new_prof.get("widget_sensitive_enabled", False)
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch profile: {str(e)}")
@@ -99,6 +107,14 @@ async def patch_profile(
             payload["emergency_contact"] = sanitize_text(req.emergency_contact)
         if req.notify_on_crisis is not None:
             payload["notify_on_crisis"] = req.notify_on_crisis
+        if req.widget_personalized_enabled is not None:
+            payload["widget_personalized_enabled"] = req.widget_personalized_enabled
+        if req.widget_memories_enabled is not None:
+            payload["widget_memories_enabled"] = req.widget_memories_enabled
+        if req.widget_aria_personalized_enabled is not None:
+            payload["widget_aria_personalized_enabled"] = req.widget_aria_personalized_enabled
+        if req.widget_sensitive_enabled is not None:
+            payload["widget_sensitive_enabled"] = req.widget_sensitive_enabled
             
         if items:
             profile_id = items[0]["id"]
@@ -117,7 +133,11 @@ async def patch_profile(
             notify_on_crisis=updated.get("notify_on_crisis", False),
             is_premium=is_premium,
             subscription_expires_at=expires_at,
-            created=updated.get("created") or updated.get("created_at") or ""
+            created=updated.get("created") or updated.get("created_at") or "",
+            widget_personalized_enabled=updated.get("widget_personalized_enabled", True),
+            widget_memories_enabled=updated.get("widget_memories_enabled", True),
+            widget_aria_personalized_enabled=updated.get("widget_aria_personalized_enabled", True),
+            widget_sensitive_enabled=updated.get("widget_sensitive_enabled", False)
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update profile: {str(e)}")
