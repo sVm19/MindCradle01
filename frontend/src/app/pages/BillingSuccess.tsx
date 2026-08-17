@@ -1,9 +1,32 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ShieldCheck, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
 
 export default function BillingSuccess() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  useEffect(() => {
+    if (user) {
+      const tp = (window as any).tp;
+      if (typeof tp === 'function') {
+        tp('createInvitation', {
+          recipientEmail: user.email,
+          recipientName: user.name,
+          referenceId: `mc_sub_${user.userId}_${Date.now()}`,
+          source: 'InvitationScript',
+          productSkus: ['premium_monthly'],
+          products: [{
+            sku: 'premium_monthly',
+            productUrl: 'https://mindcradle.online/pricing',
+            imageUrl: 'https://mindcradle.online/mindcradle-logo.svg',
+            name: 'MindCradle Premium Subscription',
+          }],
+        });
+      }
+    }
+  }, [user]);
   
   useEffect(() => {
     const timer = setTimeout(() => {

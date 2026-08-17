@@ -244,6 +244,33 @@
             tp('register', '%VITE_TRUSTPILOT_KEY%' || 'pBSvDKsRZG4Qc00k');
       </script>
 
+      <!-- Trustpilot Invitation Trigger -->
+      <script> 
+        document.addEventListener('DOMContentLoaded', function() {
+          const trustpilot_invitation = {
+            recipientEmail: 'john@gmail.com',
+            recipientName: 'John',
+            referenceId: 'Order_123',
+            source: 'InvitationScript',
+            productSkus: ['sku_1', 'sku_2'],
+            products: [{
+              sku: 'sku_1',
+              productUrl: 'https://your_shop.com/product/1',
+              imageUrl: 'https://your_shop.com/product/images/1',
+              name: 'test_product_1',
+            }, {
+              sku: 'sku_2',
+              productUrl: 'https://your_shop.com/product/2',
+              imageUrl: 'https://your_shop.com/product/images/2',
+              name: 'test_product_2',
+            }],
+          };
+          if (typeof tp === 'function') {
+            tp('createInvitation', trustpilot_invitation);
+          }
+        });
+      </script>
+
       <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }</style>
     </head>
 
