@@ -29,7 +29,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const navRef = useRef<HTMLDivElement>(null);
   const scrollIntervalRef = useRef<number | null>(null);
-  
+
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     if (navRef.current) {
       if (e.deltaY !== 0) {
@@ -46,7 +46,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     const rect = container.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const width = rect.width;
-    
+
     const zoneWidth = 60; // 60px zone on left/right edges
 
     if (scrollIntervalRef.current) {
@@ -98,7 +98,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       // Clear location state to prevent reopening on navigation
       window.history.replaceState({}, document.title);
     }
-  }, [location, setAuthModalOpen]);
+  }, [location.state, setAuthModalOpen]);
+
+  // Reload Trustpilot widget on route transitions
+  useEffect(() => {
+    try {
+      const trustpilot = (window as any).Trustpilot;
+      if (trustpilot && typeof trustpilot.loadFromElement === 'function') {
+        const el = document.querySelector('.trustpilot-widget');
+        if (el) {
+          trustpilot.loadFromElement(el);
+        }
+      }
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error('Trustpilot widget failed to reload:', err);
+      }
+    }
+  }, [location.pathname]);
 
   // Fetch streak from user service
   useEffect(() => {
@@ -195,500 +212,520 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const greeting = new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening';
 
   const publicPaths = ['/', '/about', '/pricing', '/privacy', '/terms', '/refund'];
-  const isPublic = publicPaths.includes(location.pathname) || 
-                   location.pathname.startsWith('/blog') || 
-                   location.pathname.startsWith('/docs');
+  const isPublic = publicPaths.includes(location.pathname) ||
+    location.pathname.startsWith('/blog') ||
+    location.pathname.startsWith('/docs');
 
   return (
     <TelemetryProvider>
       <>
-      {!isPublic && (
-        <SEO 
-          title="MindCradle"
-          description="Your private wellness dashboard."
-          robots="noindex, nofollow"
-        />
-      )}
-      {/* Ambient orbs */}
-      <div className="fixed w-[500px] h-[500px] rounded-full blur-[80px] bg-accent/8 -top-[150px] -right-[100px] pointer-events-none z-0" />
-      <div className="fixed w-[400px] h-[400px] rounded-full blur-[80px] bg-teal/6 bottom-[100px] -left-[100px] pointer-events-none z-0" />
-      <div className="fixed w-[300px] h-[300px] rounded-full blur-[80px] bg-rose/5 top-1/2 left-[40%] pointer-events-none z-0" />
+        {!isPublic && (
+          <SEO
+            title="MindCradle"
+            description="Your private wellness dashboard."
+            robots="noindex, nofollow"
+          />
+        )}
+        {/* Ambient orbs */}
+        <div className="fixed w-[500px] h-[500px] rounded-full blur-[80px] bg-accent/8 -top-[150px] -right-[100px] pointer-events-none z-0" />
+        <div className="fixed w-[400px] h-[400px] rounded-full blur-[80px] bg-teal/6 bottom-[100px] -left-[100px] pointer-events-none z-0" />
+        <div className="fixed w-[300px] h-[300px] rounded-full blur-[80px] bg-rose/5 top-1/2 left-[40%] pointer-events-none z-0" />
 
-      {hasCriticalCrisis && (
-        <div
-          onClick={() => setShowCrisisModal(true)}
-          className="w-full bg-rose/20 backdrop-blur-md border-b border-rose/30 py-2.5 px-4 text-center text-rose text-xs font-semibold tracking-wider hover:bg-rose/30 transition-all cursor-pointer flex items-center justify-center gap-2 relative z-50 animate-slideDown"
-        >
-          <AlertTriangle size={14} className="animate-pulse text-rose" />
-          <span>Distress support is available. Click here for resources.</span>
-        </div>
-      )}
+        {hasCriticalCrisis && (
+          <div
+            onClick={() => setShowCrisisModal(true)}
+            className="w-full bg-rose/20 backdrop-blur-md border-b border-rose/30 py-2.5 px-4 text-center text-rose text-xs font-semibold tracking-wider hover:bg-rose/30 transition-all cursor-pointer flex items-center justify-center gap-2 relative z-50 animate-slideDown"
+          >
+            <AlertTriangle size={14} className="animate-pulse text-rose" />
+            <span>Distress support is available. Click here for resources.</span>
+          </div>
+        )}
 
-      <div className="flex flex-col min-h-screen relative z-[1]">
-        {/* Skip Link for Keyboard Accessibility */}
-        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-[#05020c] focus:font-bold focus:rounded-lg">
-          Skip to main content
-        </a>
+        <div className="flex flex-col min-h-screen relative z-[1]">
+          {/* Skip Link for Keyboard Accessibility */}
+          <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-[#05020c] focus:font-bold focus:rounded-lg">
+            Skip to main content
+          </a>
 
-        <header role="banner" className="w-full bg-transparent relative z-20">
-          <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-x-4 gap-y-2 px-6 md:px-10 py-4 max-w-[900px] w-full mx-auto">
-            {/* Left: Logo */}
-            <div className="flex items-center flex-shrink-0 order-1">
-              <Link to="/" className="block" aria-label="MindCradle Home">
-                <Logo className="h-10 w-auto text-text" />
-              </Link>
-            </div>
-
-            {/* Center: Date and Greeting */}
-            <div className="order-3 md:order-2 w-full md:w-auto md:flex-1 text-center m-0 min-w-0 mt-2 md:mt-0">
-              <div className="text-[10px] text-text3 tracking-[0.1em] uppercase mb-0.5">
-                {formatDate(new Date())}
+          <header role="banner" className="w-full bg-transparent relative z-20">
+            <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-x-4 gap-y-2 px-6 md:px-10 py-4 max-w-[900px] w-full mx-auto">
+              {/* Left: Logo */}
+              <div className="flex items-center flex-shrink-0 order-1">
+                <Link to="/" className="block" aria-label="MindCradle Home">
+                  <Logo className="h-10 w-auto text-text" />
+                </Link>
               </div>
-              <div className="font-[family-name:var(--font-serif)] text-xs sm:text-base md:text-lg font-light text-text italic leading-tight whitespace-normal md:truncate">
-                {user ? (
-                  didCheckInToday ? (
-                    <>Welcome back, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Today's check-in is complete.</>
-                  ) : didCheckInYesterday ? (
-                    <>Welcome back, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Let's check in for today.</>
-                  ) : streak > 0 ? (
-                    <>Good {greeting}, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Let's rebuild your streak.</>
+
+              {/* Center: Date and Greeting */}
+              <div className="order-3 md:order-2 w-full md:w-auto md:flex-1 text-center m-0 min-w-0 mt-2 md:mt-0">
+                <div className="text-[10px] text-text3 tracking-[0.1em] uppercase mb-0.5">
+                  {formatDate(new Date())}
+                </div>
+                <div className="font-[family-name:var(--font-serif)] text-xs sm:text-base md:text-lg font-light text-text italic leading-tight whitespace-normal md:truncate">
+                  {user ? (
+                    didCheckInToday ? (
+                      <>Welcome back, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Today's check-in is complete.</>
+                    ) : didCheckInYesterday ? (
+                      <>Welcome back, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Let's check in for today.</>
+                    ) : streak > 0 ? (
+                      <>Good {greeting}, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Let's rebuild your streak.</>
+                    ) : (
+                      <>Good {greeting}, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Let's pause to check in.</>
+                    )
                   ) : (
-                    <>Good {greeting}, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Let's pause to check in.</>
-                  )
-                ) : (
-                  <>Good {greeting}, <span className="not-italic text-accent">guest</span></>
-                )}
-              </div>
-              {streak > 0 && (
-                <div className="text-xs text-amber font-medium mt-1.5 animate-fadeIn">
-                  {streak === 1 ? (
-                    <>1 Day Streak | Off to a great start! ✦</>
-                  ) : streak >= 2 && streak < 5 ? (
-                    <>{streak} Day Streak | You're building momentum! ✦</>
-                  ) : (
-                    <>{streak} Day Streak | Incredible rhythm, keep it up! ✦</>
+                    <>Good {greeting}, <span className="not-italic text-accent">guest</span></>
                   )}
                 </div>
-              )}
-            </div>
-
-            {/* Right: Search + Notification Center & Profile Link */}
-            <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0 order-2 md:order-3">
-              {/* Global Search button (⌘K) */}
-              {user && (
-                <button
-                  onClick={() => setSearchOpen(true)}
-                  title="Search your history (⌘K)"
-                  className="w-11 h-11 rounded-lg bg-bg2/50 border border-border flex items-center justify-center hover:border-accent/50 hover:bg-accent/5 text-text2 hover:text-accent transition-all cursor-pointer group relative"
-                  aria-label="Search history"
-                >
-                  <Search size={17} />
-                  <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[9px] text-text3 bg-bg2 border border-border px-1.5 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                    ⌘K
-                  </span>
-                </button>
-              )}
-              {/* Notification Center */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className="w-11 h-11 rounded-lg bg-bg2/50 border border-border flex items-center justify-center hover:border-border2 hover:bg-white/5 text-text2 hover:text-text transition-all relative cursor-pointer"
-                  aria-label="Notifications"
-                >
-                  <Bell size={18} />
-                  {notifications.filter((n) => !n.actual_response).length > 0 && (
-                    <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border border-bg2 animate-pulse" />
-                  )}
-                </button>
-
-                {showNotifications && (
-                  <div className="absolute right-0 mt-2.5 w-[290px] sm:w-[360px] bg-bg2 border border-border rounded-[20px] shadow-[0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-[20px] p-5 z-50 text-left animate-fadeIn">
-                    <div className="flex items-center justify-between pb-3 border-b border-border mb-3">
-                      <div className="font-[family-name:var(--font-serif)] text-sm font-medium text-text">
-                        ✦ Aria's Reached Out
-                      </div>
-                      <div className="text-[10px] text-text3 uppercase tracking-wider">
-                        {user ? `${notifications.filter((n) => !n.actual_response).length} pending` : 'guest'}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
-                      {!user ? (
-                        <div className="text-center py-6 space-y-3">
-                          <div className="text-xs text-text3 italic">Sign in to view notifications.</div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowNotifications(false);
-                              setAuthModalOpen(true);
-                            }}
-                            className="px-4 py-1.5 bg-accent hover:bg-accent/80 text-white text-[11px] font-medium rounded-md transition-all cursor-pointer mx-auto block"
-                          >
-                            Sign In
-                          </button>
-                        </div>
-                      ) : notifications.length === 0 ? (
-                        <div className="text-center py-6 text-xs text-text3 italic">
-                          No recent notifications.
-                        </div>
-                      ) : (
-                        notifications.map((n) => {
-                          const hasResponded = !!n.actual_response;
-                          const dateLabel = new Date(n.scheduled_time).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          });
-
-                          return (
-                            <div
-                              key={n.id}
-                              className="bg-bg3/50 border border-border/50 rounded-xl p-3.5 space-y-2.5 hover:border-border transition-all"
-                            >
-                              <div className="text-[12.5px] text-text font-light leading-relaxed">
-                                "{n.suggested_message}"
-                              </div>
-
-                              <div className="flex items-center justify-between text-[10px] text-text3">
-                                <span>{dateLabel}</span>
-                                {hasResponded && (
-                                  <span className="text-green flex items-center gap-1 font-medium">
-                                    ✓ Responded
-                                  </span>
-                                )}
-                              </div>
-
-                              {!hasResponded ? (
-                                <div className="space-y-2 pt-1">
-                                  <textarea
-                                    className="w-full bg-bg4 border border-border rounded-lg p-2 text-xs text-text placeholder-text3 focus:outline-none focus:border-accent resize-none h-14"
-                                    placeholder="Write your reply..."
-                                    value={replyText[n.id] || ''}
-                                    onChange={(e) =>
-                                      setReplyText({ ...replyText, [n.id]: e.target.value })
-                                    }
-                                  />
-                                  <div className="flex justify-between items-center">
-                                    <Link
-                                      to={localStorage.getItem('age_verified') === 'false' ? '#' : `/aria?checkin=${n.id}`}
-                                      onClick={(e) => {
-                                        setShowNotifications(false);
-                                        if (localStorage.getItem('age_verified') === 'false') {
-                                          e.preventDefault();
-                                          alert("This feature is for users 18+. Please contact a crisis counselor instead.");
-                                        }
-                                      }}
-                                      className={`text-[11px] hover:underline ${localStorage.getItem('age_verified') === 'false'
-                                        ? 'text-text3 cursor-not-allowed opacity-50'
-                                        : 'text-accent'
-                                        }`}
-                                    >
-                                      Chat in ARIA →
-                                    </Link>
-                                    <button
-                                      disabled={sendingReply[n.id] || !replyText[n.id]?.trim()}
-                                      onClick={() => handleSendReply(n.id)}
-                                      className="bg-accent text-white px-3.5 py-2 min-h-[40px] rounded-md text-[11px] font-medium hover:bg-accent/80 transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer"
-                                    >
-                                      {sendingReply[n.id] ? 'Sending…' : 'Send'}
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="bg-bg4/35 border border-border/30 rounded-lg p-2.5 text-xs text-text3 italic">
-                                  <div className="text-[9px] uppercase tracking-wider text-text3 mb-1">
-                                    Your response
-                                  </div>
-                                  "{n.actual_response}"
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
+                {streak > 0 && (
+                  <div className="text-xs text-amber font-medium mt-1.5 animate-fadeIn">
+                    {streak === 1 ? (
+                      <>1 Day Streak | Off to a great start! ✦</>
+                    ) : streak >= 2 && streak < 5 ? (
+                      <>{streak} Day Streak | You're building momentum! ✦</>
+                    ) : (
+                      <>{streak} Day Streak | Incredible rhythm, keep it up! ✦</>
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* Profile Icon Link / Button */}
-              {user ? (
-                <Link
-                  to="/settings"
-                  className="w-11 h-11 rounded-full bg-[#eef2f6] border border-[#b0b8c0] flex items-center justify-center flex-shrink-0 hover:scale-105 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
-                  title="Settings / Profile"
-                >
-                  <span
-                    className="font-pacifico text-[15px] tracking-wide select-none animate-fadeIn"
-                    style={{
-                      color: '#612318ff'
-                    }}
+              {/* Right: Search + Notification Center & Profile Link */}
+              <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0 order-2 md:order-3">
+                {/* Global Search button (⌘K) */}
+                {user && (
+                  <button
+                    onClick={() => setSearchOpen(true)}
+                    title="Search your history (⌘K)"
+                    className="w-11 h-11 rounded-lg bg-bg2/50 border border-border flex items-center justify-center hover:border-accent/50 hover:bg-accent/5 text-text2 hover:text-accent transition-all cursor-pointer group relative"
+                    aria-label="Search history"
                   >
-                    {initials}
-                  </span>
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setAuthModalOpen(true)}
-                  className="px-4 py-2 bg-gradient-to-r from-accent2 to-accent text-[#05020c] font-bold text-xs rounded-full hover:opacity-95 transition-all shadow-md cursor-pointer flex items-center gap-1.5 min-h-[40px] shrink-0"
-                  title="Get Started Free / Sign In"
-                >
-                  <UserSketchAvatar className="w-4 h-4 text-[#05020c]" />
-                  <span className="hidden sm:inline">Get Started Free</span>
-                  <span className="sm:hidden">Sign In</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </header>
+                    <Search size={17} />
+                    <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[9px] text-text3 bg-bg2 border border-border px-1.5 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                      ⌘K
+                    </span>
+                  </button>
+                )}
+                {/* Notification Center */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowNotifications(!showNotifications)}
+                    className="w-11 h-11 rounded-lg bg-bg2/50 border border-border flex items-center justify-center hover:border-border2 hover:bg-white/5 text-text2 hover:text-text transition-all relative cursor-pointer"
+                    aria-label="Notifications"
+                  >
+                    <Bell size={18} />
+                    {notifications.filter((n) => !n.actual_response).length > 0 && (
+                      <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border border-bg2 animate-pulse" />
+                    )}
+                  </button>
 
-        {/* Top Horizontal Navigation Bar */}
-        <nav role="navigation" aria-label="Main Navigation" className="w-full bg-transparent mt-4 px-6 md:px-10">
-          <div 
-            ref={navRef}
-            onWheel={handleWheel}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-            className="flex items-center gap-1.5 sm:gap-2 px-5 py-2.5 overflow-x-auto scrollbar-none max-w-[820px] w-full mx-auto bg-bg2/40 backdrop-blur-md border border-border/60 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
-          >
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.path;
-              const isBlocked = item.path === '/aria' && localStorage.getItem('age_verified') === 'false';
-              const isLockedForGuest = (item.path === '/aria' || item.path === '/insights') && !user;
-              
-              return (
+                  {showNotifications && (
+                    <div className="absolute right-0 mt-2.5 w-[290px] sm:w-[360px] bg-bg2 border border-border rounded-[20px] shadow-[0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-[20px] p-5 z-50 text-left animate-fadeIn">
+                      <div className="flex items-center justify-between pb-3 border-b border-border mb-3">
+                        <div className="font-[family-name:var(--font-serif)] text-sm font-medium text-text">
+                          ✦ Aria's Reached Out
+                        </div>
+                        <div className="text-[10px] text-text3 uppercase tracking-wider">
+                          {user ? `${notifications.filter((n) => !n.actual_response).length} pending` : 'guest'}
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
+                        {!user ? (
+                          <div className="text-center py-6 space-y-3">
+                            <div className="text-xs text-text3 italic">Sign in to view notifications.</div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowNotifications(false);
+                                setAuthModalOpen(true);
+                              }}
+                              className="px-4 py-1.5 bg-accent hover:bg-accent/80 text-white text-[11px] font-medium rounded-md transition-all cursor-pointer mx-auto block"
+                            >
+                              Sign In
+                            </button>
+                          </div>
+                        ) : notifications.length === 0 ? (
+                          <div className="text-center py-6 text-xs text-text3 italic">
+                            No recent notifications.
+                          </div>
+                        ) : (
+                          notifications.map((n) => {
+                            const hasResponded = !!n.actual_response;
+                            const dateLabel = new Date(n.scheduled_time).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            });
+
+                            return (
+                              <div
+                                key={n.id}
+                                className="bg-bg3/50 border border-border/50 rounded-xl p-3.5 space-y-2.5 hover:border-border transition-all"
+                              >
+                                <div className="text-[12.5px] text-text font-light leading-relaxed">
+                                  "{n.suggested_message}"
+                                </div>
+
+                                <div className="flex items-center justify-between text-[10px] text-text3">
+                                  <span>{dateLabel}</span>
+                                  {hasResponded && (
+                                    <span className="text-green flex items-center gap-1 font-medium">
+                                      ✓ Responded
+                                    </span>
+                                  )}
+                                </div>
+
+                                {!hasResponded ? (
+                                  <div className="space-y-2 pt-1">
+                                    <textarea
+                                      className="w-full bg-bg4 border border-border rounded-lg p-2 text-xs text-text placeholder-text3 focus:outline-none focus:border-accent resize-none h-14"
+                                      placeholder="Write your reply..."
+                                      value={replyText[n.id] || ''}
+                                      onChange={(e) =>
+                                        setReplyText({ ...replyText, [n.id]: e.target.value })
+                                      }
+                                    />
+                                    <div className="flex justify-between items-center">
+                                      <Link
+                                        to={localStorage.getItem('age_verified') === 'false' ? '#' : `/aria?checkin=${n.id}`}
+                                        onClick={(e) => {
+                                          setShowNotifications(false);
+                                          if (localStorage.getItem('age_verified') === 'false') {
+                                            e.preventDefault();
+                                            alert("This feature is for users 18+. Please contact a crisis counselor instead.");
+                                          }
+                                        }}
+                                        className={`text-[11px] hover:underline ${localStorage.getItem('age_verified') === 'false'
+                                          ? 'text-text3 cursor-not-allowed opacity-50'
+                                          : 'text-accent'
+                                          }`}
+                                      >
+                                        Chat in ARIA →
+                                      </Link>
+                                      <button
+                                        disabled={sendingReply[n.id] || !replyText[n.id]?.trim()}
+                                        onClick={() => handleSendReply(n.id)}
+                                        className="bg-accent text-white px-3.5 py-2 min-h-[40px] rounded-md text-[11px] font-medium hover:bg-accent/80 transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer"
+                                      >
+                                        {sendingReply[n.id] ? 'Sending…' : 'Send'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="bg-bg4/35 border border-border/30 rounded-lg p-2.5 text-xs text-text3 italic">
+                                    <div className="text-[9px] uppercase tracking-wider text-text3 mb-1">
+                                      Your response
+                                    </div>
+                                    "{n.actual_response}"
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Profile Icon Link / Button */}
+                {user ? (
+                  <Link
+                    to="/settings"
+                    className="w-11 h-11 rounded-full bg-[#eef2f6] border border-[#b0b8c0] flex items-center justify-center flex-shrink-0 hover:scale-105 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
+                    title="Settings / Profile"
+                  >
+                    <span
+                      className="font-pacifico text-[15px] tracking-wide select-none animate-fadeIn"
+                      style={{
+                        color: '#612318ff'
+                      }}
+                    >
+                      {initials}
+                    </span>
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setAuthModalOpen(true)}
+                    className="px-4 py-2 bg-gradient-to-r from-accent2 to-accent text-[#05020c] font-bold text-xs rounded-full hover:opacity-95 transition-all shadow-md cursor-pointer flex items-center gap-1.5 min-h-[40px] shrink-0"
+                    title="Get Started Free / Sign In"
+                  >
+                    <UserSketchAvatar className="w-4 h-4 text-[#05020c]" />
+                    <span className="hidden sm:inline">Get Started Free</span>
+                    <span className="sm:hidden">Sign In</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </header>
+
+          {/* Top Horizontal Navigation Bar */}
+          <nav role="navigation" aria-label="Main Navigation" className="w-full bg-transparent mt-4 px-6 md:px-10">
+            <div
+              ref={navRef}
+              onWheel={handleWheel}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+              className="flex items-center gap-1.5 sm:gap-2 px-5 py-2.5 overflow-x-auto scrollbar-none max-w-[820px] w-full mx-auto bg-bg2/40 backdrop-blur-md border border-border/60 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
+            >
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                const isBlocked = item.path === '/aria' && localStorage.getItem('age_verified') === 'false';
+                const isLockedForGuest = (item.path === '/aria' || item.path === '/insights') && !user;
+
+                return (
+                  <Link
+                    key={item.path}
+                    to={isBlocked ? '#' : isLockedForGuest ? '#' : item.path}
+                    onClick={(e) => {
+                      if (isBlocked) {
+                        e.preventDefault();
+                        alert("This feature is for users 18+. Please contact a crisis counselor instead.");
+                      } else if (isLockedForGuest) {
+                        e.preventDefault();
+                        setAuthModalOpen(true);
+                      }
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap min-h-[40px] ${isBlocked
+                      ? 'opacity-40 cursor-not-allowed text-text3 hover:bg-transparent'
+                      : isActive
+                        ? 'bg-accent-glow text-accent border border-accent/20'
+                        : 'text-text2 hover:bg-white/5 hover:text-text'
+                      }`}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                    {isLockedForGuest && <Lock size={11} className="text-text3 shrink-0 ml-0.5" />}
+                  </Link>
+                );
+              })}
+
+              <div className="flex items-center gap-3 ml-auto flex-shrink-0">
+
+                {/* Pricing button */}
                 <Link
-                  key={item.path}
-                  to={isBlocked ? '#' : isLockedForGuest ? '#' : item.path}
+                  to="/pricing"
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap min-h-[40px] ${location.pathname === '/pricing'
+                    ? 'bg-accent-glow text-accent border border-accent/20'
+                    : 'text-text2 hover:bg-white/5 hover:text-text'
+                    }`}
+                >
+                  <Award size={15} />
+                  <span>Pricing</span>
+                </Link>
+
+                {/* Settings button */}
+                <Link
+                  to={user ? "/settings" : "#"}
                   onClick={(e) => {
-                    if (isBlocked) {
-                      e.preventDefault();
-                      alert("This feature is for users 18+. Please contact a crisis counselor instead.");
-                    } else if (isLockedForGuest) {
+                    if (!user) {
                       e.preventDefault();
                       setAuthModalOpen(true);
                     }
                   }}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap min-h-[40px] ${isBlocked
-                    ? 'opacity-40 cursor-not-allowed text-text3 hover:bg-transparent'
-                    : isActive
-                      ? 'bg-accent-glow text-accent border border-accent/20'
-                      : 'text-text2 hover:bg-white/5 hover:text-text'
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap min-h-[40px] ${location.pathname === '/settings'
+                    ? 'bg-accent-glow text-accent border border-accent/20'
+                    : 'text-text2 hover:bg-white/5 hover:text-text'
                     }`}
                 >
-                  {item.icon}
-                  <span>{item.label}</span>
-                  {isLockedForGuest && <Lock size={11} className="text-text3 shrink-0 ml-0.5" />}
+                  <Settings size={15} />
+                  <span>Settings</span>
                 </Link>
-              );
-            })}
-
-            <div className="flex items-center gap-3 ml-auto flex-shrink-0">
-
-              {/* Pricing button */}
-              <Link
-                to="/pricing"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap min-h-[40px] ${location.pathname === '/pricing'
-                  ? 'bg-accent-glow text-accent border border-accent/20'
-                  : 'text-text2 hover:bg-white/5 hover:text-text'
-                  }`}
-              >
-                <Award size={15} />
-                <span>Pricing</span>
-              </Link>
-
-              {/* Settings button */}
-              <Link
-                to={user ? "/settings" : "#"}
-                onClick={(e) => {
-                  if (!user) {
-                    e.preventDefault();
-                    setAuthModalOpen(true);
-                  }
-                }}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap min-h-[40px] ${location.pathname === '/settings'
-                  ? 'bg-accent-glow text-accent border border-accent/20'
-                  : 'text-text2 hover:bg-white/5 hover:text-text'
-                  }`}
-              >
-                <Settings size={15} />
-                <span>Settings</span>
-              </Link>
-            </div>
-          </div>
-        </nav>
-
-        {/* Main Content Area (Full width) */}
-        <main id="main-content" role="main" className="flex-1 p-6 md:p-10 max-w-[900px] w-full mx-auto">
-          {children}
-        </main>
-
-        {/* Global Footer */}
-        <footer role="contentinfo" className="w-full border-t border-border/40 mt-auto py-8 relative z-20">
-          <div className="max-w-[900px] mx-auto px-6 md:px-10 flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6 text-xs text-text3">
-            {/* Left side: Copyright & Menu links */}
-            <div className="flex flex-col gap-4 text-center sm:text-left">
-              <div className="flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-2 font-mono">
-                <Link to="/blog" className="hover:text-text text-accent font-semibold transition-all min-h-[40px] inline-flex items-center px-1">Blog</Link>
-                <Link to="/docs/introduction" className="hover:text-text text-accent font-semibold transition-all min-h-[40px] inline-flex items-center px-1">Docs</Link>
-                <Link to="/pricing" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Pricing</Link>
-                <Link to="/privacy" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Privacy Policy</Link>
-                <Link to="/refund" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Refund Policy</Link>
-                <Link to="/terms" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Terms of Service</Link>
-                <a href="mailto:support@mindcradle.online" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Contact Us</a>
-              </div>
-              <div>
-                &copy; {new Date().getFullYear()} MindCradle. All rights reserved.
               </div>
             </div>
+          </nav>
 
-            {/* Right side: Verification Badges */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 shrink-0">
-              {/* Nick Launches Verification Badge */}
-              <div className="transition-all duration-300 hover:scale-[1.02]">
-                <a 
-                  href="https://nicklaunches.com/products/mindcradle/?utm_source=mindcradle.online&utm_medium=badge&utm_campaign=featured" 
-                  target="_blank" 
-                  rel="noopener"
+          {/* Main Content Area (Full width) */}
+          <main id="main-content" role="main" className="flex-1 p-6 md:p-10 max-w-[900px] w-full mx-auto">
+            {children}
+          </main>
+
+          {/* Global Footer */}
+          <footer role="contentinfo" className="w-full border-t border-border/40 mt-auto py-8 relative z-20">
+            <div className="max-w-[900px] mx-auto px-6 md:px-10 flex flex-col gap-6">
+              {/* Trustpilot Review Collector Widget */}
+              <div className="w-full flex justify-center py-2">
+                <div
+                  className="trustpilot-widget"
+                  data-locale="en-US"
+                  data-template-id="56278e9abfbbba0bdcd568bc"
+                  data-businessunit-id="6a583116579fc3b59f22ba54"
+                  data-style-height="52px"
+                  data-style-width="100%"
+                  data-token="9214a58d-a0e8-451e-9bca-656026b47484"
                 >
-                  <img 
-                    src="https://nicklaunches.com/badges/featured.png" 
-                    alt="MindCradle on Nick Launches" 
-                    width="244" 
-                    height="56" 
-                    className="rounded-lg shadow-md"
-                  />
-                </a>
-              </div>
-              {/* Product Hunt Badge */}
-              <div className="transition-all duration-300 hover:scale-[1.02]">
-                <a 
-                  href="https://www.producthunt.com/products/mindcradle?utm_source=badge-follow&utm_medium=badge&utm_source=badge-mindcradle" 
-                  target="_blank" 
-                  rel="noopener"
-                >
-                  <img 
-                    src="https://api.producthunt.com/widgets/embed-image/v1/follow.svg?product_id=1276161&theme=dark&size=small" 
-                    alt="MindCradle - The wellness app built for serious self-discovery | Product Hunt" 
-                    style={{ width: "86px", height: "32px" }} 
-                    width="86" 
-                    height="32" 
-                    className="rounded shadow-md"
-                  />
-                </a>
-              </div>
-            </div>
-          </div>
-        </footer>
-      </div>
-
-      {showCrisisModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-bg2 border border-border w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slideIn">
-            <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-bg3">
-              <h2 className="text-sm font-semibold text-rose uppercase tracking-wider flex items-center gap-2">
-                <AlertTriangle size={16} /> Crisis Support & Resources
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowCrisisModal(false)}
-                className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-text3 hover:text-text hover:bg-bg4 rounded-lg text-sm transition-all cursor-pointer"
-                aria-label="Close crisis support modal"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-6 space-y-4 text-left">
-              <p className="text-sm text-text leading-relaxed font-light">
-                We're concerned about your safety. You don't have to face this alone. Please reach out to one of the following 24/7 resources:
-              </p>
-
-              <div className="space-y-3">
-                <div className="bg-bg3 border border-border rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div>
-                    <div className="text-sm text-text font-medium">National Suicide Prevention Lifeline</div>
-                    <div className="text-xs text-text3 mt-0.5">Call 988 or text HOME to 741741</div>
-                  </div>
-                  <a
-                    href="tel:988"
-                    className="px-4 py-2 bg-rose/10 hover:bg-rose/25 border border-rose/30 text-rose rounded-lg text-xs font-semibold transition-all whitespace-nowrap"
-                  >
-                    Call 988
-                  </a>
-                </div>
-
-                <div className="bg-bg3 border border-border rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div>
-                    <div className="text-sm text-text font-medium">Crisis Text Line</div>
-                    <div className="text-xs text-text3 mt-0.5">Text HOME to 741741</div>
-                  </div>
-                  <a
-                    href="sms:741741?&body=HOME"
-                    className="px-4 py-2 bg-rose/10 hover:bg-rose/25 border border-rose/30 text-rose rounded-lg text-xs font-semibold transition-all whitespace-nowrap"
-                  >
-                    Text HOME
-                  </a>
-                </div>
-
-                <div className="bg-bg3 border border-border rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div>
-                    <div className="text-sm text-text font-medium">International Resources</div>
-                    <div className="text-xs text-text3 mt-0.5">Global support centers outside the US</div>
-                  </div>
-                  <a
-                    href="https://www.iasp.info/resources/Crisis_Centres"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-4 py-2 bg-accent/10 hover:bg-accent/25 border border-accent/30 text-accent2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap"
-                  >
-                    Find Center
+                  <a href="https://www.trustpilot.com/review/mindcradle.online" target="_blank" rel="noopener noreferrer">
+                    Trustpilot
                   </a>
                 </div>
               </div>
 
-              <div className="pt-2 text-[10px] text-text3 leading-relaxed border-t border-border">
-                If you are in immediate physical danger, please call 911 or go to the nearest emergency room.
-              </div>
+              <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6 text-xs text-text3">
+                {/* Left side: Copyright & Menu links */}
+                <div className="flex flex-col gap-4 text-center sm:text-left">
+                  <div className="flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-2 font-mono">
+                    <Link to="/blog" className="hover:text-text text-accent font-semibold transition-all min-h-[40px] inline-flex items-center px-1">Blog</Link>
+                    <Link to="/docs/introduction" className="hover:text-text text-accent font-semibold transition-all min-h-[40px] inline-flex items-center px-1">Docs</Link>
+                    <Link to="/pricing" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Pricing</Link>
+                    <Link to="/privacy" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Privacy Policy</Link>
+                    <Link to="/refund" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Refund Policy</Link>
+                    <Link to="/terms" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Terms of Service</Link>
+                    <a href="mailto:support@mindcradle.online" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Contact Us</a>
+                  </div>
+                  <div>
+                    &copy; {new Date().getFullYear()} MindCradle. All rights reserved.
+                  </div>
+                </div>
 
-              <div className="flex gap-3 pt-3">
-                <button
-                  type="button"
-                  onClick={handleResolveCrisis}
-                  className="flex-1 px-4 py-2.5 bg-teal text-white rounded-lg text-xs font-semibold hover:bg-teal/80 transition-all cursor-pointer"
-                >
-                  I am safe now / Clear this banner
-                </button>
+                {/* Right side: Verification Badges */}
+                <div className="flex flex-col sm:flex-row items-center gap-4 shrink-0">
+                  {/* Nick Launches Verification Badge */}
+                  <div className="transition-all duration-300 hover:scale-[1.02]">
+                    <a
+                      href="https://nicklaunches.com/products/mindcradle/?utm_source=mindcradle.online&utm_medium=badge&utm_campaign=featured"
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      <img
+                        src="https://nicklaunches.com/badges/featured.png"
+                        alt="MindCradle on Nick Launches"
+                        width="86"
+                        height="32"
+                        className="rounded-lg shadow-md"
+                        style={{ height: "32px", display: "block" }}
+                      />
+                    </a>
+                  </div>
+                  {/* Product Hunt Badge */}
+                  <div className="transition-all duration-300 hover:scale-[1.02]">
+                    <a
+                      href="https://www.producthunt.com/products/mindcradle?utm_source=badge-follow&utm_medium=badge&utm_source=badge-mindcradle"
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      <img
+                        src="https://api.producthunt.com/widgets/embed-image/v1/follow.svg?product_id=1276161&theme=dark&size=small"
+                        alt="MindCradle - The wellness app built for serious self-discovery | Product Hunt"
+                        style={{ width: "86px", height: "32px" }}
+                        width="86"
+                        height="32"
+                        className="rounded shadow-md"
+                      />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </footer>
+        </div>
+
+        {showCrisisModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+            <div className="bg-bg2 border border-border w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slideIn">
+              <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-bg3">
+                <h2 className="text-sm font-semibold text-rose uppercase tracking-wider flex items-center gap-2">
+                  <AlertTriangle size={16} /> Crisis Support & Resources
+                </h2>
                 <button
                   type="button"
                   onClick={() => setShowCrisisModal(false)}
-                  className="px-4 py-2.5 bg-bg3 border border-border text-text2 hover:text-text rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                  className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-text3 hover:text-text hover:bg-bg4 rounded-lg text-sm transition-all cursor-pointer"
+                  aria-label="Close crisis support modal"
                 >
-                  Close
+                  <X size={16} />
                 </button>
+              </div>
+              <div className="p-6 space-y-4 text-left">
+                <p className="text-sm text-text leading-relaxed font-light">
+                  We're concerned about your safety. You don't have to face this alone. Please reach out to one of the following 24/7 resources:
+                </p>
+
+                <div className="space-y-3">
+                  <div className="bg-bg3 border border-border rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div>
+                      <div className="text-sm text-text font-medium">National Suicide Prevention Lifeline</div>
+                      <div className="text-xs text-text3 mt-0.5">Call 988 or text HOME to 741741</div>
+                    </div>
+                    <a
+                      href="tel:988"
+                      className="px-4 py-2 bg-rose/10 hover:bg-rose/25 border border-rose/30 text-rose rounded-lg text-xs font-semibold transition-all whitespace-nowrap"
+                    >
+                      Call 988
+                    </a>
+                  </div>
+
+                  <div className="bg-bg3 border border-border rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div>
+                      <div className="text-sm text-text font-medium">Crisis Text Line</div>
+                      <div className="text-xs text-text3 mt-0.5">Text HOME to 741741</div>
+                    </div>
+                    <a
+                      href="sms:741741?&body=HOME"
+                      className="px-4 py-2 bg-rose/10 hover:bg-rose/25 border border-rose/30 text-rose rounded-lg text-xs font-semibold transition-all whitespace-nowrap"
+                    >
+                      Text HOME
+                    </a>
+                  </div>
+
+                  <div className="bg-bg3 border border-border rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div>
+                      <div className="text-sm text-text font-medium">International Resources</div>
+                      <div className="text-xs text-text3 mt-0.5">Global support centers outside the US</div>
+                    </div>
+                    <a
+                      href="https://www.iasp.info/resources/Crisis_Centres"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-4 py-2 bg-accent/10 hover:bg-accent/25 border border-accent/30 text-accent2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap"
+                    >
+                      Find Center
+                    </a>
+                  </div>
+                </div>
+
+                <div className="pt-2 text-[10px] text-text3 leading-relaxed border-t border-border">
+                  If you are in immediate physical danger, please call 911 or go to the nearest emergency room.
+                </div>
+
+                <div className="flex gap-3 pt-3">
+                  <button
+                    type="button"
+                    onClick={handleResolveCrisis}
+                    className="flex-1 px-4 py-2.5 bg-teal text-white rounded-lg text-xs font-semibold hover:bg-teal/80 transition-all cursor-pointer"
+                  >
+                    I am safe now / Clear this banner
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCrisisModal(false)}
+                    className="px-4 py-2.5 bg-bg3 border border-border text-text2 hover:text-text rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Auth Modals */}
-      {authModalOpen && <AuthCardModal />}
-      {verifyModalOpen && (
-        <AgeVerificationModal
-          isOpen={verifyModalOpen}
-          onVerified={() => setVerifyModalOpen(false)}
-          onDeclined={() => setVerifyModalOpen(false)}
+        {/* Auth Modals */}
+        {authModalOpen && <AuthCardModal />}
+        {verifyModalOpen && (
+          <AgeVerificationModal
+            isOpen={verifyModalOpen}
+            onVerified={() => setVerifyModalOpen(false)}
+            onDeclined={() => setVerifyModalOpen(false)}
+          />
+        )}
+        <PrivacyPolicyModal />
+
+        {/* Semantic Search overlay (⌘K / Ctrl+K) */}
+        <SemanticSearch
+          open={searchOpen}
+          onClose={() => setSearchOpen(false)}
         />
-      )}
-      <PrivacyPolicyModal />
-
-      {/* Semantic Search overlay (⌘K / Ctrl+K) */}
-      <SemanticSearch
-        open={searchOpen}
-        onClose={() => setSearchOpen(false)}
-      />
       </>
 
     </TelemetryProvider>
