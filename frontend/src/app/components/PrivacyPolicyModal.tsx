@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { auth as authApi } from '@/lib/api';
 import Logo from './Logo';
+import { mixpanel } from '@/lib/mixpanel';
+
 
 export default function PrivacyPolicyModal() {
   const navigate = useNavigate();
@@ -77,6 +79,9 @@ export default function PrivacyPolicyModal() {
         'privacy_accepted_data',
         JSON.stringify({ privacy_accepted: true, accepted_at: new Date().toISOString() })
       );
+
+      // Opt-in Mixpanel tracking upon consent
+      mixpanel.opt_in_tracking();
 
       // 3. Close modal
       setIsOpen(false);

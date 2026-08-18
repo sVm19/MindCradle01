@@ -6,6 +6,8 @@ import { mood as moodApi, ai as aiApi, profile as profileApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import GuestGate from '@/app/components/GuestGate';
 import { validateMood } from '@/lib/validation';
+import { useGrowth } from '@/context/GrowthContext';
+
 
 const MOOD_ICONS: Record<number, React.ReactNode> = {
   1: <Frown className="w-6 h-6 text-rose-400" />,
@@ -19,6 +21,7 @@ const MOOD_TO_LEVEL: Record<number, number> = { 1: 2, 2: 4, 3: 6, 4: 8, 5: 10 };
 
 export default function Mood() {
   const { user } = useAuth();
+  const { trackEvent } = useGrowth();
   const navigate = useNavigate();
 
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
@@ -148,6 +151,13 @@ export default function Mood() {
     try {
       if (user) {
         await moodApi.log(moodLevel, feelings, notes);
+
+        // Track in growth engine & Mixpanel
+        trackEvent('mood_checkin_completed', {
+          mood_level: moodLevel,
+          emotions_count: feelings.length,
+          note_length: notes.length,
+        });
         
         aiApi.trackInteraction({
           event_type: 'input_submit',

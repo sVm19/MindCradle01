@@ -7,11 +7,14 @@ import { useAuth } from '@/lib/auth';
 import GuestGate from '@/app/components/GuestGate';
 import { validateJournal } from '@/lib/validation';
 import { audioManager } from '@/lib/audioManager';
+import { useGrowth } from '@/context/GrowthContext';
+
 
 const TODAY_PROMPT = "What felt lighter today than it did a week ago?";
 
 export default function Journal() {
   const { user, setAuthModalOpen } = useAuth();
+  const { trackEvent } = useGrowth();
   const navigate = useNavigate();
   const [journalText, setJournalText] = useState('');
   const [journalError, setJournalError] = useState('');
@@ -97,6 +100,13 @@ export default function Journal() {
     try {
       if (user) {
         await journalApi.save(TODAY_PROMPT, journalText);
+
+        // Track in growth engine & Mixpanel
+        trackEvent('journal_entry_created', {
+          word_count: journalText.split(/\s+/).filter(Boolean).length,
+          has_reflection: false,
+          char_length: journalText.length
+        });
         
         aiApi.trackInteraction({
           event_type: 'input_submit',
@@ -129,6 +139,13 @@ export default function Journal() {
       const formattedReflection = `Reflection: ${reflectionData.reflection}\nKey Themes: ${reflectionData.themes.join(', ')}\nEmotional Tone: ${reflectionData.emotional_tone}`;
       if (user) {
         await journalApi.save(TODAY_PROMPT, journalText, formattedReflection);
+
+        // Track in growth engine & Mixpanel
+        trackEvent('journal_entry_created', {
+          word_count: journalText.split(/\s+/).filter(Boolean).length,
+          has_reflection: true,
+          char_length: journalText.length
+        });
         
         aiApi.trackInteraction({
           event_type: 'input_submit',

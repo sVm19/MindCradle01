@@ -9,6 +9,8 @@ import { GrowthProvider, useGrowth } from '@/context/GrowthContext';
 import { registerFCMToken, listenForMessages } from '@/lib/firebase';
 import { useCSRF } from '@/lib/csrf';
 import Layout from './components/Layout';
+import { initMixpanel } from '@/lib/mixpanel';
+
 
 // Lazy-loaded page components for optimization
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -201,6 +203,16 @@ export default function App() {
     } catch (err) {
       if (import.meta.env.DEV) {
         console.error('Clarity failed to initialize:', err);
+      }
+    }
+
+    // Initialize Mixpanel tracking (gate consent based on privacy accept status)
+    try {
+      const localAccepted = localStorage.getItem('privacy_accepted') === 'true';
+      initMixpanel(!localAccepted);
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error('Mixpanel failed to initialize:', err);
       }
     }
 

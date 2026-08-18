@@ -554,7 +554,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   data-businessunit-id="6a583116579fc3b59f22ba54"
                   data-style-height="52px"
                   data-style-width="100%"
-                  data-token="9214a58d-a0e8-451e-9bca-656026b47484"
+                  data-token={import.meta.env.VITE_TRUSTPILOT_TOKEN}
                 >
                   <a href="https://www.trustpilot.com/review/mindcradle.online" target="_blank" rel="noopener noreferrer">
                     Trustpilot

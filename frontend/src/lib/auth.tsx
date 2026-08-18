@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import type { ReactNode } from 'react';
 import { auth as authApi, setTokenExpiredCallback, setAccessToken } from '@/lib/api';
 import type { AuthResponse } from '@/lib/api';
+import { mixpanel } from './mixpanel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,6 +64,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const u = toUser(res);
         localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(u));
         setUser(u);
+
+        // Mixpanel Identify on session restore
+        mixpanel.identify(u.userId);
+        mixpanel.people.set({
+          $name: u.name,
+          $email: u.email,
+        });
       } catch {
         // Clear session if restore fails
         setAccessToken(null);
@@ -76,6 +84,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    // Mixpanel Session Reset
+    mixpanel.reset();
+
     setAccessToken(null);
     localStorage.removeItem(STORAGE_USER_KEY);
     setUser(null);
@@ -106,6 +117,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken(u.token);
     localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(u));
     setUser(u);
+
+    // Mixpanel Identify & User Profiles update
+    mixpanel.identify(u.userId);
+    mixpanel.people.set({
+      $name: u.name,
+      $email: u.email,
+    });
 
     // Sync auth session login to native iOS/Android webview hosts
     try {

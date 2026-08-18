@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { growth, ActiveAssignment } from '@/lib/api';
+import { mixpanel } from '@/lib/mixpanel';
 
 interface GrowthContextType {
   assignments: Record<string, string>;
@@ -69,6 +70,9 @@ export const GrowthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           enrichedProperties['variant'] = variant;
         }
       });
+
+      // Route event to Mixpanel
+      mixpanel.track(eventName, enrichedProperties);
 
       await growth.trackEvent(eventName, enrichedProperties);
       return true;
