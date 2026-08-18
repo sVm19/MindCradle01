@@ -66,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(u);
 
         // Mixpanel Identify on session restore
+        mixpanel.opt_in_tracking();
         mixpanel.identify(u.userId);
         mixpanel.people.set({
           $name: u.name,
@@ -119,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(u);
 
     // Mixpanel Identify & User Profiles update
+    mixpanel.opt_in_tracking();
     mixpanel.identify(u.userId);
     mixpanel.people.set({
       $name: u.name,
