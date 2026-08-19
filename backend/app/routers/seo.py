@@ -34,18 +34,31 @@ async def get_sitemap_index():
 
 @router.get("/seo/sitemap-pages.xml")
 async def get_sitemap_pages():
-    # Public static pages
+    # Public and application pages
     pages = [
-        {"path": "/settings/widgets", "priority": "1.0", "changefreq": "daily"},
         {"path": "", "priority": "1.0", "changefreq": "daily"},
-        {"path": "/features", "priority": "0.9", "changefreq": "monthly"},
-        {"path": "/about", "priority": "0.8", "changefreq": "monthly"},
+        {"path": "/login", "priority": "0.9", "changefreq": "monthly"},
+        {"path": "/features", "priority": "0.9", "changefreq": "weekly"},
         {"path": "/pricing", "priority": "0.9", "changefreq": "weekly"},
+        {"path": "/about", "priority": "0.8", "changefreq": "monthly"},
         {"path": "/blog", "priority": "0.8", "changefreq": "daily"},
-        {"path": "/docs", "priority": "0.7", "changefreq": "daily"},
+        {"path": "/docs", "priority": "0.8", "changefreq": "daily"},
+        {"path": "/articles", "priority": "0.8", "changefreq": "weekly"},
+        {"path": "/morning", "priority": "0.8", "changefreq": "daily"},
+        {"path": "/mood", "priority": "0.8", "changefreq": "daily"},
+        {"path": "/journal", "priority": "0.8", "changefreq": "daily"},
+        {"path": "/aria", "priority": "0.8", "changefreq": "daily"},
+        {"path": "/wind-down", "priority": "0.8", "changefreq": "daily"},
+        {"path": "/insights", "priority": "0.7", "changefreq": "daily"},
+        {"path": "/discoveries", "priority": "0.7", "changefreq": "daily"},
+        {"path": "/timeline", "priority": "0.7", "changefreq": "daily"},
+        {"path": "/settings", "priority": "0.6", "changefreq": "monthly"},
+        {"path": "/settings/widgets", "priority": "0.9", "changefreq": "daily"},
+        {"path": "/settings/understanding", "priority": "0.7", "changefreq": "weekly"},
+        {"path": "/billing", "priority": "0.6", "changefreq": "monthly"},
         {"path": "/privacy", "priority": "0.5", "changefreq": "monthly"},
         {"path": "/terms", "priority": "0.5", "changefreq": "monthly"},
-        {"path": "/refund", "priority": "0.3", "changefreq": "monthly"},
+        {"path": "/refund", "priority": "0.4", "changefreq": "monthly"},
     ]
     
     today_str = datetime.utcnow().strftime("%Y-%m-%d")
@@ -131,61 +144,37 @@ async def get_robots_txt():
 User-agent: *
 Allow: /
 Disallow: /admin/
-Disallow: /settings/
-Disallow: /billing/
-Disallow: /insights/
-Disallow: /discoveries/
-Disallow: /timeline/
+Disallow: /auth/
 
 # OpenAI GPTBot
 User-agent: GPTBot
 Allow: /
 Disallow: /admin/
-Disallow: /settings/
-Disallow: /billing/
-Disallow: /insights/
-Disallow: /discoveries/
-Disallow: /timeline/
+Disallow: /auth/
 
 # Anthropic ClaudeBot
 User-agent: ClaudeBot
 Allow: /
 Disallow: /admin/
-Disallow: /settings/
-Disallow: /billing/
-Disallow: /insights/
-Disallow: /discoveries/
-Disallow: /timeline/
+Disallow: /auth/
 
 # Perplexity AI Bot
 User-agent: PerplexityBot
 Allow: /
 Disallow: /admin/
-Disallow: /settings/
-Disallow: /billing/
-Disallow: /insights/
-Disallow: /discoveries/
-Disallow: /timeline/
+Disallow: /auth/
 
 # Google AI Extended (Gemini)
 User-agent: Google-Extended
 Allow: /
 Disallow: /admin/
-Disallow: /settings/
-Disallow: /billing/
-Disallow: /insights/
-Disallow: /discoveries/
-Disallow: /timeline/
+Disallow: /auth/
 
 # Applebot Extended (Apple Intelligence)
 User-agent: Applebot-Extended
 Allow: /
 Disallow: /admin/
-Disallow: /settings/
-Disallow: /billing/
-Disallow: /insights/
-Disallow: /discoveries/
-Disallow: /timeline/
+Disallow: /auth/
 
 Sitemap: {BASE_URL}/sitemap.xml
 """

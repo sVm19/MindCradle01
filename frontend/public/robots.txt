@@ -2,60 +2,37 @@
 User-agent: *
 Allow: /
 Disallow: /admin/
-Disallow: /settings/
-Disallow: /billing/
-Disallow: /insights/
-Disallow: /discoveries/
-Disallow: /timeline/
+Disallow: /auth/
 
 # OpenAI GPTBot
 User-agent: GPTBot
 Allow: /
 Disallow: /admin/
-Disallow: /settings/
-Disallow: /billing/
-Disallow: /insights/
-Disallow: /discoveries/
-Disallow: /timeline/
+Disallow: /auth/
 
 # Anthropic ClaudeBot
 User-agent: ClaudeBot
 Allow: /
 Disallow: /admin/
-Disallow: /settings/
-Disallow: /billing/
-Disallow: /insights/
-Disallow: /discoveries/
-Disallow: /timeline/
+Disallow: /auth/
 
 # Perplexity AI Bot
 User-agent: PerplexityBot
 Allow: /
 Disallow: /admin/
-Disallow: /settings/
-Disallow: /billing/
-Disallow: /insights/
-Disallow: /discoveries/
-Disallow: /timeline/
+Disallow: /auth/
 
 # Google AI Extended (Gemini)
 User-agent: Google-Extended
 Allow: /
 Disallow: /admin/
-Disallow: /settings/
-Disallow: /billing/
-Disallow: /insights/
-Disallow: /discoveries/
-Disallow: /timeline/
+Disallow: /auth/
 
 # Applebot Extended (Apple Intelligence)
 User-agent: Applebot-Extended
 Allow: /
 Disallow: /admin/
-Disallow: /settings/
-Disallow: /billing/
-Disallow: /insights/
-Disallow: /discoveries/
-Disallow: /timeline/
+Disallow: /auth/
 
 Sitemap: https://mindcradle.online/sitemap.xml
+
