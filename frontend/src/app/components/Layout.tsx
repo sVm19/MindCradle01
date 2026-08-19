@@ -566,6 +566,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 {/* Left side: Copyright & Menu links */}
                 <div className="flex flex-col gap-4 text-center sm:text-left">
                   <div className="flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-2 font-mono">
+                    <Link to="/features" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Features</Link>
+                    <Link to="/about" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">About</Link>
+                    <Link to="/articles" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Articles</Link>
                     <Link to="/blog" className="hover:text-text text-accent font-semibold transition-all min-h-[40px] inline-flex items-center px-1">Blog</Link>
                     <Link to="/docs/introduction" className="hover:text-text text-accent font-semibold transition-all min-h-[40px] inline-flex items-center px-1">Docs</Link>
                     <Link to="/pricing" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Pricing</Link>
