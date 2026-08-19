@@ -478,7 +478,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 return (
                   <Link
                     key={item.path}
-                    to={isBlocked ? '#' : isLockedForGuest ? '#' : item.path}
+                    to={isBlocked ? '#' : item.path}
                     onClick={(e) => {
                       if (isBlocked) {
                         e.preventDefault();
@@ -518,7 +518,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
                 {/* Settings button */}
                 <Link
-                  to={user ? "/settings" : "#"}
+                  to="/settings"
                   onClick={(e) => {
                     if (!user) {
                       e.preventDefault();
@@ -562,62 +562,89 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6 text-xs text-text3">
-                {/* Left side: Copyright & Menu links */}
-                <div className="flex flex-col gap-4 text-center sm:text-left">
-                  <div className="flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-2 font-mono">
-                    <Link to="/features" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Features</Link>
-                    <Link to="/about" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">About</Link>
-                    <Link to="/articles" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Articles</Link>
-                    <Link to="/blog" className="hover:text-text text-accent font-semibold transition-all min-h-[40px] inline-flex items-center px-1">Blog</Link>
-                    <Link to="/docs/introduction" className="hover:text-text text-accent font-semibold transition-all min-h-[40px] inline-flex items-center px-1">Docs</Link>
-                    <Link to="/pricing" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Pricing</Link>
-                    <Link to="/privacy" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Privacy Policy</Link>
-                    <Link to="/refund" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Refund Policy</Link>
-                    <Link to="/terms" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Terms of Service</Link>
-                    <a href="mailto:support@mindcradle.online" className="hover:text-text transition-all min-h-[40px] inline-flex items-center px-1">Contact Us</a>
-                  </div>
-                  <div>
-                    &copy; {new Date().getFullYear()} MindCradle. All rights reserved.
-                  </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-xs text-text3 text-left">
+                {/* Column 1: App Features / Core */}
+                <div className="flex flex-col gap-3">
+                  <div className="font-semibold text-text uppercase tracking-wider text-[10px]">App Focus</div>
+                  <Link to="/" className="hover:text-text transition-all py-1">Dashboard</Link>
+                  <Link to="/morning" className="hover:text-text transition-all py-1">Morning Focus</Link>
+                  <Link to="/mood" className="hover:text-text transition-all py-1">Reflections</Link>
+                  <Link to="/journal" className="hover:text-text transition-all py-1">Journal</Link>
+                  <Link to="/aria" className="hover:text-text transition-all py-1">ARIA AI</Link>
+                  <Link to="/wind-down" className="hover:text-text transition-all py-1">Wind Down</Link>
                 </div>
 
-                {/* Right side: Verification Badges */}
-                <div className="flex flex-col sm:flex-row items-center gap-4 shrink-0">
-                  {/* Nick Launches Verification Badge */}
-                  <div className="transition-all duration-300 hover:scale-[1.02]">
-                    <a
-                      href="https://nicklaunches.com/products/mindcradle/?utm_source=mindcradle.online&utm_medium=badge&utm_campaign=featured"
-                      target="_blank"
-                      rel="noopener"
-                    >
-                      <img
-                        src="https://nicklaunches.com/badges/featured.png"
-                        alt="MindCradle on Nick Launches"
-                        width="86"
-                        height="32"
-                        className="rounded-lg shadow-md"
-                        style={{ height: "32px", display: "block" }}
-                      />
-                    </a>
+                {/* Column 2: Resources & Company */}
+                <div className="flex flex-col gap-3">
+                  <div className="font-semibold text-text uppercase tracking-wider text-[10px]">Company</div>
+                  <Link to="/about" className="hover:text-text transition-all py-1">About Us</Link>
+                  <Link to="/features" className="hover:text-text transition-all py-1">Key Features</Link>
+                  <Link to="/pricing" className="hover:text-text transition-all py-1">Pricing Plans</Link>
+                  <Link to="/blog" className="hover:text-text transition-all py-1">Blog Articles</Link>
+                  <Link to="/docs/introduction" className="hover:text-text transition-all py-1">Documentation</Link>
+                  <Link to="/articles" className="hover:text-text transition-all py-1">Resources</Link>
+                </div>
+
+                {/* Column 3: Legal & Support */}
+                <div className="flex flex-col gap-3">
+                  <div className="font-semibold text-text uppercase tracking-wider text-[10px]">Legal & Support</div>
+                  <Link to="/privacy" className="hover:text-text transition-all py-1">Privacy Policy</Link>
+                  <Link to="/terms" className="hover:text-text transition-all py-1">Terms of Service</Link>
+                  <Link to="/refund" className="hover:text-text transition-all py-1">Refund Policy</Link>
+                  <a href="mailto:support@mindcradle.online" className="hover:text-text transition-all py-1">Contact Us</a>
+                </div>
+
+                {/* Column 4: Verification & Badges */}
+                <div className="flex flex-col gap-4">
+                  <div className="font-semibold text-text uppercase tracking-wider text-[10px]">Partners & Badges</div>
+                  <div className="flex flex-row md:flex-col gap-3 flex-wrap items-start">
+                    {/* Nick Launches Verification Badge */}
+                    <div className="transition-all duration-300 hover:scale-[1.02]">
+                      <a
+                        href="https://nicklaunches.com/products/mindcradle/?utm_source=mindcradle.online&utm_medium=badge&utm_campaign=featured"
+                        target="_blank"
+                        rel="noopener"
+                        aria-label="MindCradle on Nick Launches"
+                      >
+                        <img
+                          src="https://nicklaunches.com/badges/featured.png"
+                          alt="MindCradle on Nick Launches"
+                          width="86"
+                          height="32"
+                          className="rounded-lg shadow-md"
+                          style={{ height: "32px", display: "block" }}
+                        />
+                      </a>
+                    </div>
+                    {/* Product Hunt Badge */}
+                    <div className="transition-all duration-300 hover:scale-[1.02]">
+                      <a
+                        href="https://www.producthunt.com/products/mindcradle?utm_source=badge-follow&utm_medium=badge&utm_source=badge-mindcradle"
+                        target="_blank"
+                        rel="noopener"
+                        aria-label="MindCradle on Product Hunt"
+                      >
+                        <img
+                          src="https://api.producthunt.com/widgets/embed-image/v1/follow.svg?product_id=1276161&theme=dark&size=small"
+                          alt="MindCradle - Product Hunt"
+                          style={{ width: "86px", height: "32px" }}
+                          width="86"
+                          height="32"
+                          className="rounded shadow-md"
+                        />
+                      </a>
+                    </div>
                   </div>
-                  {/* Product Hunt Badge */}
-                  <div className="transition-all duration-300 hover:scale-[1.02]">
-                    <a
-                      href="https://www.producthunt.com/products/mindcradle?utm_source=badge-follow&utm_medium=badge&utm_source=badge-mindcradle"
-                      target="_blank"
-                      rel="noopener"
-                    >
-                      <img
-                        src="https://api.producthunt.com/widgets/embed-image/v1/follow.svg?product_id=1276161&theme=dark&size=small"
-                        alt="MindCradle - The wellness app built for serious self-discovery | Product Hunt"
-                        style={{ width: "86px", height: "32px" }}
-                        width="86"
-                        height="32"
-                        className="rounded shadow-md"
-                      />
-                    </a>
-                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Copyright bar */}
+              <div className="pt-6 border-t border-border/20 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left text-xs text-text3 font-mono">
+                <div>
+                  &copy; {new Date().getFullYear()} MindCradle. All rights reserved.
+                </div>
+                <div className="text-[10px] text-text3 font-light">
+                  Built to empower emotional self-discovery in complete privacy.
                 </div>
               </div>
             </div>
