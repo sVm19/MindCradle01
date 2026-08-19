@@ -1,159 +1,135 @@
-# MindCradle - Project Brain
+# MindCradle — Developer & AI Bot Reference (BRAIN.md)
 
-## 🎯 Project Overview
-Mental wellness app with mood tracking, daily rituals, journaling, and a compounding personal AI companion (ARIA).
-Freemium model: Free + Premium ($9.99/month).
-Target: Anyone managing stress/anxiety seeking self-discovery.
+This document contains a structured breakdown of the MindCradle application architecture, database schemas, router mappings, frontend pages, and core services. It is designed to help AI coding assistants quickly locate files and understand the boundaries of the codebase.
 
 ---
 
-## 🏗️ Tech Stack
-- **Frontend**: React (TypeScript) + Vite + Tailwind CSS + Framer Motion
-- **Backend**: FastAPI + Python (Uvicorn)
-- **Database**: PostgreSQL (Supabase) + pgvector
-- **Auth**: JWT + Supabase Auth
-- **AI**: OpenRouter (Google Gemma-4-31b-it + openai/text-embedding-3-small)
-- **Notifications**: Firebase Cloud Messaging
-- **Emails**: Resend
-- **Payments**: Creem
-- **Deployment**: Google Cloud Run (backend), Vercel (frontend)
+## 🎯 1. Project Metadata
+*   **Aesthetic Vibe**: Earthy & Grounding (Forest Mist background `#070c09` + Amber/Gold highlights `#fbbf24`).
+*   **Payment Model**: Freemium (Free vs. Premium at $9.99/month, gated by `is_premium` status).
+*   **Database Engine**: PostgreSQL (managed via Supabase) with RLS enabled.
+*   **Primary AI Engine**: OpenRouter using Gemma-4-26b-it (`google/gemma-4-26b-a4b-it:free`) + OpenAI `text-embedding-3-small` embeddings.
 
 ---
 
-## 🗄️ Database Tables (26 total)
+## 📂 2. Directory Mappings
+This section lists where key source code layers live:
 
-### Core Tables (6)
-- **users**: user records (`id`, `email`, `hashed_password`, `created_at`, `privacy_accepted`, `age_verified`)
-- **mood_logs**: daily emotional check-ins (`id`, `user_id`, `level` (1-10), `notes`, `created_at`)
-- **journal_entries**: writing logs (`id`, `user_id`, `content`, `created_at`)
-- **ai_conversations**: chat threads (`id`, `user_id`, `messages` (JSONB), `memory` (JSONB), `summary`, `created_at`)
-- **morning_rituals**: checklist status (`id`, `user_id`, `completed`, `created_at`)
-- **wind_down_rituals**: checklist status (`id`, `user_id`, `completed`, `created_at`)
-
-### Phase 2 Tables (10)
-- **emotion_insights**: tracking aggregated trends (`id`, `user_id`, `emotion`, `frequency`, `trend`, `last_appeared`)
-- **advice_effectiveness**: feedback metrics (`id`, `user_id`, `conversation_id`, `advice_given`, `help_rating` (1-3))
-- **conversation_themes**: theme tagging (`id`, `user_id`, `conversation_id`, `theme`, `mentioned_emotions` (JSONB))
-- **user_personality**: learned characteristics (`id`, `user_id`, `communication_style`, `preference_advice_type`)
-- **proactive_checkins**: automated prompts (`id`, `user_id`, `scheduled_time`, `reason`, `actual_response`)
-- **recovery_data**: mood dips and recovery tracking (`id`, `user_id`, `mood_dip_date`, `lowest_level`, `recovery_days`)
-- **engagement_metrics**: usability tracking (`id`, `user_id`, `conversation_id`, `user_response_time`, `suggestion_followed`)
-- **crisis_flags**: safety metrics (`id`, `user_id`, `conversation_id`, `severity_level` (1-4), `red_flags_detected` (JSONB))
-- **push_notification_tokens**: FCM credentials (`id`, `user_id`, `device_token`, `is_active`)
-- **password_reset_tokens**: password reset tracking (`id`, `user_id`, `token`, `expires_at`)
-
-### Phase 3 & 4 (CIE / PKG) Tables (10)
-- **daily_discoveries**: daily AI insights (`id`, `user_id`, `insight`, `category`, `confidence`, `created_at`)
-- **relationship_memories**: entities & patterns extracted (`id`, `user_id`, `title`, `type`, `importance`, `confidence`, `related_journal`, `related_mood`, `first_occurrence`, `last_occurrence`, `times_referenced`, `supporting_evidence` (JSONB))
-- **timeline_events**: search cache (`id`, `user_id`, `event_type`, `source_id`, `event_date`, `event_ts`, `title`, `summary`, `emotion`, `mood_level`, `search_text`, `embedding` (vector(1536)), `metadata` (JSONB))
-- **user_predictions**: behavioral predictions (`id`, `user_id`, `type`, `prediction_text`, `target_date`, `probability`, `is_correct`, `feedback_text`, `created_at`)
-- **user_knowledge_nodes**: personal knowledge atoms (`id`, `user_id`, `label`, `node_type`, `canonical_label`, `confidence`, `importance`, `valence`, `mention_count`, `first_seen_at`, `last_seen_at`, `embedding` (vector(1536)), `source_reason`, `is_confirmed`, `is_archived`, `metadata` (JSONB))
-- **user_knowledge_edges**: PKG semantic connections (`id`, `user_id`, `source_node_id`, `target_node_id`, `edge_type`, `weight`, `evidence_count`, `last_reinforced_at`, `metadata` (JSONB))
-- **user_life_chapters**: chronological user eras (`id`, `user_id`, `title`, `chapter_number`, `start_date`, `end_date`, `is_current`, `theme_summary`, `dominant_emotion`, `mood_average`, `growth_score`, `key_events` (JSONB), `dominant_themes`, `goals_started`, `goals_achieved`, `node_ids`)
-- **user_behavioral_patterns**: detected cycles (`id`, `user_id`, `pattern_type`, `confidence`, `strength`, `occurrence_stats` (JSONB), `last_detected_at`)
-- **user_goal_threads**: goal status (`id`, `user_id`, `target_node_label`, `status`, `started_at`, `completed_at`, `linked_node_ids`)
-- **user_growth_metrics**: 10-dimensional metric logs (`id`, `user_id`, `dimension`, `score`, `growth_rate`, `evidence_count`, `updated_at`)
+```text
+d:\WorkSpace\mindcradle\
+├── backend/
+│   ├── app/
+│   │   ├── main.py              # Backend entrypoint (FastAPI app setup & CORS)
+│   │   ├── config.py            # Environment settings & credentials fallbacks
+│   │   ├── models/
+│   │   │   └── schemas.py       # SQLModel/SQLAlchemy schemas & validation models
+│   │   ├── routers/             # API Router endpoints
+│   │   └── services/            # CIE engines, OpenRouter client, database handlers
+│   └── scripts/                 # Utility scripts & migrations
+└── frontend/
+    ├── src/
+    │   ├── main.tsx             # Frontend entrypoint
+    │   ├── app/
+    │   │   ├── App.tsx          # React Router definition & layouts
+    │   │   ├── components/      # Shared components (Sidebar, SEO, AriaTerminalCard)
+    │   │   └── pages/           # Page components
+    │   ├── lib/
+    │   │   ├── api.ts           # Unified API wrapper client (Pocketbase/Supabase fallback)
+    │   │   ├── auth.tsx         # Auth contexts & session validation hooks
+    │   │   └── mixpanel.ts      # Mixpanel event tracking wrappers
+    │   └── styles/
+    │       ├── theme.css        # Visual styles (Forest Mist & Amber CSS tokens)
+    │       └── index.css        # Global CSS imports
+```
 
 ---
 
-## 🔌 API Endpoints
+## 🗄️ 3. Database Schema Mappings
+MindCradle uses 26 database tables. Here is their semantic division and corresponding model representations in [`backend/app/models/schemas.py`](file:///d:/WorkSpace/mindcradle/backend/app/models/schemas.py):
 
-### Auth Routes
-- `POST /api/auth/signup`: Register user
-- `POST /api/auth/login`: Login user
-- `POST /api/auth/forgot-password`: Send reset email
-- `POST /api/auth/reset-password`: Reset password with token
-- `POST /api/auth/verify-age`: Age verification (18+)
-- `POST /api/auth/privacy-accepted`: Privacy policy acceptance
-- `GET /api/auth/check-age-verified`: Check if user is 18+
-- `GET /health`: Health check endpoint
-
-### Mood Routes
-- `POST /api/mood`: Create mood log
-- `GET /api/mood?range=7d|30d`: Get mood logs
-- `GET /api/mood/trends`: Get emotion trends
-
-### Journal Routes
-- `POST /api/journal`: Create journal entry
-- `GET /api/journal`: Get user's journals
-
-### Ritual Routes
-- `POST /api/rituals/morning`: Complete morning ritual
-- `POST /api/rituals/winddown`: Complete wind down ritual
-- `GET /api/rituals`: Get ritual status
-- `GET /api/rituals/morning/prompt`: Get dynamic personalized morning routine anchor focus
-- `GET /api/rituals/winddown/prompt`: Get dynamic personalized evening release focus
-
-### ARIA / Search Routes
-- `POST /api/ai/chat`: Send message to ARIA
-- `POST /api/ai/journal-reflection`: Get reflection on journal
-- `POST /api/ai/mood-analysis`: Analyze mood trends
-- `POST /api/ai/remember-context`: Store memory
-- `GET /api/ai/memory`: Retrieve memory
-- `POST /api/ai/timeline/rebuild`: Rebuild timeline events cache for user
-- `GET /api/ai/timeline`: Retrieve paginated timeline events for user
-- `GET /api/ai/search`: Hybrid semantic + keyword + recency search
-- `GET /api/ai/search/suggestions`: Get 6 dynamic example search queries
-- `POST /api/ai/embeddings/generate`: Trigger bulk embedding generation
-
-### Compounding Intelligence Engine (CIE) Routes
-- `POST /api/aria/knowledge/process`: Process and extract nodes/edges from text
-- `GET /api/aria/knowledge/graph`: Get full PKG (nodes and edges) for user
-- `GET /api/aria/knowledge/context`: Get formatted context packet for LLM injection
-- `GET /api/aria/knowledge/growth`: Get 10-dimensional user growth metrics
-- `DELETE /api/aria/knowledge/nodes/{node_id}`: Delete node from PKG
-- `GET /api/aria/knowledge/chapters`: Get list of detected life chapters
-- `PATCH /api/aria/knowledge/nodes/{node_id}`: Update knowledge node fields (archive, label, valence)
-- `GET /api/aria/knowledge/comparison`: Get chapter-over-chapter growth comparison
-
-### Notification Routes
-- `POST /api/notifications/register-device`: Register FCM token
-- `POST /api/notifications/test`: Test notification
-
-### User Routes
-- `GET /api/user/me`: Get current user
-- `GET /api/user/export-data`: Download all user data (GDPR)
-- `DELETE /api/user/delete-account`: Delete account permanently
-
-### Payment Routes
-- `POST /api/payments/create-subscription`: Start subscription
+| Table Name | Schema class / Representation | Key Fields & Purpose |
+| :--- | :--- | :--- |
+| **users** | `User` | Main identity tracker: `id`, `email`, `privacy_accepted`, `age_verified`, `is_premium`. |
+| **mood_logs** | `MoodLog` | Daily wellness check-in scores: `level` (1-10), `notes`. |
+| **journal_entries** | `JournalEntry` | Reflective user journal texts: `content`. |
+| **morning_rituals** | `MorningRitual` | Morning checklist status tracker. |
+| **wind_down_rituals** | `WindDownRitual` | Wind down evening checklist status tracker. |
+| **ai_conversations** | `AIConversation` | Chat threads with ARIA companion: `messages` (JSONB), `summary`. |
+| **daily_discoveries** | `DailyDiscovery` | Generated daily patterns and wellness advice. |
+| **user_knowledge_nodes** | `UserKnowledgeNode` | Personal Knowledge Graph atoms: `label`, `canonical_label`, `valence`. |
+| **user_knowledge_edges** | `UserKnowledgeEdge` | Semantic connections between nodes: `source_node_id`, `target_node_id`, `weight`. |
+| **user_life_chapters** | `UserLifeChapter` | Chronological wellness eras: `title`, `theme_summary`, `mood_average`. |
+| **user_behavioral_patterns**| `UserBehavioralPattern` | Detected cycles (e.g. Sunday dread): `pattern_type`, `strength`. |
+| **user_predictions** | `UserPrediction` | Behavioral predictions: `prediction_text`, `probability`. |
+| **user_goal_threads** | `UserGoalThread` | Habits and wellness goals: `status`, `linked_node_ids`. |
+| **user_growth_metrics** | `UserGrowthMetric` | 10-dimensional metric scores. |
+| **push_notification_tokens**| `PushNotificationToken` | FCM credentials tracker. |
 
 ---
 
-## 🎨 Frontend Pages
-- `/login`: Login page
-- `/signup`: Signup page
-- `/reset?token=xxx`: Password reset
-- `/dashboard`: Main dashboard (protected, includes redesigned hero section)
-- `/morning`: Morning ritual
-- `/mood`: Mood tracker
-- `/journal`: Guided journal
-- `/aria`: ARIA chat
-- `/wind-down`: Evening ritual
-- `/settings`: User settings
-- `/privacy`: Privacy policy
-- `/timeline`: Interactive historical timeline with hybrid search
-- `/understanding`: CIE growth dashboard (life chapters, PKG graph view, cross-chapter comparison metrics)
+## 🔌 4. API Endpoints & Routers Mappings
+All API routes are prefixed by `/api`. The endpoint logic is mapped as follows:
+
+### Auth Endpoints &rarr; [`app/routers/auth.py`](file:///d:/WorkSpace/mindcradle/backend/app/routers/auth.py)
+*   `POST /api/auth/signup` &bull; `POST /api/auth/login` &bull; `POST /api/auth/forgot-password` &bull; `POST /api/auth/reset-password`
+*   `POST /api/auth/verify-age` &bull; `POST /api/auth/privacy-accepted` &bull; `GET /api/auth/check-age-verified`
+
+### Mood & Journal Endpoints &rarr; [`app/routers/mood.py`](file:///d:/WorkSpace/mindcradle/backend/app/routers/mood.py) & [`app/routers/journal.py`](file:///d:/WorkSpace/mindcradle/backend/app/routers/journal.py)
+*   `POST /api/mood` (Create mood) &bull; `GET /api/mood` (Get mood history logs) &bull; `GET /api/mood/trends` (Trends)
+*   `POST /api/journal` (Create journal) &bull; `GET /api/journal` (Get user's journals)
+
+### Rituals Endpoints &rarr; [`app/routers/rituals.py`](file:///d:/WorkSpace/mindcradle/backend/app/routers/rituals.py)
+*   `POST /api/rituals/morning` &bull; `POST /api/rituals/winddown`
+*   `GET /api/rituals/morning/prompt` (Dynamic anchor prompt) &bull; `GET /api/rituals/winddown/prompt` (Dynamic release prompt)
+
+### ARIA Companion & CIE Endpoints &rarr; [`app/routers/ai.py`](file:///d:/WorkSpace/mindcradle/backend/app/routers/ai.py) & [`app/routers/growth.py`](file:///d:/WorkSpace/mindcradle/backend/app/routers/growth.py)
+*   `POST /api/ai/chat` (Send message to ARIA)
+*   `POST /api/ai/journal-reflection` (Aria reflection on journal entry)
+*   `GET /api/ai/timeline` (Interactive historical timeline) &bull; `GET /api/ai/search` (Hybrid semantic search)
+*   `GET /api/aria/knowledge/graph` (PKG nodes/edges) &bull; `GET /api/aria/knowledge/chapters` (Life chapters list)
+*   `GET /api/aria/knowledge/growth` (Growth scores) &bull; `PATCH /api/aria/knowledge/nodes/{node_id}` (Archive node)
+
+### User & Payments Endpoints &rarr; [`app/routers/user.py`](file:///d:/WorkSpace/mindcradle/backend/app/routers/user.py) & [`app/routers/payments.py`](file:///d:/WorkSpace/mindcradle/backend/app/routers/payments.py)
+*   `GET /api/user/me` &bull; `GET /api/user/export-data` (GDPR GDPR) &bull; `DELETE /api/user/delete-account`
+*   `POST /api/payments/create-subscription` (Start Creem checkout session)
 
 ---
 
-## 🤖 Compounding Intelligence Engine (CIE) Summary
-MindCradle is built on a custom **Compounding Intelligence Engine** that builds a **Personal Knowledge Graph (PKG)** for each user based on their journals, mood logs, and interactions.
-1. **Extract**: A background pipeline extracts nodes (coping strategies, goals, stressors) and edges (triggers, causes) from user data.
-2. **Synthesize**: Evaluates life chapters (periods of life like "Finding My Rhythm") and behavioral patterns (e.g. Sunday dread).
-3. **Personalize**:
-   - Dynamic focus prompts in morning rituals.
-   - Dynamic let-go prompts in wind-down rituals.
-   - Chronological life chapters forming the narrative of solstice review letters.
-   - Pattern-aware notification hours.
-   - PKG-integrated predictions (alerting users of impending dread cycles).
-   - Cross-chapter growth comparisons.
+## 🎨 5. Frontend Pages & Page Component Mappings
+React Router routes are defined inside [`frontend/src/app/App.tsx`](file:///d:/WorkSpace/mindcradle/frontend/src/app/App.tsx).
+
+*   `/login` &rarr; [`Login.tsx`](file:///d:/WorkSpace/mindcradle/frontend/src/app/pages/Login.tsx) (Email login / magic links)
+*   `/signup` &rarr; [`MagicLinkRequest.tsx`](file:///d:/WorkSpace/mindcradle/frontend/src/app/pages/MagicLinkRequest.tsx) (Signup request flow)
+*   `/dashboard` &rarr; [`Dashboard.tsx`](file:///d:/WorkSpace/mindcradle/frontend/src/app/pages/Dashboard.tsx) (Personal wellness hub feed & quick journaling)
+*   `/morning` &rarr; [`Morning.tsx`](file:///d:/WorkSpace/mindcradle/frontend/src/app/pages/Morning.tsx) (Guided morning routine anchor checklist)
+*   `/mood` &rarr; [`Mood.tsx`](file:///d:/WorkSpace/mindcradle/frontend/src/app/pages/Mood.tsx) (Emotion tracker logs & insights comparison)
+*   `/journal` &rarr; [`Journal.tsx`](file:///d:/WorkSpace/mindcradle/frontend/src/app/pages/Journal.tsx) (Rich-text prompt guided journaling)
+*   `/aria` &rarr; [`ARIA.tsx`](file:///d:/WorkSpace/mindcradle/frontend/src/app/pages/ARIA.tsx) (Direct chat thread companion UI)
+*   `/timeline` &rarr; [`Timeline.tsx`](file:///d:/WorkSpace/mindcradle/frontend/src/app/pages/Timeline.tsx) (Interactive hybrid wellness feed history)
+*   `/understanding` &rarr; [`Understanding.tsx`](file:///d:/WorkSpace/mindcradle/frontend/src/app/pages/Understanding.tsx) (PKG node-link map & life chapters timeline view)
+*   `/settings` &rarr; [`Settings.tsx`](file:///d:/WorkSpace/mindcradle/frontend/src/app/pages/Settings.tsx) (Preferences configuration, disabled widget gating)
+*   `/settings/widgets` &rarr; [`WidgetGallery.tsx`](file:///d:/WorkSpace/mindcradle/frontend/src/app/pages/WidgetGallery.tsx) (Gated Home Screen Widgets selection & instructions)
+*   `/pricing` &rarr; [`Pricing.tsx`](file:///d:/WorkSpace/mindcradle/frontend/src/app/pages/Pricing.tsx) (Subscription tier comparison, lists home-screen widgets)
 
 ---
 
-## ⚠️ Key Guardrails
-- **Age verification**: 18+ gate before ARIA access.
-- **Crisis detection**: Keywords trigger escalation to 988/Crisis Text Line.
-- **Off-topic blocking**: Non-wellness questions rejected.
-- **Privacy**: GDPR compliance, data export, account deletion, and strict PostgreSQL Row Level Security (RLS).
-- **Medical disclaimer**: Not a replacement for therapy.
+## 🛠️ 6. Core Business Services
+Key logic components in backend services directory [`backend/app/services/`](file:///d:/WorkSpace/mindcradle/backend/app/services/):
+
+*   **Supabase Database Operations & RLS** &rarr; [`supabase.py`](file:///d:/WorkSpace/mindcradle/backend/app/services/supabase.py)
+    *   Handles all client DB connections, queries, writes, and RLS contexts.
+*   **OpenRouter AI client configuration** &rarr; [`openrouter_ai.py`](file:///d:/WorkSpace/mindcradle/backend/app/services/openrouter_ai.py)
+    *   Builds prompt completions using the configured Gemma-4 model.
+*   **Embeddings Generation** &rarr; [`embeddings.py`](file:///d:/WorkSpace/mindcradle/backend/app/services/embeddings.py)
+    *   Generates 1536-dimensional vectors for semantic search index queries.
+*   **Knowledge Graph Extraction Engine** &rarr; [`knowledge_graph.py`](file:///d:/WorkSpace/mindcradle/backend/app/services/knowledge_graph.py)
+    *   Extracts knowledge graph entities (nodes) and connections (edges) from user text reflections.
+*   **Personal Growth Engine** &rarr; [`growth_engine.py`](file:///d:/WorkSpace/mindcradle/backend/app/services/growth_engine.py)
+    *   Aggregates timeline events, chapters, comparison metrics, and growth scores.
+
+---
+
+## 🚫 7. Key App Guardrails
+*   **Age-Verification Guard**: Requires age verified state check before enabling ARIA companion chat capabilities.
+*   **Crisis Keywords Safety Hook**: Text messages matching critical self-harm flags automatically trigger emergency contact resources.
+*   **Off-Topic Conversation filter**: ARIA filters and rejects requests that diverge significantly from personal wellness context.

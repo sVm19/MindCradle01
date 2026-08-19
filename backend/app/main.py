@@ -300,3 +300,136 @@ async def get_csrf_token(request: Request):
     response = JSONResponse(content={"csrf_token": csrf_token})
     csrf_protect.set_csrf_cookie(signed_token, response)
     return response
+
+
+# ─── OpenAPI Customization ───────────────────────────────────────────────────
+from fastapi.openapi.utils import get_openapi
+from starlette.responses import Response
+import yaml
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    openapi_schema = get_openapi(
+        title="MindCradle API",
+        version=app.version or "0.1.0",
+        description="API for MindCradle, an AI-powered personal reflection platform providing context-aware AI interactions, journaling, personal memory, and personalized experiences.",
+        routes=app.routes,
+    )
+    
+    # Configure Server URLs for production and local environments
+    openapi_schema["servers"] = [
+        {
+            "url": "https://www.mindcradle.online",
+            "description": "Production Server"
+        },
+        {
+            "url": "http://localhost:8000",
+            "description": "Local Development Server"
+        }
+    ]
+    
+    # 1. Add security schemes (Bearer JWT)
+    if "components" not in openapi_schema:
+        openapi_schema["components"] = {}
+    if "securitySchemes" not in openapi_schema["components"]:
+        openapi_schema["components"]["securitySchemes"] = {}
+        
+    openapi_schema["components"]["securitySchemes"]["bearerAuth"] = {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT Access Token for MindCradle user authentication. Get this by calling /api/auth/login or /api/auth/signup."
+    }
+    
+    # 2. Add standard HTTP error structures to components
+    if "schemas" not in openapi_schema["components"]:
+        openapi_schema["components"]["schemas"] = {}
+        
+    openapi_schema["components"]["schemas"]["ErrorResponse"] = {
+        "type": "object",
+        "properties": {
+            "detail": {
+                "type": "string",
+                "description": "Short error message describing the failure."
+            }
+        }
+    }
+    
+    # 3. Post-process paths to associate authorization requirement
+    for path, path_item in openapi_schema.get("paths", {}).items():
+        for method, operation in path_item.items():
+            params = operation.get("parameters", [])
+            has_auth = False
+            new_params = []
+            
+            # Filter out the raw 'authorization' header input from the params list
+            for param in params:
+                if param.get("name", "").lower() == "authorization":
+                    has_auth = True
+                else:
+                    new_params.append(param)
+            
+            # Determine if this route is private/protected
+            # Exclude endpoints that are explicitly public
+            is_public = (
+                path in [
+                    "/api/auth/signup",
+                    "/api/auth/login",
+                    "/api/auth/forgot-password",
+                    "/api/auth/reset-password",
+                    "/api/auth/privacy-policy",
+                    "/health",
+                    "/api/health",
+                    "/api/csrf-token"
+                ]
+                or path.startswith("/api/webhooks")
+                or path.startswith("/api/seo")
+            )
+            
+            if has_auth or not is_public:
+                operation["parameters"] = new_params
+                if "security" not in operation:
+                    operation["security"] = []
+                operation["security"].append({"bearerAuth": []})
+                
+                # Standardize error responses on protected routes
+                if "responses" not in operation:
+                    operation["responses"] = {}
+                
+                if "401" not in operation["responses"]:
+                    operation["responses"]["401"] = {
+                        "description": "Unauthorized - Missing or invalid JWT access token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                if "403" not in operation["responses"]:
+                    operation["responses"]["403"] = {
+                        "description": "Forbidden - Account restrictions or age gate validation failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
+
+@app.get("/openapi.yaml", include_in_schema=False)
+async def get_openapi_yaml():
+    """Return the OpenAPI specification in YAML format."""
+    openapi_json = app.openapi()
+    yaml_str = yaml.dump(openapi_json, default_flow_style=False, sort_keys=False)
+    return Response(content=yaml_str, media_type="application/x-yaml")
+

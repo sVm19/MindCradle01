@@ -23,6 +23,7 @@ export default function WidgetGallery() {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
+  const [isPremium, setIsPremium] = useState(false);
   const [modalWidget, setModalWidget] = useState<any | null>(null);
 
   // Widget settings
@@ -52,6 +53,7 @@ export default function WidgetGallery() {
     }
     profileApi.get()
       .then((res) => {
+        setIsPremium(!!res.is_premium);
         setPersonalizedEnabled(res.widget_personalized_enabled ?? true);
         setMemoriesEnabled(res.widget_memories_enabled ?? true);
         setAriaPersonalizedEnabled(res.widget_aria_personalized_enabled ?? true);
@@ -130,7 +132,7 @@ export default function WidgetGallery() {
           </div>
           <div className="flex justify-between items-center border-t border-white/5 pt-1.5 mt-2" style={{ fontSize: '9px', color: '#666' }}>
             <span>mindcradle://aria</span>
-            <span style={{ color: '#feba7b', fontWeight: 'semibold' }}>Talk</span>
+            <span style={{ color: '#fbbf24', fontWeight: 'semibold' }}>Talk</span>
           </div>
         </div>
       )
@@ -154,7 +156,7 @@ export default function WidgetGallery() {
           </div>
           <div className="flex justify-between items-center border-t border-white/5 pt-1.5 mt-2" style={{ fontSize: '9px', color: '#666' }}>
             <span>mindcradle://journal/new</span>
-            <span style={{ color: '#feba7b', fontWeight: 'semibold' }}>Write</span>
+            <span style={{ color: '#fbbf24', fontWeight: 'semibold' }}>Write</span>
           </div>
         </div>
       )
@@ -179,7 +181,7 @@ export default function WidgetGallery() {
           </div>
           <div className="flex justify-between items-center border-t border-white/5 pt-1.5 mt-2" style={{ fontSize: '9px', color: '#666' }}>
             <span>mindcradle://insight</span>
-            <span style={{ color: '#feba7b', fontWeight: 'semibold' }}>Explore</span>
+            <span style={{ color: '#fbbf24', fontWeight: 'semibold' }}>Explore</span>
           </div>
         </div>
       )
@@ -204,7 +206,7 @@ export default function WidgetGallery() {
           </div>
           <div className="flex justify-between items-center border-t border-white/5 pt-1.5 mt-2" style={{ fontSize: '9px', color: '#666' }}>
             <span>mindcradle://memory</span>
-            <span style={{ color: '#feba7b', fontWeight: 'semibold' }}>View</span>
+            <span style={{ color: '#fbbf24', fontWeight: 'semibold' }}>View</span>
           </div>
         </div>
       )
@@ -229,7 +231,7 @@ export default function WidgetGallery() {
           </div>
           <div className="flex justify-between items-center border-t border-white/5 pt-1.5 mt-2" style={{ fontSize: '9px', color: '#666' }}>
             <span>mindcradle://journal/reflection</span>
-            <span style={{ color: '#feba7b', fontWeight: 'semibold' }}>Reflect</span>
+            <span style={{ color: '#fbbf24', fontWeight: 'semibold' }}>Reflect</span>
           </div>
         </div>
       )
@@ -289,7 +291,7 @@ export default function WidgetGallery() {
           </div>
           <div className="flex justify-between items-center border-t border-white/5 pt-1.5 mt-2" style={{ fontSize: '8px', color: '#666' }}>
             <span>2 / 3 complete</span>
-            <span style={{ color: '#feba7b' }}>Open</span>
+            <span style={{ color: '#fbbf24' }}>Open</span>
           </div>
         </div>
       )
@@ -333,7 +335,7 @@ export default function WidgetGallery() {
           </div>
           <div className="flex justify-between items-center border-t border-white/5 pt-1.5 mt-2" style={{ fontSize: '9px', color: '#666' }}>
             <span>mindcradle://solstice</span>
-            <span style={{ color: '#feba7b', fontWeight: 'semibold' }}>Open</span>
+            <span style={{ color: '#fbbf24', fontWeight: 'semibold' }}>Open</span>
           </div>
         </div>
       )
@@ -364,14 +366,14 @@ export default function WidgetGallery() {
         </button>
       </div>
 
-      {/* NEW HEADER - Styled with App Accent Color (CIE Gold #feba7b) */}
+      {/* NEW HEADER - Styled with App Accent Color (Amber #fbbf24) */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(254, 180, 123, 0.18) 0%, rgba(15, 10, 28, 0) 100%)',
+        background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.18) 0%, rgba(7, 12, 9, 0) 100%)',
         padding: '2rem',
         textAlign: 'center',
         marginBottom: '2rem',
         borderRadius: '24px',
-        border: '1px solid rgba(254, 180, 123, 0.08)',
+        border: '1px solid rgba(251, 191, 36, 0.08)',
         maxWidth: '1360px',
         margin: '1rem auto 2rem'
       }}>
@@ -379,7 +381,7 @@ export default function WidgetGallery() {
           Bring 
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" style={{ height: '34px', width: '34px', transform: 'translateY(-2px)' }}>
-              <g stroke="#feba7b" strokeWidth="5.5" fill="none" strokeLinejoin="round" strokeLinecap="round">
+              <g stroke="#fbbf24" strokeWidth="5.5" fill="none" strokeLinejoin="round" strokeLinecap="round">
                 <path d="M 23,37 L 23,17 L 63,17 L 63,57 L 43,57 L 43,37 Z" />
                 <rect x="17" y="43" width="20" height="20" rx="2" />
               </g>
@@ -402,7 +404,7 @@ export default function WidgetGallery() {
           textAlign: 'left'
         }}>
           <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.25rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.04)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#feba7b', fontSize: '13px', fontWeight: '600', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fbbf24', fontSize: '13px', fontWeight: '600', marginBottom: '0.5rem' }}>
               <Shield size={14} /> Privacy-First Content
             </div>
             <p style={{ fontSize: '11px', color: '#bbb', lineHeight: '1.5' }}>
@@ -410,7 +412,7 @@ export default function WidgetGallery() {
             </p>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.25rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.04)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#feba7b', fontSize: '13px', fontWeight: '600', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fbbf24', fontSize: '13px', fontWeight: '600', marginBottom: '0.5rem' }}>
               <Zap size={14} /> Battery & Resource Friendly
             </div>
             <p style={{ fontSize: '11px', color: '#bbb', lineHeight: '1.5' }}>
@@ -418,7 +420,7 @@ export default function WidgetGallery() {
             </p>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.25rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.04)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#feba7b', fontSize: '13px', fontWeight: '600', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fbbf24', fontSize: '13px', fontWeight: '600', marginBottom: '0.5rem' }}>
               <Compass size={14} /> Direct Navigation Shortcuts
             </div>
             <p style={{ fontSize: '11px', color: '#bbb', lineHeight: '1.5' }}>
@@ -426,7 +428,7 @@ export default function WidgetGallery() {
             </p>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.25rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.04)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#feba7b', fontSize: '13px', fontWeight: '600', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fbbf24', fontSize: '13px', fontWeight: '600', marginBottom: '0.5rem' }}>
               <Award size={14} /> Offline Resilience
             </div>
             <p style={{ fontSize: '11px', color: '#bbb', lineHeight: '1.5' }}>
@@ -437,6 +439,28 @@ export default function WidgetGallery() {
       </div>
 
       {/* GRID LAYOUT */}
+      {!isPremium && (
+        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 2rem 1.5rem' }}>
+          <div className="bg-gradient-to-r from-[#fbbf24]/10 to-rose/10 border border-[#fbbf24]/20 rounded-[24px] p-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-left animate-fadeIn shadow-[0_4px_20px_rgba(12,7,20,0.3)] backdrop-blur-md">
+            <div className="space-y-1">
+              <h3 className="text-[15px] font-semibold text-[#fbbf24] flex items-center gap-2">
+                <Lock size={16} className="text-[#fbbf24]" />
+                <span>Home-Screen Widgets are a Premium Feature</span>
+              </h3>
+              <p className="text-xs text-text3 max-w-xl">
+                Elevate your focus. Bring your streaks, custom ARIA reflections, and quick action shortcuts directly to your phone's home screen.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/billing')}
+              className="w-full sm:w-auto px-6 py-2.5 bg-[#fbbf24] hover:bg-[#f59e0b] text-[#070c09] font-semibold text-xs tracking-wider rounded-full shadow-[0_4px_16px_rgba(251,191,36,0.25)] hover:shadow-[0_4px_24px_rgba(251,191,36,0.4)] active:scale-95 hover:scale-105 transition-all duration-300 cursor-pointer border border-white/10 shrink-0 text-center"
+            >
+              Upgrade to Premium →
+            </button>
+          </div>
+        </div>
+      )}
+
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
@@ -451,18 +475,18 @@ export default function WidgetGallery() {
           <div 
             key={widget.id}
             style={{
-              background: 'linear-gradient(135deg, #1c1635 0%, #0f0a1c 100%)',
-              border: '1px solid rgba(254, 180, 123, 0.12)',
-              borderRadius: '16px',
-              padding: '1.5rem',
-              transition: 'all 0.3s',
+              background: 'linear-gradient(135deg, rgba(21, 12, 36, 0.60) 0%, rgba(12, 7, 20, 0.85) 100%)',
+              border: '1px solid rgba(251, 191, 36, 0.1)',
+              borderRadius: '20px',
+              padding: '1.75rem',
+              transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
               cursor: 'pointer',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'between',
-              minHeight: '320px'
+              minHeight: '340px'
             }}
-            className="hover:shadow-[0_4px_20px_rgba(254,180,123,0.12)] hover:border-[#feba7b]/40 transition-all duration-300"
+            className="hover:shadow-[0_8px_32px_rgba(251,191,36,0.08)] hover:border-[#fbbf24]/30 transition-all duration-300"
           >
             {/* Icon + Title */}
             <div style={{ marginBottom: '1rem', textAlign: 'left' }}>
@@ -485,29 +509,77 @@ export default function WidgetGallery() {
               alignItems: 'center',
               justifyContent: 'center',
               color: '#666',
-              flexGrow: 1
+              flexGrow: 1,
+              position: 'relative',
+              overflow: 'hidden'
             }}>
-              {widget.preview}
+              <div style={{
+                filter: isPremium ? 'none' : 'blur(4px)',
+                width: '100%',
+                height: '100%',
+                opacity: isPremium ? 1 : 0.4,
+                pointerEvents: isPremium ? 'auto' : 'none'
+              }}>
+                {widget.preview}
+              </div>
+              {!isPremium && (
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'rgba(15, 10, 28, 0.4)'
+                }}>
+                  <div className="bg-bg3 border border-border px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs text-[#fbbf24] font-medium shadow-lg backdrop-blur-sm select-none">
+                    <Lock size={12} /> Premium Only
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Button */}
-            <button 
-              onClick={() => handleAddToHomeScreen(widget)}
-              style={{
-                width: '100%',
-                background: '#feba7b',
-                color: '#0c0714',
-                border: 'none',
-                padding: '10px 16px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '600',
-                transition: 'background 0.2s'
-              }}
-              className="hover:bg-[#fdb066] transition-all"
-            >
-              Add to Home Screen
-            </button>
+            {isPremium ? (
+              <button 
+                onClick={() => handleAddToHomeScreen(widget)}
+                style={{
+                  width: '100%',
+                  background: '#fbbf24',
+                  color: '#070c09',
+                  border: 'none',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  transition: 'background 0.2s'
+                }}
+                className="hover:bg-[#f59e0b] transition-all"
+              >
+                Add to Home Screen
+              </button>
+            ) : (
+              <button 
+                onClick={() => navigate('/billing')}
+                style={{
+                  width: '100%',
+                  background: 'rgba(251, 191, 36, 0.15)',
+                  color: '#fbbf24',
+                  border: '1px solid rgba(251, 191, 36, 0.3)',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
+                }}
+                className="hover:bg-[rgba(251,191,36,0.25)] transition-all"
+               >
+                <Lock size={14} /> Upgrade to Add
+              </button>
+            )}
           </div>
         ))}
 
@@ -517,29 +589,29 @@ export default function WidgetGallery() {
       <section 
         id="setup-guide-section"
         style={{
-          background: '#1c1635',
+          background: '#112017',
           padding: '2rem',
           borderRadius: '16px',
           marginTop: '4rem',
           maxWidth: '800px',
           margin: '4rem auto 0',
           textAlign: 'left',
-          border: '1px solid rgba(254, 180, 123, 0.12)'
+          border: '1px solid rgba(251, 191, 36, 0.12)'
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid rgba(254, 180, 123, 0.08)', paddingBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid rgba(251, 191, 36, 0.08)', paddingBottom: '0.75rem' }}>
           <h2 style={{ fontSize: '20px', fontWeight: '500', fontFamily: 'var(--font-serif)' }}>How to Add Widgets</h2>
           
-          <div className="flex bg-[#0f0a1c] p-0.5 rounded-lg border border-white/5">
+          <div className="flex bg-[#070c09] p-0.5 rounded-lg border border-white/5">
             <button
               onClick={() => setSelectedPlatform('ios')}
-              className={`text-[10px] px-3 py-1 rounded font-bold transition-all ${selectedPlatform === 'ios' ? 'bg-[#feba7b] text-[#0c0714] shadow-md' : 'text-text3'}`}
+              className={`text-[10px] px-3 py-1 rounded font-bold transition-all ${selectedPlatform === 'ios' ? 'bg-[#fbbf24] text-[#070c09] shadow-md' : 'text-text3'}`}
             >
               iOS
             </button>
             <button
               onClick={() => setSelectedPlatform('android')}
-              className={`text-[10px] px-3 py-1 rounded font-bold transition-all ${selectedPlatform === 'android' ? 'bg-[#feba7b] text-[#0c0714] shadow-md' : 'text-text3'}`}
+              className={`text-[10px] px-3 py-1 rounded font-bold transition-all ${selectedPlatform === 'android' ? 'bg-[#fbbf24] text-[#070c09] shadow-md' : 'text-text3'}`}
             >
               Android
             </button>
@@ -552,7 +624,7 @@ export default function WidgetGallery() {
             <li>Tap <strong style={{ color: '#fff' }}>+ button</strong> (top-left).</li>
             <li>Search <strong style={{ color: '#fff' }}>"MindCradle"</strong>.</li>
             <li>Select widget + size preference.</li>
-            <li>Tap <strong style={{ color: '#feba7b' }}>"Add Widget"</strong>.</li>
+            <li>Tap <strong style={{ color: '#fbbf24' }}>"Add Widget"</strong>.</li>
           </ol>
         ) : (
           <ol style={{ lineHeight: '2', listStyleType: 'decimal', paddingLeft: '1.5rem', fontSize: '14px', color: '#ddd' }}>
@@ -583,8 +655,8 @@ export default function WidgetGallery() {
         >
           <div 
             style={{
-              background: '#1c1635',
-              border: '1px solid rgba(254, 180, 123, 0.2)',
+              background: '#112017',
+              border: '1px solid rgba(251, 191, 36, 0.2)',
               borderRadius: '20px',
               padding: '2rem',
               maxWidth: '480px',
@@ -597,8 +669,8 @@ export default function WidgetGallery() {
             className="animate-scaleIn"
           >
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid rgba(254, 180, 123, 0.08)', paddingBottom: '0.75rem' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#feba7b', fontFamily: 'var(--font-serif)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid rgba(251, 191, 36, 0.08)', paddingBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fbbf24', fontFamily: 'var(--font-serif)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Sparkles size={16} /> Add {modalWidget.name}
               </h3>
               <button 
@@ -615,15 +687,15 @@ export default function WidgetGallery() {
               To place the <strong style={{ color: '#fff' }}>{modalWidget.name}</strong> on your home screen, please follow the platform-specific instructions below:
             </p>
 
-            <div style={{ background: '#0f0a1c', padding: '1.25rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
+            <div style={{ background: '#070c09', padding: '1.25rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
               <h4 style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 iOS Steps:
               </h4>
               <ol style={{ fontSize: '12px', color: '#bbb', paddingLeft: '1.25rem', listStyleType: 'decimal', lineHeight: '1.8' }}>
                 <li>Hold down an empty spot on your Home Screen.</li>
-                <li>Tap the <strong style={{ color: '#feba7b' }}>+ icon</strong> in the top corner.</li>
+                <li>Tap the <strong style={{ color: '#fbbf24' }}>+ icon</strong> in the top corner.</li>
                 <li>Find <strong style={{ color: '#fff' }}>MindCradle</strong> & select {modalWidget.name}.</li>
-                <li>Pick your size and tap <strong style={{ color: '#feba7b' }}>Add Widget</strong>.</li>
+                <li>Pick your size and tap <strong style={{ color: '#fbbf24' }}>Add Widget</strong>.</li>
               </ol>
 
               <h4 style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff', marginTop: '1.25rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -641,8 +713,8 @@ export default function WidgetGallery() {
               onClick={() => setModalWidget(null)}
               style={{
                 width: '100%',
-                background: '#feba7b',
-                color: '#0c0714',
+                background: '#fbbf24',
+                color: '#070c09',
                 border: 'none',
                 padding: '10px 16px',
                 borderRadius: '8px',
@@ -651,7 +723,7 @@ export default function WidgetGallery() {
                 marginTop: '1.5rem',
                 textAlign: 'center'
               }}
-              className="hover:bg-[#fdb066] transition-all"
+              className="hover:bg-[#f59e0b] transition-all"
             >
               Got it
             </button>

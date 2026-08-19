@@ -9,6 +9,8 @@ import GuestGate from '@/app/components/GuestGate';
 import { WellnessInsightCard } from '@/app/components/WellnessInsightCard';
 import AriaTerminalCard from '@/app/components/AriaTerminalCard';
 import { AppWindow, ArrowRight } from 'lucide-react';
+import { useGrowth } from '@/context/GrowthContext';
+import { validateJournal } from '@/lib/validation';
 
 const SHORT_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -23,6 +25,13 @@ const TAGLINES = [
 export default function Dashboard() {
   const { user, setAuthModalOpen } = useAuth();
   const navigate = useNavigate();
+  const { trackEvent } = useGrowth();
+
+  // Quick Journaling State
+  const [quickJournalText, setQuickJournalText] = useState('');
+  const [savingQuickJournal, setSavingQuickJournal] = useState(false);
+  const [quickJournalError, setQuickJournalError] = useState('');
+  const [quickJournalSuccess, setQuickJournalSuccess] = useState(false);
 
   const [trialDays, setTrialDays] = useState<number | null>(null);
   const [trialActive, setTrialActive] = useState<boolean>(false);
@@ -156,6 +165,58 @@ export default function Dashboard() {
       setDiscovery((prev: any) => prev ? { ...prev, is_shared: true } : null);
     } catch (err) {
       console.error("Failed to share discovery:", err);
+    }
+  };
+
+  const handleQuickSave = async () => {
+    if (!user) {
+      setAuthModalOpen(true);
+      return;
+    }
+    if (!validateJournal(quickJournalText)) {
+      setQuickJournalError('Journal entry must be between 1 and 5000 characters.');
+      return;
+    }
+    setSavingQuickJournal(true);
+    setQuickJournalError('');
+    setQuickJournalSuccess(false);
+    try {
+      const defaultPrompt = "Quick Journal reflection from Dashboard";
+      await journalApi.save(defaultPrompt, quickJournalText);
+
+      // Track in growth engine & Mixpanel
+      trackEvent('journal_entry_created', {
+        word_count: quickJournalText.split(/\s+/).filter(Boolean).length,
+        has_reflection: false,
+        char_length: quickJournalText.length
+      });
+
+      aiApi.trackInteraction({
+        event_type: 'input_submit',
+        page_path: '/dashboard',
+        input_placeholder: 'quick_journal_entry_content',
+        input_length: quickJournalText.length,
+        metadata: {
+          word_count: quickJournalText.split(/\s+/).filter(Boolean).length,
+          has_reflection: false,
+        }
+      }).catch((err) => console.error('Failed to log journal telemetry:', err));
+
+      setQuickJournalSuccess(true);
+      setQuickJournalText('');
+      
+      // Refresh journal counts & listings on dashboard
+      const updatedJournals = await journalApi.list();
+      setJournals(updatedJournals.items || []);
+      setJournalCount((updatedJournals.items || []).length);
+      
+      setTimeout(() => {
+        setQuickJournalSuccess(false);
+      }, 5000);
+    } catch (err: any) {
+      setQuickJournalError(err.message || 'Failed to save journal entry. Please try again.');
+    } finally {
+      setSavingQuickJournal(false);
     }
   };
 
@@ -431,6 +492,73 @@ export default function Dashboard() {
           </Link>
         </div>
       )}
+
+      {/* Quick Journaling Section (Polished) */}
+      <section className="bg-bg2/35 border border-[#fbbf24]/15 backdrop-blur-xl rounded-[24px] p-6 shadow-[0_8px_32px_rgba(12,7,20,0.4)] relative overflow-hidden text-left transition-all duration-300 hover:shadow-[0_8px_32px_rgba(251,191,36,0.06)] animate-fadeIn">
+        {/* Fine gold-tinted glow overlay */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.03),transparent_50%)] pointer-events-none" />
+        
+        <div className="flex items-center gap-3.5 mb-4 select-none">
+          <div className="w-10 h-10 rounded-2xl border border-[#fbbf24]/20 bg-gradient-to-br from-[#fbbf24]/5 to-[#f59e0b]/10 flex items-center justify-center flex-shrink-0 text-[#fbbf24] shadow-[inset_0_1px_2px_rgba(255,255,255,0.1)]">
+            <PenTool className="w-4 h-4 animate-pulse" />
+          </div>
+          <div>
+            <h2 className="font-[family-name:var(--font-serif)] text-[16px] font-medium text-text tracking-wide flex items-center gap-1.5">
+              <span>Reflect in Your Journal</span>
+              <span className="text-[10px] text-[#fbbf24] uppercase font-sans tracking-[0.08em] px-2 py-0.5 rounded bg-[#fbbf24]/10 border border-[#fbbf24]/20">Quick Add</span>
+            </h2>
+            <p className="text-[11px] text-text3 mt-0.5">Capture daily thoughts, habits, or milestones directly from your feed</p>
+          </div>
+        </div>
+
+        <div className="space-y-3.5 relative z-10">
+          <textarea
+            value={quickJournalText}
+            onChange={(e) => setQuickJournalText(e.target.value)}
+            disabled={savingQuickJournal}
+            placeholder="Write a few words to clear your mind today..."
+            className="w-full min-h-[145px] bg-[#0c0714]/40 border border-border2 hover:border-border rounded-[18px] p-4 text-[14px] text-text placeholder-text3/70 focus:outline-none focus:ring-1 focus:ring-[#fbbf24] focus:border-[#fbbf24] hover:shadow-[inset_0_1px_4px_rgba(0,0,0,0.2)] focus:shadow-[inset_0_1px_4px_rgba(0,0,0,0.3)] transition-all resize-y leading-relaxed font-light"
+          />
+
+          {quickJournalError && (
+            <div className="text-xs text-rose font-medium flex items-center gap-1.5 animate-fadeIn">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{quickJournalError}</span>
+            </div>
+          )}
+
+          {quickJournalSuccess && (
+            <div className="text-xs text-green font-semibold flex items-center gap-1.5 animate-fadeIn">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>Note saved and integrated. ARIA will update your reflections tonight.</span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-1">
+            <div className="text-xs font-mono text-text3 bg-[#150c24]/50 border border-border/30 px-3 py-1 rounded-full select-none">
+              {quickJournalText.trim() ? `${quickJournalText.trim().split(/\s+/).length} words` : '0 words'}
+            </div>
+            
+            <button
+              onClick={handleQuickSave}
+              disabled={savingQuickJournal || !quickJournalText.trim()}
+              className="px-6 py-2.5 bg-[#fbbf24] hover:bg-[#f59e0b] text-[#070c09] font-semibold text-xs tracking-wider rounded-full shadow-[0_4px_16px_rgba(251,191,36,0.2)] hover:shadow-[0_4px_24px_rgba(251,191,36,0.35)] active:scale-95 hover:scale-105 transition-all duration-300 cursor-pointer disabled:opacity-40 disabled:scale-100 disabled:shadow-none flex items-center gap-1.5 border border-white/10"
+            >
+              {savingQuickJournal ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-[#070c09] border-t-transparent rounded-full animate-spin" />
+                  <span>Integrating...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Save Reflection</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* Welcome & Discovery Hero Card */}
       <section className="animate-fadeIn section-spacing">

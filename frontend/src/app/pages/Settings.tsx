@@ -22,6 +22,7 @@ export default function Settings() {
   const [widgetAriaPersonalized, setWidgetAriaPersonalized] = useState(true);
   const [widgetSensitive, setWidgetSensitive] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
 
   const [ageVerified, setAgeVerified] = useState(false);
   const [ageVerifiedAt, setAgeVerifiedAt] = useState<string | null>(null);
@@ -67,6 +68,7 @@ export default function Settings() {
     if (!user) return;
     profileApi.get()
       .then((res) => {
+        setIsPremium(!!res.is_premium);
         setEmergencyContact(res.emergency_contact || '');
         setNotifyOnCrisis(res.notify_on_crisis || false);
         setWidgetPersonalized(res.widget_personalized_enabled ?? true);
@@ -132,6 +134,7 @@ export default function Settings() {
   };
 
   const handleWidgetToggle = async (key: string, value: boolean) => {
+    if (!isPremium) return;
     if (key === 'personalized') setWidgetPersonalized(value);
     if (key === 'memories') setWidgetMemories(value);
     if (key === 'aria') setWidgetAriaPersonalized(value);
@@ -557,8 +560,15 @@ startxref
             </div>
 
             {/* Widget Privacy toggles */}
-            <div className="border-t border-border/20 pt-4 space-y-3.5">
-              <div className="text-xs font-semibold text-text uppercase tracking-wider mb-2">Widget Privacy Settings</div>
+            <div className={`border-t border-border/20 pt-4 space-y-3.5 ${!isPremium ? 'opacity-60' : ''}`}>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="text-xs font-semibold text-text uppercase tracking-wider">Widget Privacy Settings</div>
+                {!isPremium && (
+                  <span className="text-[10px] text-accent font-semibold flex items-center gap-1 bg-accent/10 border border-accent/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    <Lock size={10} /> Premium Feature
+                  </span>
+                )}
+              </div>
               
               <div className="flex items-start gap-3">
                 <input
@@ -566,10 +576,11 @@ startxref
                   type="checkbox"
                   checked={widgetPersonalized}
                   onChange={(e) => handleWidgetToggle('personalized', e.target.checked)}
-                  className="w-4 h-4 rounded border-border text-accent bg-bg3 mt-0.5 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                  disabled={!isPremium}
+                  className="w-4 h-4 rounded border-border text-accent bg-bg3 mt-0.5 focus:ring-0 focus:ring-offset-0 cursor-pointer disabled:cursor-not-allowed"
                 />
                 <div className="space-y-0.5">
-                  <label htmlFor="widget-personalized" className="text-xs text-text font-medium cursor-pointer">
+                  <label htmlFor="widget-personalized" className={`text-xs text-text font-medium ${isPremium ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
                     Personalized Content
                   </label>
                   <p className="text-[10px] text-text3">
@@ -577,17 +588,18 @@ startxref
                   </p>
                 </div>
               </div>
-
+ 
               <div className="flex items-start gap-3">
                 <input
                   id="widget-memories"
                   type="checkbox"
                   checked={widgetMemories}
                   onChange={(e) => handleWidgetToggle('memories', e.target.checked)}
-                  className="w-4 h-4 rounded border-border text-accent bg-bg3 mt-0.5 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                  disabled={!isPremium}
+                  className="w-4 h-4 rounded border-border text-accent bg-bg3 mt-0.5 focus:ring-0 focus:ring-offset-0 cursor-pointer disabled:cursor-not-allowed"
                 />
                 <div className="space-y-0.5">
-                  <label htmlFor="widget-memories" className="text-xs text-text font-medium cursor-pointer">
+                  <label htmlFor="widget-memories" className={`text-xs text-text font-medium ${isPremium ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
                     Show Memories
                   </label>
                   <p className="text-[10px] text-text3">
@@ -595,17 +607,18 @@ startxref
                   </p>
                 </div>
               </div>
-
+ 
               <div className="flex items-start gap-3">
                 <input
                   id="widget-aria"
                   type="checkbox"
                   checked={widgetAriaPersonalized}
                   onChange={(e) => handleWidgetToggle('aria', e.target.checked)}
-                  className="w-4 h-4 rounded border-border text-accent bg-bg3 mt-0.5 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                  disabled={!isPremium}
+                  className="w-4 h-4 rounded border-border text-accent bg-bg3 mt-0.5 focus:ring-0 focus:ring-offset-0 cursor-pointer disabled:cursor-not-allowed"
                 />
                 <div className="space-y-0.5">
-                  <label htmlFor="widget-aria" className="text-xs text-text font-medium cursor-pointer">
+                  <label htmlFor="widget-aria" className={`text-xs text-text font-medium ${isPremium ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
                     ARIA Personalization
                   </label>
                   <p className="text-[10px] text-text3">
@@ -613,17 +626,18 @@ startxref
                   </p>
                 </div>
               </div>
-
+ 
               <div className="flex items-start gap-3">
                 <input
                   id="widget-sensitive"
                   type="checkbox"
                   checked={widgetSensitive}
                   onChange={(e) => handleWidgetToggle('sensitive', e.target.checked)}
-                  className="w-4 h-4 rounded border-border text-accent bg-bg3 mt-0.5 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                  disabled={!isPremium}
+                  className="w-4 h-4 rounded border-border text-accent bg-bg3 mt-0.5 focus:ring-0 focus:ring-offset-0 cursor-pointer disabled:cursor-not-allowed"
                 />
                 <div className="space-y-0.5">
-                  <label htmlFor="widget-sensitive" className="text-xs text-text font-medium cursor-pointer">
+                  <label htmlFor="widget-sensitive" className={`text-xs text-text font-medium ${isPremium ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
                     Show Sensitive Content
                   </label>
                   <p className="text-[10px] text-text3">

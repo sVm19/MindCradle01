@@ -345,33 +345,33 @@ export default function Pricing() {
           </div>
         </div>
 
-        {/* Premium Plan Card */}
+        {/* Premium Plan Card (Polished UI) */}
         <div
-          className="bg-bg2 border-2 rounded-[24px] p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden transition-all duration-300 hover:-translate-y-1"
-          style={{ borderColor: "#E94B6F" }}
+          className="bg-bg2/40 border rounded-[28px] p-8 flex flex-col justify-between shadow-[0_8px_32px_rgba(233,75,111,0.05)] hover:shadow-[0_12px_40px_rgba(233,75,111,0.15)] relative overflow-hidden transition-all duration-300 hover:-translate-y-1.5"
+          style={{ borderColor: "rgba(233, 75, 111, 0.4)" }}
         >
-          {/* Subtle glow background */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(233,75,111,0.1),transparent_60%)] pointer-events-none" />
+          {/* Subtle glowing radial gradient background */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(233,75,111,0.12),transparent_70%)] pointer-events-none" />
 
           {/* Recommended badge */}
           <div className="absolute top-4 right-4">
             <span
-              className="inline-flex items-center gap-1 text-[10.5px] uppercase tracking-wider font-semibold text-white px-3 py-1 rounded-full shadow-lg"
+              className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-bold text-white px-3 py-1 rounded-full shadow-lg"
               style={{ backgroundColor: "#E94B6F" }}
             >
-              <Star className="w-3.5 h-3.5" fill="white" /> Recommended
+              <Star className="w-3 h-3 animate-pulse" fill="white" /> Recommended
             </span>
           </div>
 
           <div className="space-y-6">
             <div>
-              <span className="text-xs uppercase tracking-wider font-semibold text-rose bg-rose-dim border border-rose/20 px-3 py-1 rounded-full">
+              <span className="text-xs uppercase tracking-wider font-semibold text-rose bg-rose-dim border border-rose/30 px-3.5 py-1 rounded-full">
                 Premium
               </span>
-              <h2 className="font-[family-name:var(--font-serif)] text-3xl font-light text-text mt-4">
+              <h2 className="font-[family-name:var(--font-serif)] text-3.5xl font-light text-text mt-4">
                 $9.99<span className="text-sm font-normal text-text3">/month</span>
               </h2>
-              <p className="text-sm text-text2 mt-2">
+              <p className="text-sm text-text2 mt-2 font-medium">
                 Accelerate your personal growth
               </p>
             </div>
@@ -384,6 +384,7 @@ export default function Pricing() {
                 "Unlimited ARIA conversation",
                 "30-day calm & balance analytics",
                 "Daily rhythm pattern detection by ARIA",
+                "Home-screen widgets (iOS & Android)",
                 "Export your reflections (GDPR/JSON)",
                 "Ad-free focused environment",
                 "Priority response"
