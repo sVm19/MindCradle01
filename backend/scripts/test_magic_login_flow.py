@@ -16,6 +16,14 @@ async def fake_create_magic_login_token(email: str, token: str, expiry_seconds: 
     return True
 
 
+async def fake_create_magic_login_token_with_session(email: str, token: str, expiry_seconds: int, session_id: str) -> bool:
+    captured["email"] = email
+    captured["token"] = token
+    captured["expiry_seconds"] = expiry_seconds
+    captured["session_id"] = session_id
+    return True
+
+
 def fake_send_magic_link_email(user_email: str, magic_link: str) -> bool:
     captured["sent_to"] = user_email
     captured["magic_link"] = magic_link
@@ -39,6 +47,7 @@ async def fake_auto_start_trial_if_needed(user_id: str, token: str):
 
 def main() -> None:
     auth_router.pb.create_magic_login_token = fake_create_magic_login_token
+    auth_router.pb.create_magic_login_token_with_session = fake_create_magic_login_token_with_session
     auth_router.pb.consume_magic_login_token = fake_consume_magic_login_token
     auth_router.send_magic_link_email = fake_send_magic_link_email
     auth_router._auto_start_trial_if_needed = fake_auto_start_trial_if_needed
