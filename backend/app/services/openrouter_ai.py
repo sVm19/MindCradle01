@@ -18,6 +18,18 @@ def _get_client() -> OpenAI:
     )
 
 
+import asyncio
+
+# Fallback models ordered by priority if the primary free model is rate limited
+FALLBACK_MODELS = [
+    OPENROUTER_MODEL,
+    "google/gemma-4-26b-a4b-it:free",
+    "openai/gpt-oss-20b:free",
+    "google/gemma-4-31b-it:free",
+    "nvidia/nemotron-3-nano-30b-a3b:free",
+]
+
+
 async def chat_completion(
     messages: list[dict],
     *,
@@ -27,87 +39,96 @@ async def chat_completion(
     top_p: float = 0.9,
     max_tokens: int = 180,
 ) -> str:
-    """Send a chat completion request and return the full response."""
+    """Send a chat completion request with automatic fallback models if rate-limited."""
     client = _get_client()
 
     full_messages = messages
     if system_prompt:
         full_messages = [{"role": "system", "content": system_prompt}] + messages
 
-    try:
-        completion = client.chat.completions.create(
-            model=model or OPENROUTER_MODEL,
-            messages=full_messages,
-            temperature=temperature,
-            top_p=top_p,
-            max_tokens=max_tokens,
-            stream=False,
-            timeout=OPENROUTER_TIMEOUT,
-        )
-        return completion.choices[0].message.content or ""
-    except APITimeoutError as e:
-        logger.error(f"OpenRouter timeout error: {str(e)}")
+    candidate_models = [model] if model else FALLBACK_MODELS
+    # Ensure no duplicates while preserving order
+    candidate_models = list(dict.fromkeys(candidate_models))
+
+    last_err = None
+    for candidate in candidate_models:
+        try:
+            completion = client.chat.completions.create(
+                model=candidate,
+                messages=full_messages,
+                temperature=temperature,
+                top_p=top_p,
+                max_tokens=max_tokens,
+                stream=False,
+                timeout=OPENROUTER_TIMEOUT,
+            )
+            return completion.choices[0].message.content or ""
+        except (APIConnectionError, APIError) as e:
+            last_err = e
+            logger.warning(f"OpenRouter model {candidate} failed ({str(e)}). Trying fallback if available...")
+            await asyncio.sleep(0.5)
+            continue
+        except APITimeoutError as e:
+            last_err = e
+            logger.warning(f"OpenRouter timeout on {candidate}. Trying fallback...")
+            continue
+        except Exception as e:
+            last_err = e
+            logger.error(f"OpenRouter unexpected error on {candidate}: {str(e)}")
+            continue
+
+    # If all candidates failed
+    if isinstance(last_err, APITimeoutError):
         raise HTTPException(
             status_code=504,
             detail="AI service timeout. Please try again."
         )
-    except (APIConnectionError, APIError) as e:
-        logger.error(f"OpenRouter API error: {str(e)}")
-        raise HTTPException(
-            status_code=502,
-            detail="AI service unavailable"
-        )
-    except Exception as e:
-        logger.error(f"OpenRouter unexpected error: {str(e)}")
-        raise HTTPException(
-            status_code=502,
-            detail="AI service unavailable"
-        )
+    raise HTTPException(
+        status_code=502,
+        detail="AI service unavailable"
+    )
 
 
-async def chat_completion_stream(messages: list[dict], *, system_prompt: str | None = None):
-    """Stream a chat completion response. Yields content chunks."""
+async def chat_completion_stream(messages: list[dict], *, system_prompt: str | None = None, model: str | None = None):
+    """Stream a chat completion response with automatic model fallbacks."""
     client = _get_client()
 
     full_messages = messages
     if system_prompt:
         full_messages = [{"role": "system", "content": system_prompt}] + messages
 
-    try:
-        completion = client.chat.completions.create(
-            model=OPENROUTER_MODEL,
-            messages=full_messages,
-            temperature=0.7,
-            top_p=0.9,
-            max_tokens=180,
-            stream=True,
-            timeout=OPENROUTER_TIMEOUT,
-        )
+    candidate_models = [model] if model else FALLBACK_MODELS
+    candidate_models = list(dict.fromkeys(candidate_models))
 
-        for chunk in completion:
-            if not chunk.choices:
-                continue
-            delta = chunk.choices[0].delta
-            if delta.content is not None:
-                yield delta.content
-    except APITimeoutError as e:
-        logger.error(f"OpenRouter stream timeout error: {str(e)}")
-        raise HTTPException(
-            status_code=504,
-            detail="AI service timeout. Please try again."
-        )
-    except (APIConnectionError, APIError) as e:
-        logger.error(f"OpenRouter stream API error: {str(e)}")
-        raise HTTPException(
-            status_code=502,
-            detail="AI service unavailable"
-        )
-    except Exception as e:
-        logger.error(f"OpenRouter stream unexpected error: {str(e)}")
-        raise HTTPException(
-            status_code=502,
-            detail="AI service unavailable"
-        )
+    for candidate in candidate_models:
+        try:
+            completion = client.chat.completions.create(
+                model=candidate,
+                messages=full_messages,
+                temperature=0.7,
+                top_p=0.9,
+                max_tokens=180,
+                stream=True,
+                timeout=OPENROUTER_TIMEOUT,
+            )
+
+            for chunk in completion:
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta
+                if delta.content is not None:
+                    yield delta.content
+            return  # Stream finished successfully
+        except Exception as e:
+            logger.warning(f"OpenRouter stream error on {candidate} ({str(e)}). Trying fallback...")
+            await asyncio.sleep(0.5)
+            continue
+
+    # If all candidates fail during stream initialization
+    raise HTTPException(
+        status_code=502,
+        detail="AI service unavailable"
+    )
 
 
 async def get_recommendation(mood_level: int, emotions: list[str], history_summary: str) -> str:
