@@ -456,11 +456,16 @@ print("================ PRE-RENDER COMPLETE ================")
 
 # Submit pre-rendered pages to IndexNow API
 def submit_indexnow(urls):
-    key = "a712d266b95d45d5998969662249f988"
+    key = os.environ.get("INDEXNOW_KEY")
+    if not key:
+        print("Skipping IndexNow submission: INDEXNOW_KEY is not set.")
+        return
+
+    host = os.environ.get("INDEXNOW_HOST", "www.mindcradle.online")
     payload = {
-        "host": "www.mindcradle.online",
+        "host": host,
         "key": key,
-        "keyLocation": f"https://www.mindcradle.online/{key}.txt",
+        "keyLocation": os.environ.get("INDEXNOW_KEY_LOCATION", f"https://{host}/{key}.txt"),
         "urlList": urls
     }
     data = json.dumps(payload).encode("utf-8")

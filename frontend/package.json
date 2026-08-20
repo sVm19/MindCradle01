@@ -7,6 +7,12 @@
     "build": "vite build && (python3 ../prerender.py || python ../prerender.py || py ../prerender.py)",
     "dev": "vite"
   },
+  "allowScripts": {
+    "@firebase/util@1.15.1": true,
+    "@tailwindcss/oxide@4.1.12": true,
+    "esbuild@0.25.12": true,
+    "protobufjs@7.6.4": true
+  },
   "dependencies": {
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
