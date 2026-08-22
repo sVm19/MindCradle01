@@ -6,7 +6,7 @@ from app.config import OPENROUTER_API_KEY, OPENROUTER_API_URL, OPENROUTER_MODEL
 
 logger = logging.getLogger(__name__)
 OPENROUTER_TIMEOUT = 30.0
-PRIMARY_OPENROUTER_MODEL = "google/gemma-4-26b-a4b-it:free"
+PRIMARY_OPENROUTER_MODEL = OPENROUTER_MODEL
 
 def _get_client() -> OpenAI:
     """Create an OpenAI client pointed at OpenRouter's API."""
@@ -19,16 +19,14 @@ def _get_client() -> OpenAI:
         },
     )
 
-# Fallback models ordered by priority if the primary free model is rate limited
+# Fallback models ordered by priority if the primary model is rate limited
 FALLBACK_MODELS = [
     PRIMARY_OPENROUTER_MODEL,
-    OPENROUTER_MODEL,
+    "google/gemma-4-26b-a4b-it:free",
     "openai/gpt-oss-20b:free",
     "google/gemma-4-31b-it:free",
     "nvidia/nemotron-3-nano-30b-a3b:free",
 ]
-
-
 async def chat_completion(
     messages: list[dict],
     *,

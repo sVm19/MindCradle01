@@ -104,8 +104,8 @@ async def _extract_entities(text: str) -> list[dict]:
     if not OPENROUTER_API_KEY or len(text.strip()) < 50:
         return []
 
-    # Use cheapest model for extraction (cost control)
-    model = "google/gemma-4-26b-a4b-it:free"
+    # Use primary model for extraction
+    model = OPENROUTER_MODEL
     url = f"{OPENROUTER_API_URL.rstrip('/')}/chat/completions"
 
     payload = {
@@ -1042,7 +1042,7 @@ Provide a JSON output with the following format:
 {{"title": "poetic title here", "theme_summary": "2-sentence description here"}}"""
 
             payload = {
-                "model": "google/gemma-4-26b-a4b-it:free",
+                "model": OPENROUTER_MODEL,
                 "messages": [
                     {"role": "system", "content": "You must respond with ONLY valid JSON. Do not include markdown code blocks."},
                     {"role": "user", "content": prompt}

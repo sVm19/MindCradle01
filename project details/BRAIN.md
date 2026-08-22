@@ -8,7 +8,7 @@ This document contains a structured breakdown of the MindCradle application arch
 *   **Aesthetic Vibe**: Earthy & Grounding (Forest Mist background `#070c09` + Amber/Gold highlights `#fbbf24`).
 *   **Payment Model**: Freemium (Free vs. Premium at $9.99/month, gated by `is_premium` status).
 *   **Database Engine**: PostgreSQL (managed via Supabase) with RLS enabled.
-*   **Primary AI Engine**: OpenRouter using Gemma-4-26b-it (`google/gemma-4-26b-a4b-it:free`) + OpenAI `text-embedding-3-small` embeddings.
+*   **Primary AI Engine**: OpenRouter using Gemini 3.5 Flash Lite (`google/gemini-3.5-flash-lite`) + OpenAI `text-embedding-3-small` embeddings.
 
 ---
 
