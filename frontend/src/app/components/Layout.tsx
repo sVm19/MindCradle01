@@ -645,10 +645,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         <img
                           src="https://launchbison.com/badge-light.svg"
                           alt="Featured on Launchbison"
-                          width="198"
-                          height="62"
+                          width="102"
+                          height="32"
                           className="rounded shadow-md"
-                          style={{ height: "62px", display: "block" }}
+                          style={{ height: "32px", display: "block" }}
                         />
                       </a>
                     </div>
