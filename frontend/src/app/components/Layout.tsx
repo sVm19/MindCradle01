@@ -634,6 +634,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         />
                       </a>
                     </div>
+                    {/* Launchbison Badge */}
+                    <div className="transition-all duration-300 hover:scale-[1.02]">
+                      <a
+                        href="https://launchbison.com"
+                        target="_blank"
+                        rel="noopener"
+                        aria-label="Featured on Launchbison"
+                      >
+                        <img
+                          src="https://launchbison.com/badge-light.svg"
+                          alt="Featured on Launchbison"
+                          width="198"
+                          height="62"
+                          className="rounded shadow-md"
+                          style={{ height: "62px", display: "block" }}
+                        />
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>
