@@ -3155,16 +3155,20 @@ async def chat(
         persona_str = " ".join(persona_instructions)
 
         memory_instruction = (
-            "\n\nCRITICAL CONTEXT INJECTION RULE:\n"
-            "You MUST explicitly include at least one memory reference or pattern reference in your response. "
-            "Frame it using phrasings such as:\n"
-            "- 'I remember you said [X] about this'\n"
-            "- 'This is similar to when you mentioned [Y]'\n"
-            "- 'Last time, [Z] helped - remember?'\n"
-            "Reference the specific mood logs, journals, themes, past advice ratings, or user memories provided in the context."
+            "\n\nCONTEXT INJECTION GUIDELINE:\n"
+            "You can reference past context, user memory, or logging patterns (like journaling frequency or mood logs) naturally if relevant to the conversation. "
+            "Do NOT force memory references if the user's message is a greeting, basic small talk, or a simple question (e.g., 'who are you?'). "
+            "Keep the response gentle, warm, and natural."
         )
 
-        system_prompt += f"\n\nPERSONALIZED USER BEHAVIOR PROFILE: {persona_str}\n{memory_instruction}"
+        general_conversational_guideline = (
+            "\n\nGENERAL CONVERSATIONAL GUIDELINE:\n"
+            "If the user's input is a simple greeting (e.g. 'hello', 'hi'), an introductory question (e.g. 'who are you?', 'what do you do?'), or general small talk, "
+            "ignore complex validation styles or memory requirements. Simply introduce yourself warmly and naturally as ARIA, a supportive companion. "
+            "Keep questions extremely simple, gentle, and non-complex. Avoid any heavy diagnostic or therapeutic style. Keep it natural."
+        )
+
+        system_prompt += f"\n\nPERSONALIZED USER BEHAVIOR PROFILE: {persona_str}\n{memory_instruction}\n{general_conversational_guideline}"
 
         # Formulate rich context object for injection & context_used
         rich_context = {
