@@ -525,6 +525,25 @@ export default function Pricing() {
             </div>
           ))}
         </div>
+
+        {/* Horizontal banner to ask anything */}
+        <div className="w-full bg-gradient-to-r from-accent/15 via-rose/10 to-indigo/15 border border-border/70 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 mt-10 text-left">
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-text flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-accent animate-pulse" /> Ask anything about MindCradle
+            </h3>
+            <p className="text-xs text-text2 max-w-xl leading-relaxed">
+              Curious about how ARIA works, our privacy-first database, or the science behind our daily wellness rituals? Chat with ARIA to get instant answers.
+            </p>
+          </div>
+          <Link
+            to="/aria"
+            className="px-6 py-3 bg-gradient-to-r from-accent2 to-accent text-[#05020c] font-bold text-xs rounded-full hover:scale-102 hover:opacity-95 transition-all shadow-md shrink-0 flex items-center gap-2 min-h-[44px]"
+          >
+            <span>Ask ARIA AI</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
       </section>
 
       {/* Checkout/Payment Modal */}
