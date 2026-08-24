@@ -582,6 +582,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <Link to="/pricing" className="hover:text-text transition-all py-1">Pricing Plans</Link>
                   <Link to="/blog" className="hover:text-text transition-all py-1">Blog Articles</Link>
                   <Link to="/docs/introduction" className="hover:text-text transition-all py-1">Documentation</Link>
+                  <Link to="/faq" className="hover:text-text transition-all py-1">FAQ</Link>
                   <Link to="/articles" className="hover:text-text transition-all py-1">Resources</Link>
                 </div>
 

@@ -175,6 +175,7 @@ function AppRoutes() {
                 <Route path="/articles" element={<Resources />} />
                 <Route path="/blog" element={<Blog />} />
                 <Route path="/blog/:slug" element={<BlogPost />} />
+                <Route path="/faq" element={<Docs overrideSlug="faq" />} />
                 <Route path="/docs" element={<Docs />} />
                 <Route path="/docs/:slug" element={<Docs />} />
                 <Route path="/billing" element={<Billing />} />

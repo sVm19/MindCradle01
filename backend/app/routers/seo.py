@@ -43,6 +43,7 @@ async def get_sitemap_pages():
         {"path": "/about", "priority": "0.8", "changefreq": "monthly"},
         {"path": "/blog", "priority": "0.8", "changefreq": "daily"},
         {"path": "/docs", "priority": "0.8", "changefreq": "daily"},
+        {"path": "/faq", "priority": "0.8", "changefreq": "daily"},
         {"path": "/articles", "priority": "0.8", "changefreq": "weekly"},
         {"path": "/morning", "priority": "0.8", "changefreq": "daily"},
         {"path": "/mood", "priority": "0.8", "changefreq": "daily"},

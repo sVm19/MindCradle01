@@ -20,10 +20,14 @@ interface DocPage {
   modified_at: string;
 }
 
-export default function Docs() {
+interface DocsProps {
+  overrideSlug?: string;
+}
+
+export default function Docs({ overrideSlug }: DocsProps = {}) {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const activeSlug = slug || 'introduction';
+  const activeSlug = overrideSlug || slug || 'introduction';
 
   const [docList, setDocList] = useState<DocMeta[]>([]);
   const [activeDoc, setActiveDoc] = useState<DocPage | null>(null);

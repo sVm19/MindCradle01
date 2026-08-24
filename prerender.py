@@ -220,6 +220,38 @@ render_page("/about", "About Us — MindCradle", "Learn about the mission behind
 features_content = extract_tsx_content('Features')
 render_page("/features", "Features — MindCradle", "Explore MindCradle's key capabilities: Mood Tracking, Daily Rituals, Guided Journaling, and AI Insights.", features_content)
 
+# --- Articles ---
+articles_content = extract_tsx_content('Resources')
+render_page("/articles", "Resources & Articles — MindCradle", "Read articles about AI conversation memory limitations, context preservation, and the technology behind ARIA companion.", articles_content)
+
+# --- FAQ ---
+faq_doc = next((d for d in DOCS_PAGES if d["slug"] == "faq"), None)
+if faq_doc:
+    faq_body_html = md_to_html(faq_doc["content"])
+    faq_html = f"""
+<div style="display: flex; gap: 2rem; align-items: start;">
+  <nav style="width: 220px; flex-shrink: 0; background: rgba(255,255,255,0.02); padding: 1.25rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); font-size: 0.88rem;">
+    <h4 style="font-weight: 600; margin-top: 0; margin-bottom: 0.75rem;">Documentation</h4>
+    <ul style="list-style: none; padding: 0; margin: 0; line-height: 1.8;">
+      <li><a href="/docs" style="color: rgba(255,255,255,0.6); text-decoration: none;">Overview</a></li>
+"""
+    for d in DOCS_PAGES:
+        if not d.get("draft"):
+            faq_html += f'      <li><a href="/docs/{d["slug"]}" style="color: {"#8b7cf8" if d["slug"] == "faq" else "rgba(255,255,255,0.6)"}; text-decoration: none;">{d["title"]}</a></li>\n'
+            
+    faq_html += f"""
+    </ul>
+    <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05);">
+      <a href="/blog" style="color: rgba(255,255,255,0.6); text-decoration: none;">← Back to Blog</a>
+    </div>
+  </nav>
+  <div style="flex-grow: 1; min-width: 0; line-height: 1.8; font-size: 1rem; color: rgba(255,255,255,0.85);">
+    {faq_body_html}
+  </div>
+</div>
+"""
+    render_page("/faq", "Frequently Asked Questions — MindCradle", "Find answers to common wellness and technical questions about MindCradle.", faq_html)
+
 # --- Pricing (Curated Long-form HTML for rich E-E-A-T indexing) ---
 pricing_content = """
 <div class="pricing-header" style="text-align: center; margin-bottom: 2.5rem;">

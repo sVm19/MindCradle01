@@ -2392,6 +2392,14 @@ async def _select_response_type_internal(token: str, user_id: str, message: str)
         response_type = "COMPANY"
         reason = "User mood is very low and they feel lonely; providing supportive company without solving."
 
+    # Rule 1.5: cognitive distortions (absolute thinking, catastrophizing, failure statements)
+    elif any(kw in message_lower for kw in [
+        "always", "never", "ruined", "can't do", "nothing works", "everyone hates", "going to fail", "worst case", "failure",
+        "hopeless", "completely useless", "nobody cares", "everything is going wrong", "doomed"
+    ]):
+        response_type = "CBT_CHALLENGE"
+        reason = "User message exhibits signs of cognitive distortions or absolute thinking; triggering CBT Challenger mode."
+
     # Rule 2: anxious in the morning
     elif ("anxious" in last_emotions or "anxious" in message_lower or "panic" in message_lower or "stressed" in message_lower) and (5 <= datetime.now().hour < 12):
         response_type = "ACTION"
@@ -2775,7 +2783,7 @@ async def chat(
                     history_messages = filtered_messages[-10:]
 
         chosen_type = req.response_type
-        if not chosen_type or chosen_type not in ["rough_day_support", "active_listening", "calm_support", "VALIDATION", "ACTION", "INSIGHT", "COMPANY", "REFLECTION", "REMINDER"]:
+        if not chosen_type or chosen_type not in ["rough_day_support", "active_listening", "calm_support", "VALIDATION", "ACTION", "INSIGHT", "COMPANY", "REFLECTION", "REMINDER", "CBT_CHALLENGE"]:
             auto_res = await _select_response_type_internal(token, user_id, req.message)
             chosen_type = auto_res["response_type"]
 
@@ -3076,6 +3084,17 @@ async def chat(
                 "Respond using the REMINDER response style. Remind them of a specific situation where something worked for them in the past. "
                 "Use encouraging reminder phrasing such as: 'Remember when X helped you?'. "
                 "Keep responses encouraging, pattern-oriented, and supportive."
+            )
+        elif chosen_type == "CBT_CHALLENGE":
+            system_prompt = (
+                "You are ARIA, a quiet, warm, and grounding wellness companion inside MindCradle. "
+                "Do not sound like a clinical textbook, therapist, or doctor, but rather a caring, highly perceptive friend. "
+                "Instead of blindly validating or agreeing with absolute/negative thoughts, your goal is to help the user recognize cognitive distortions (like catastrophizing, all-or-nothing thinking, emotional reasoning, or personalization) and challenge them.\n"
+                "Follow these guidelines:\n"
+                "1. Acknowledge and validate their underlying emotion with warm empathy so they feel heard (e.g. 'It is completely natural to feel overwhelmed when everything feels like it's piling up...').\n"
+                "2. Gently point out the pattern, absolute framing, or distortion in their thought (e.g., 'I notice you're saying that you \"always\" fail or that \"nothing\" works. It sounds like all-or-nothing thinking...').\n"
+                "3. Offer a simple, supportive Thought restructuring table (using clean Markdown format) showing: automatic thought, cognitive distortion type, and a gentle balanced reframe to look at it differently.\n"
+                "4. Ask exactly one warm, gentle question at the end to help them transition into this new, balanced perspective."
             )
 
         # Inject memory insight context block into the system prompt
