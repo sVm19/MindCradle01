@@ -177,9 +177,10 @@ class SupabaseService:
     ) -> dict:
         def _call():
             client = _get_client(token)
-            query = client.table(collection).select("*")
-            
             p = params or {}
+            
+            select_fields = p.get("select", "*")
+            query = client.table(collection).select(select_fields, count="exact")
             
             # Apply pocketbase-style filter
             if "filter" in p:
@@ -194,14 +195,34 @@ class SupabaseService:
                     sort_field = sort_field[1:]
                 query = query.order(sort_field, desc=descending)
                 
-            # Apply pagination/limit
+            # Apply pagination/limit (PocketBase style)
             if "perPage" in p:
-                query = query.limit(int(p["perPage"]))
+                per_page = int(p["perPage"])
+                page = int(p.get("page", 1))
+                start = (page - 1) * per_page
+                end = start + per_page - 1
+                query = query.range(start, end)
                 
-            res = _execute_query(query)
+            try:
+                res = _execute_query(query)
+                total_items = res.count if res.count is not None else (len(res.data) if res.data else 0)
+            except Exception as e:
+                if "PGRST103" in str(e) or "range not satisfiable" in str(e).lower():
+                    # Fallback to get total count using a lightweight select query
+                    count_query = client.table(collection).select(select_fields.split(",")[0] if "," in select_fields else select_fields, count="exact").limit(0)
+                    if "filter" in p:
+                        count_query = _apply_filter(count_query, p["filter"])
+                    count_res = _execute_query(count_query)
+                    total_items = count_res.count or 0
+                    return {
+                        "items": [],
+                        "totalItems": total_items
+                    }
+                raise
+            
             return {
                 "items": res.data or [],
-                "totalItems": len(res.data) if res.data else 0
+                "totalItems": total_items
             }
         try:
             return await asyncio.to_thread(_call)

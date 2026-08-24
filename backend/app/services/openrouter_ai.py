@@ -1,4 +1,4 @@
-from openai import OpenAI, APITimeoutError, APIConnectionError, APIError
+from openai import OpenAI, APITimeoutError, APIConnectionError, APIError, APIStatusError
 from fastapi import HTTPException
 import asyncio
 import logging
@@ -7,6 +7,7 @@ from app.config import OPENROUTER_API_KEY, OPENROUTER_API_URL, OPENROUTER_MODEL
 logger = logging.getLogger(__name__)
 OPENROUTER_TIMEOUT = 30.0
 PRIMARY_OPENROUTER_MODEL = OPENROUTER_MODEL
+
 
 def _get_client() -> OpenAI:
     """Create an OpenAI client pointed at OpenRouter's API."""
@@ -19,14 +20,14 @@ def _get_client() -> OpenAI:
         },
     )
 
+
 # Fallback models ordered by priority if the primary model is rate limited
+# Restrained to only the primary model as requested: google/gemini-3.5-flash-lite
 FALLBACK_MODELS = [
     PRIMARY_OPENROUTER_MODEL,
-    "google/gemma-4-26b-a4b-it:free",
-    "openai/gpt-oss-20b:free",
-    "google/gemma-4-31b-it:free",
-    "nvidia/nemotron-3-nano-30b-a3b:free",
 ]
+
+
 async def chat_completion(
     messages: list[dict],
     *,
@@ -62,7 +63,9 @@ async def chat_completion(
             return completion.choices[0].message.content or ""
         except (APIConnectionError, APIError) as e:
             last_err = e
-            logger.warning(f"OpenRouter model {candidate} failed ({str(e)}). Trying fallback if available...")
+            logger.warning(
+                f"OpenRouter model {candidate} failed ({str(e)}). Trying fallback if available..."
+            )
             await asyncio.sleep(0.5)
             continue
         except APITimeoutError as e:
@@ -77,16 +80,34 @@ async def chat_completion(
     # If all candidates failed
     if isinstance(last_err, APITimeoutError):
         raise HTTPException(
-            status_code=504,
-            detail="AI service timeout. Please try again."
+            status_code=504, detail="AI service timeout. Please try again."
         )
-    raise HTTPException(
-        status_code=502,
-        detail="AI service unavailable"
-    )
+    elif isinstance(last_err, APIStatusError):
+        err_msg = "AI service unavailable"
+        if (
+            last_err.body
+            and isinstance(last_err.body, dict)
+            and "message" in last_err.body
+        ):
+            err_msg = last_err.body["message"]
+        elif getattr(last_err, "message", None):
+            err_msg = last_err.message
+
+        if last_err.status_code == 402:
+            raise HTTPException(
+                status_code=402, detail=f"OpenRouter credits exhausted: {err_msg}"
+            )
+        raise HTTPException(status_code=last_err.status_code, detail=err_msg)
+
+    raise HTTPException(status_code=502, detail="AI service unavailable")
 
 
-async def chat_completion_stream(messages: list[dict], *, system_prompt: str | None = None, model: str | None = None):
+async def chat_completion_stream(
+    messages: list[dict],
+    *,
+    system_prompt: str | None = None,
+    model: str | None = None,
+):
     """Stream a chat completion response with automatic model fallbacks."""
     client = _get_client()
 
@@ -97,6 +118,7 @@ async def chat_completion_stream(messages: list[dict], *, system_prompt: str | N
     candidate_models = [model] if model else FALLBACK_MODELS
     candidate_models = list(dict.fromkeys(candidate_models))
 
+    last_err = None
     for candidate in candidate_models:
         try:
             completion = client.chat.completions.create(
@@ -117,18 +139,41 @@ async def chat_completion_stream(messages: list[dict], *, system_prompt: str | N
                     yield delta.content
             return  # Stream finished successfully
         except Exception as e:
-            logger.warning(f"OpenRouter stream error on {candidate} ({str(e)}). Trying fallback...")
+            last_err = e
+            logger.warning(
+                f"OpenRouter stream error on {candidate} ({str(e)}). Trying fallback..."
+            )
             await asyncio.sleep(0.5)
             continue
 
     # If all candidates fail during stream initialization
-    raise HTTPException(
-        status_code=502,
-        detail="AI service unavailable"
-    )
+    if isinstance(last_err, APITimeoutError):
+        raise HTTPException(
+            status_code=504, detail="AI service timeout. Please try again."
+        )
+    elif isinstance(last_err, APIStatusError):
+        err_msg = "AI service unavailable"
+        if (
+            last_err.body
+            and isinstance(last_err.body, dict)
+            and "message" in last_err.body
+        ):
+            err_msg = last_err.body["message"]
+        elif getattr(last_err, "message", None):
+            err_msg = last_err.message
+
+        if last_err.status_code == 402:
+            raise HTTPException(
+                status_code=402, detail=f"OpenRouter credits exhausted: {err_msg}"
+            )
+        raise HTTPException(status_code=last_err.status_code, detail=err_msg)
+
+    raise HTTPException(status_code=502, detail="AI service unavailable")
 
 
-async def get_recommendation(mood_level: int, emotions: list[str], history_summary: str) -> str:
+async def get_recommendation(
+    mood_level: int, emotions: list[str], history_summary: str
+) -> str:
     """Generate a personalized resource recommendation based on mood data."""
     prompt = f"""Based on the following user mood data, recommend 2-3 specific resources from the available list:
 - Current mood level: {mood_level}/10

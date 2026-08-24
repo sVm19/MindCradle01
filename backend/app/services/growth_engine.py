@@ -157,10 +157,19 @@ class GrowthEngine:
             
             # Get event/conversion counts grouped by experiment + variant
             # Note: Since postgrest client is wrapper, we fetch assignments and events to aggregate in python safely
-            assigns_resp = await pb.list_records("ab_assignments", token=token, params={"perPage": 10000})
+            # We optimize by only selecting required columns to prevent massive memory usage.
+            assigns_resp = await pb.list_records(
+                "ab_assignments",
+                token=token,
+                params={"perPage": 10000, "select": "experiment_id,assigned_variant"}
+            )
             assignments = assigns_resp.get("items") or []
             
-            events_resp = await pb.list_records("growth_events", token=token, params={"perPage": 10000})
+            events_resp = await pb.list_records(
+                "growth_events",
+                token=token,
+                params={"perPage": 10000, "select": "experiment_id,variant,event_name,user_id"}
+            )
             events = events_resp.get("items") or []
             
             analytics = []
@@ -252,26 +261,50 @@ class GrowthEngine:
     async def get_funnel_analytics(self, token: str) -> List[Dict[str, Any]]:
         """Calculate funnel completion rates across all 7 steps of the onboarding/activation funnel."""
         try:
-            # 1. Fetch all users
-            profiles_resp = await pb.list_records("user_profiles", token=token, params={"perPage": 10000})
+            # 1. Fetch all users with only required columns
+            profiles_resp = await pb.list_records(
+                "user_profiles",
+                token=token,
+                params={"perPage": 10000, "select": "user_id,creem_subscription_id"}
+            )
             profiles = profiles_resp.get("items") or []
             total_registered = len(profiles)
             
-            moods_resp = await pb.list_records("mood_logs", token=token, params={"perPage": 10000})
+            moods_resp = await pb.list_records(
+                "mood_logs",
+                token=token,
+                params={"perPage": 10000, "select": "user_id"}
+            )
             mood_users = {m["user_id"] for m in (moods_resp.get("items") or [])}
             
-            morn_resp = await pb.list_records("morning_rituals", token=token, params={"perPage": 10000})
+            morn_resp = await pb.list_records(
+                "morning_rituals",
+                token=token,
+                params={"perPage": 10000, "select": "user_id"}
+            )
             morn_users = {mr["user_id"] for mr in (morn_resp.get("items") or [])}
             
-            wind_resp = await pb.list_records("wind_down_rituals", token=token, params={"perPage": 10000})
+            wind_resp = await pb.list_records(
+                "wind_down_rituals",
+                token=token,
+                params={"perPage": 10000, "select": "user_id"}
+            )
             wind_users = {wr["user_id"] for wr in (wind_resp.get("items") or [])}
             
-            chat_resp = await pb.list_records("ai_conversations", token=token, params={"perPage": 10000})
+            chat_resp = await pb.list_records(
+                "ai_conversations",
+                token=token,
+                params={"perPage": 10000, "select": "user_id"}
+            )
             chat_users = {c["user_id"] for c in (chat_resp.get("items") or [])}
             
             subscribed_users = {p["user_id"] for p in profiles if p.get("creem_subscription_id") is not None}
             
-            events_resp = await pb.list_records("growth_events", token=token, params={"perPage": 10000})
+            events_resp = await pb.list_records(
+                "growth_events",
+                token=token,
+                params={"perPage": 10000, "select": "id,event_name"}
+            )
             events = events_resp.get("items") or []
             guest_landings = len({e["id"] for e in events if e["event_name"] == "landing_viewed"})
             
