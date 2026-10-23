@@ -1,9 +1,16 @@
 #!/bin/sh
 
-# Check for environment variables in commits
-if git diff --cached | grep -E 'VITE_FIREBASE_API_KEY|JWT_SECRET|DATABASE_URL'; then
+# Reject environment files and non-empty values for known sensitive settings.
+# Variable declarations and Compose interpolation (for example, ${JWT_SECRET:-}) are safe.
+if git diff --cached --name-only --diff-filter=ACMR | grep -E '(^|/)\.env($|\.)' | grep -Ev '\.env\.(example|sample|template)$' >/dev/null; then
     echo "ERROR: Detected potential secrets in commit!"
-    echo "DO NOT commit .env files or credentials"
+    echo "Do not commit .env files. Add them to .gitignore and keep credentials out of Git."
+    exit 1
+fi
+
+if git diff --cached --unified=0 | grep -E '^\+[^+].*(VITE_FIREBASE_API_KEY|JWT_SECRET|DATABASE_URL)[[:space:]]*[:=][[:space:]]*[^$[:space:]#-][^[:space:]]*' >/dev/null; then
+    echo "ERROR: Detected a credential value in the staged changes!"
+    echo "Keep credentials out of Git; variable declarations and Compose interpolation are allowed."
     exit 1
 fi
 

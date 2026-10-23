@@ -72,7 +72,7 @@ def md_to_html(md_text):
             p_htmls.append(p)
         else:
             # Simple line break inside paragraphs
-            p_htmls.append(f"<p>{p.replace('\n', '<br>')}</p>")
+            p_htmls.append("<p>" + p.replace("\n", "<br>") + "</p>")
             
     return '\n'.join(p_htmls)
 

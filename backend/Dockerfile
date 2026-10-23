@@ -1,23 +1,21 @@
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
 FROM python:3.11-slim
 
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
 WORKDIR /app
+RUN groupadd --system app && useradd --system --gid app --create-home app
 
-# Install build deps for bcrypt, cryptography (pulled by supabase/firebase-admin)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        gcc \
-        libffi-dev \
-        libssl-dev \
-        python3-dev \
-    && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /install /usr/local
+COPY --chown=app:app . .
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
+USER app
 
 EXPOSE 8080
 
