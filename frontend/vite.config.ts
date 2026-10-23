@@ -20,9 +20,8 @@ export default defineConfig(({ mode }) => {
   // Load .env files for the current mode so we can read VITE_API_URL
   const env = loadEnv(mode, process.cwd(), '')
 
-  // In dev: proxy to local FastAPI. In production builds with a separate
-  // backend domain, set VITE_API_URL=https://mindcradle01-959765770210.europe-west1.run.app in .env.local
-  // (Vercel/Railway rewrites handle /api routing automatically in most setups).
+  // In dev: proxy to FastAPI backend (defaults to http://localhost:8000).
+  // In production builds with a separate backend domain, set VITE_API_URL in .env.
   const apiTarget = env.VITE_API_URL || 'http://localhost:8000'
 
   return {

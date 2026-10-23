@@ -19,10 +19,6 @@
 If you are writing code for MindCradle using an MCP-compatible IDE (like Cursor, VS Code, or Windsurf), the following servers allow direct environment control:
 
 - **Supabase Local MCP**: Used to run SQL migrations, inspect Postgres schema, or manage local testing databases.
-- **Cloud Run MCP**: Deployment control for the backend container image.
-  - Project ID: `mindcradle01` (Region: `europe-west1`)
-  - Target Service: `mindcradle01`
-  - Command: `gcloud run services update mindcradle01 --region=europe-west1 --update-env-vars ...`
 
 ---
 

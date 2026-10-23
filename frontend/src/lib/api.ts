@@ -4,17 +4,16 @@
  * and automatic JWT refresh on 401.
  *
  * Routing:
- *   Development — Vite proxy rewrites /api → http://localhost:8000
- *   Production  — Vercel rewrites /api → https://mindcradle01-959765770210.europe-west1.run.app
- *                 (configured in vercel.json) OR same-origin if collocated.
- *
- * All requests use relative /api paths so no VITE_API_URL is needed
- * in client-side code — the proxy/rewrite handles it transparently.
+ *   Development — Vite proxy rewrites /api → backend target (default http://localhost:8000)
+ *   Production  — Configurable via VITE_API_URL or proxied via same-origin reverse proxy (/api).
  */
 
 import { getCsrfToken, clearCsrfToken } from './csrf';
 
-const BASE = '/api';
+const rawApiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+const BASE = rawApiUrl
+  ? (rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`)
+  : '/api';
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
 

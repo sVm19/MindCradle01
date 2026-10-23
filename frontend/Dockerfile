@@ -32,7 +32,7 @@ RUN python prerender.py
 
 FROM nginxinc/nginx-unprivileged:1.30.6-alpine3.24-slim AS runtime
 
-ENV BACKEND_ORIGIN=https://mindcradle01-959765770210.europe-west1.run.app \
+ENV BACKEND_ORIGIN=http://backend:8080 \
     NGINX_ENVSUBST_FILTER=^BACKEND_ORIGIN$
 
 COPY frontend/nginx.conf.template /etc/nginx/templates/default.conf.template
