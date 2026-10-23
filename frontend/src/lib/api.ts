@@ -105,11 +105,15 @@ async function request<T>(
   body?: unknown,
   requiresAuth = true,
   _isRetry = false,
-  options?: { signal?: AbortSignal },
+  options?: { signal?: AbortSignal; headers?: Record<string, string> },
 ): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
+
+  if (options?.headers) {
+    Object.assign(headers, options.headers);
+  }
 
   // Always attach authorization header if we have a token, even if requiresAuth is false
   const token = getToken();
@@ -878,27 +882,49 @@ export const user = {
 // ─── Billing & Subscriptions ──────────────────────────────────────────────────
 
 export const billing = {
-  checkout: (cardNumber: string, cvc: string, expiry: string) =>
+  checkout: (cardNumber: string, cvc: string, expiry: string, idempotencyKey?: string) =>
     request<{
       status: string;
       message: string;
       is_premium: boolean;
       subscription_expires_at: string;
-    }>('POST', '/billing/checkout', {
-      card_number: cardNumber,
-      cvc,
-      expiry,
-    }),
+    }>(
+      'POST',
+      '/billing/checkout',
+      {
+        card_number: cardNumber,
+        cvc,
+        expiry,
+        ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
+      },
+      true,
+      false,
+      idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+    ),
 
   cancel: () =>
     request<{ status: string; message: string }>('POST', '/billing/cancel'),
 };
 
 export const payments = {
-  createCreemCheckout: () =>
-    request<{ checkout_url: string; error?: string }>('POST', '/payments/creem-checkout'),
-  startTrial: () =>
-    request<{ success: boolean; trial_ends_at: string; message: string; error?: string }>('POST', '/payments/start-trial'),
+  createCreemCheckout: (idempotencyKey?: string) =>
+    request<{ checkout_url: string; error?: string }>(
+      'POST',
+      '/payments/creem-checkout',
+      undefined,
+      true,
+      false,
+      idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+    ),
+  startTrial: (idempotencyKey?: string) =>
+    request<{ success: boolean; trial_ends_at: string; message: string; error?: string }>(
+      'POST',
+      '/payments/start-trial',
+      undefined,
+      true,
+      false,
+      idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+    ),
   trialStatus: () =>
     request<{ trial_active: boolean; days_remaining: number; trial_ends_at?: string; trial_used: boolean }>('GET', '/payments/trial-status'),
 };

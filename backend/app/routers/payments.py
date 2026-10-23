@@ -6,13 +6,15 @@ from fastapi import APIRouter, Header, HTTPException
 from app.config import CREEM_API_KEY, CREEM_API_URL, CREEM_PRODUCT_ID
 from app.services.supabase import pb, extract_user_id
 from app.core.security import generate_subscription_token
+from app.utils.idempotency import execute_idempotent
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/start-trial")
 async def start_trial(
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key")
 ):
     """Start 7-day free trial"""
     if not authorization:
@@ -22,49 +24,54 @@ async def start_trial(
     user_id = extract_user_id(token)
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
-        
-    try:
-        profile_resp = await pb.list_records(
-            "user_profiles",
-            token=token,
-            params={"filter": f'user_id="{user_id}"', "perPage": 1}
-        )
-        items = profile_resp.get("items") or []
-        
-        if items and items[0].get("trial_used"):
-            raise HTTPException(status_code=400, detail="Trial already used")
+
+    cache_key = f"trial:{user_id}:{idempotency_key}" if idempotency_key else None
+
+    async def _do_start_trial():
+        try:
+            profile_resp = await pb.list_records(
+                "user_profiles",
+                token=token,
+                params={"filter": f'user_id="{user_id}"', "perPage": 1}
+            )
+            items = profile_resp.get("items") or []
             
-        trial_started = datetime.now(timezone.utc)
-        trial_ends = trial_started + timedelta(days=7)
-        sub_token = generate_subscription_token(user_id, trial_ends)
-        
-        payload = {
-            "trial_started_at": trial_started.isoformat(),
-            "trial_ends_at": trial_ends.isoformat(),
-            "trial_used": True,
-            "trial_active": True,
-            "is_premium": True,
-            "subscription_expires_at": trial_ends.isoformat(),
-            "subscription_token": sub_token
-        }
-        
-        if items:
-            profile_id = items[0]["id"]
-            await pb.update_record("user_profiles", profile_id, payload, token=token)
-        else:
-            payload["user_id"] = user_id
-            await pb.create_record("user_profiles", payload, token=token)
+            if items and items[0].get("trial_used"):
+                raise HTTPException(status_code=400, detail="Trial already used")
+                
+            trial_started = datetime.now(timezone.utc)
+            trial_ends = trial_started + timedelta(days=7)
+            sub_token = generate_subscription_token(user_id, trial_ends)
             
-        return {
-            "success": True,
-            "trial_ends_at": trial_ends.isoformat(),
-            "message": "7-day trial started"
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Error starting trial: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+            payload = {
+                "trial_started_at": trial_started.isoformat(),
+                "trial_ends_at": trial_ends.isoformat(),
+                "trial_used": True,
+                "trial_active": True,
+                "is_premium": True,
+                "subscription_expires_at": trial_ends.isoformat(),
+                "subscription_token": sub_token
+            }
+            
+            if items:
+                profile_id = items[0]["id"]
+                await pb.update_record("user_profiles", profile_id, payload, token=token)
+            else:
+                payload["user_id"] = user_id
+                await pb.create_record("user_profiles", payload, token=token)
+                
+            return {
+                "success": True,
+                "trial_ends_at": trial_ends.isoformat(),
+                "message": "7-day trial started"
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error("Error starting trial: %s", e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    return await execute_idempotent(cache_key, _do_start_trial)
 
 @router.get("/trial-status")
 async def get_trial_status(
@@ -128,11 +135,13 @@ async def get_trial_status(
         logger.error("Error checking trial status: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.post("/creem-checkout")
 async def create_creem_checkout(
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key")
 ):
-    """Create Creem checkout session (after trial ends)"""
+    """Create Creem checkout session (after trial ends) with idempotency protection"""
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing authorization header")
         
@@ -140,72 +149,80 @@ async def create_creem_checkout(
     user_id = extract_user_id(token)
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
-        
-    try:
-        # Check if trial still active
-        profile_resp = await pb.list_records(
-            "user_profiles",
-            token=token,
-            params={"filter": f'user_id="{user_id}"', "perPage": 1}
-        )
-        items = profile_resp.get("items") or []
-        if items:
-            profile = items[0]
-            trial_active = bool(profile.get("trial_active"))
-            trial_ends_at_str = profile.get("trial_ends_at")
-            if trial_active and trial_ends_at_str:
-                trial_ends_at = datetime.fromisoformat(trial_ends_at_str.replace("Z", "+00:00"))
-                if datetime.now(timezone.utc) < trial_ends_at:
-                    raise HTTPException(status_code=400, detail="Trial is still active")
-                    
-        payload = {
-            "product_id": CREEM_PRODUCT_ID,
-            "success_url": "https://mindcradle.online/billing/success",
-            "metadata": {
-                "user_id": user_id
-            }
-        }
-        
-        headers = {
-            "x-api-key": CREEM_API_KEY,
-            "Content-Type": "application/json"
-        }
-        
-        base_url = CREEM_API_URL.rstrip('/')
-        if "/v1/" in base_url or "/checkout" in base_url:
-            endpoint = base_url
-        else:
-            endpoint = f"{base_url}/v1/checkouts"
-            
-        logger.info("Creating Creem checkout session via endpoint: %s", endpoint)
-        
+
+    cache_key = f"creem:{user_id}:{idempotency_key}" if idempotency_key else None
+
+    async def _do_create_creem_checkout():
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    endpoint,
-                    json=payload,
-                    headers=headers,
-                    timeout=10.0
-                )
-        except httpx.RequestError as exc:
-            logger.error("Connection error while contacting Creem API: %s", exc)
-            return {"error": "Payment gateway communication failed. Please try again."}
+            # Check if trial still active
+            profile_resp = await pb.list_records(
+                "user_profiles",
+                token=token,
+                params={"filter": f'user_id="{user_id}"', "perPage": 1}
+            )
+            items = profile_resp.get("items") or []
+            if items:
+                profile = items[0]
+                trial_active = bool(profile.get("trial_active"))
+                trial_ends_at_str = profile.get("trial_ends_at")
+                if trial_active and trial_ends_at_str:
+                    trial_ends_at = datetime.fromisoformat(trial_ends_at_str.replace("Z", "+00:00"))
+                    if datetime.now(timezone.utc) < trial_ends_at:
+                        raise HTTPException(status_code=400, detail="Trial is still active")
+                        
+            payload = {
+                "product_id": CREEM_PRODUCT_ID,
+                "success_url": "https://mindcradle.online/billing/success",
+                "metadata": {
+                    "user_id": user_id,
+                    "idempotency_key": idempotency_key or ""
+                }
+            }
             
-        if response.status_code == 200:
-            data = response.json()
-            checkout_url = data.get("checkout_url") or data.get("url")
-            if not checkout_url:
-                logger.error("Creem response missing checkout_url: %s", data)
-                return {"error": "Payment provider did not return a checkout URL"}
-            # Route directly to www.creem.io to bypass Vercel's 308 redirect and avoid ERR_HTTP2_PING_FAILED
-            if checkout_url.startswith("https://creem.io"):
-                checkout_url = checkout_url.replace("https://creem.io", "https://www.creem.io", 1)
-            return {"checkout_url": checkout_url}
-        else:
-            logger.error("Creem checkout creation failed: %s %s", response.status_code, response.text)
-            return {"error": response.text}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Unexpected error in create_creem_checkout: %s", e)
-        return {"error": str(e)}
+            headers = {
+                "x-api-key": CREEM_API_KEY,
+                "Content-Type": "application/json"
+            }
+            if idempotency_key:
+                headers["Idempotency-Key"] = idempotency_key
+            
+            base_url = CREEM_API_URL.rstrip('/')
+            if "/v1/" in base_url or "/checkout" in base_url:
+                endpoint = base_url
+            else:
+                endpoint = f"{base_url}/v1/checkouts"
+                
+            logger.info("Creating Creem checkout session via endpoint: %s (idempotency_key=%s)", endpoint, idempotency_key)
+            
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        endpoint,
+                        json=payload,
+                        headers=headers,
+                        timeout=10.0
+                    )
+            except httpx.RequestError as exc:
+                logger.error("Connection error while contacting Creem API: %s", exc)
+                return {"error": "Payment gateway communication failed. Please try again."}
+                
+            if response.status_code == 200:
+                data = response.json()
+                checkout_url = data.get("checkout_url") or data.get("url")
+                if not checkout_url:
+                    logger.error("Creem response missing checkout_url: %s", data)
+                    return {"error": "Payment provider did not return a checkout URL"}
+                # Route directly to www.creem.io to bypass Vercel's 308 redirect and avoid ERR_HTTP2_PING_FAILED
+                if checkout_url.startswith("https://creem.io"):
+                    checkout_url = checkout_url.replace("https://creem.io", "https://www.creem.io", 1)
+                return {"checkout_url": checkout_url}
+            else:
+                logger.error("Creem checkout creation failed: %s %s", response.status_code, response.text)
+                return {"error": response.text}
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error("Unexpected error in create_creem_checkout: %s", e)
+            return {"error": str(e)}
+
+    return await execute_idempotent(cache_key, _do_create_creem_checkout)

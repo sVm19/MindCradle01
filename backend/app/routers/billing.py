@@ -7,6 +7,7 @@ from fastapi import APIRouter, Header, HTTPException, status
 from app.models.schemas import SubscriptionCheckoutRequest
 from app.services.supabase import pb, extract_user_id
 from app.core.security import generate_subscription_token
+from app.utils.idempotency import execute_idempotent
 
 router = APIRouter()
 
@@ -50,7 +51,8 @@ def validate_card_details(card_number: str, cvc: str, expiry: str):
 @router.post("/checkout")
 async def checkout(
     req: SubscriptionCheckoutRequest,
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key")
 ):
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing authorization header")
@@ -60,74 +62,81 @@ async def checkout(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    # Securely validate payment details
+    # Resolve idempotency key from header or request payload
+    effective_idempotency_key = idempotency_key or req.idempotency_key
+    cache_key = f"billing:{user_id}:{effective_idempotency_key}" if effective_idempotency_key else None
+
+    # Securely validate payment details prior to executing transaction
     validate_card_details(req.card_number, req.cvc, req.expiry)
 
-    # Calculate expiration date (30 days from now)
-    expires_at = datetime.now(timezone.utc) + timedelta(days=30)
-    
-    # Generate cryptographic signature
-    sub_token = generate_subscription_token(user_id, expires_at)
-
-    # Fetch current user profile to modify
-    try:
-        profile_resp = await pb.list_records(
-            "user_profiles",
-            token=token,
-            params={"filter": f'user_id="{user_id}"', "perPage": 1}
-        )
-        items = profile_resp.get("items") or []
+    async def _do_checkout():
+        # Calculate expiration date (30 days from now)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
         
-        payload = {
-            "is_premium": True,
-            "subscription_expires_at": expires_at.isoformat(),
-            "subscription_token": sub_token
-        }
+        # Generate cryptographic signature
+        sub_token = generate_subscription_token(user_id, expires_at)
 
-        if items:
-            profile_id = items[0]["id"]
-            # Fallback handling in case columns are missing
-            try:
-                await pb.update_record("user_profiles", profile_id, payload, token=token)
-            except Exception:
-                # Fallback: Save within unlocked_badges JSONB array
-                current_badges = items[0].get("unlocked_badges") or []
-                if not isinstance(current_badges, list):
-                    current_badges = []
-                
-                # Filter out old subscriptions
-                current_badges = [b for b in current_badges if not (isinstance(b, dict) and b.get("type") == "subscription")]
-                current_badges.append({
-                    "type": "subscription",
-                    "token": sub_token,
-                    "expires_at": expires_at.isoformat()
-                })
-                await pb.update_record("user_profiles", profile_id, {"unlocked_badges": current_badges}, token=token)
-        else:
-            # Create profile
-            try:
-                payload["user_id"] = user_id
-                await pb.create_record("user_profiles", payload, token=token)
-            except Exception:
-                # Fallback
-                new_payload = {
-                    "user_id": user_id,
-                    "unlocked_badges": [{
+        # Fetch current user profile to modify
+        try:
+            profile_resp = await pb.list_records(
+                "user_profiles",
+                token=token,
+                params={"filter": f'user_id="{user_id}"', "perPage": 1}
+            )
+            items = profile_resp.get("items") or []
+            
+            payload = {
+                "is_premium": True,
+                "subscription_expires_at": expires_at.isoformat(),
+                "subscription_token": sub_token
+            }
+
+            if items:
+                profile_id = items[0]["id"]
+                # Fallback handling in case columns are missing
+                try:
+                    await pb.update_record("user_profiles", profile_id, payload, token=token)
+                except Exception:
+                    # Fallback: Save within unlocked_badges JSONB array
+                    current_badges = items[0].get("unlocked_badges") or []
+                    if not isinstance(current_badges, list):
+                        current_badges = []
+                    
+                    # Filter out old subscriptions
+                    current_badges = [b for b in current_badges if not (isinstance(b, dict) and b.get("type") == "subscription")]
+                    current_badges.append({
                         "type": "subscription",
                         "token": sub_token,
                         "expires_at": expires_at.isoformat()
-                    }]
-                }
-                await pb.create_record("user_profiles", new_payload, token=token)
+                    })
+                    await pb.update_record("user_profiles", profile_id, {"unlocked_badges": current_badges}, token=token)
+            else:
+                # Create profile
+                try:
+                    payload["user_id"] = user_id
+                    await pb.create_record("user_profiles", payload, token=token)
+                except Exception:
+                    # Fallback
+                    new_payload = {
+                        "user_id": user_id,
+                        "unlocked_badges": [{
+                            "type": "subscription",
+                            "token": sub_token,
+                            "expires_at": expires_at.isoformat()
+                        }]
+                    }
+                    await pb.create_record("user_profiles", new_payload, token=token)
 
-        return {
-            "status": "success",
-            "message": "Subscription activated successfully",
-            "is_premium": True,
-            "subscription_expires_at": expires_at.isoformat()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+            return {
+                "status": "success",
+                "message": "Subscription activated successfully",
+                "is_premium": True,
+                "subscription_expires_at": expires_at.isoformat()
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+    return await execute_idempotent(cache_key, _do_checkout)
 
 @router.post("/cancel")
 async def cancel(

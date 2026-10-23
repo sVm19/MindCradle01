@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Check, Star, HelpCircle, ArrowRight, Sparkles, CreditCard, Lock, RefreshCw, X } from 'lucide-react';
 import { Link } from 'react-router';
 import { useAuth } from '@/lib/auth';
 import SEO from '@/app/components/SEO';
 import { billing, payments, profile as profileApi, type ProfileResponse } from '@/lib/api';
+import { generateIdempotencyKey } from '@/lib/useIdempotency';
 
 function TrialCountdown({ endsAt }: { endsAt: string }) {
   const [timeLeft, setTimeLeft] = useState<{
@@ -101,6 +102,10 @@ export default function Pricing() {
   const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
 
+  // Synchronous mutex lock and idempotency key for checkout submission
+  const isCheckoutSubmittingRef = useRef(false);
+  const checkoutIdempotencyKeyRef = useRef<string>(generateIdempotencyKey());
+
   // Cancellation modal states
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -159,17 +164,24 @@ export default function Pricing() {
     return v;
   };
 
-  // Submit checkout handler
+  // Submit checkout handler with idempotency protection
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isCheckoutSubmittingRef.current || processing) {
+      return;
+    }
+
+    isCheckoutSubmittingRef.current = true;
     setPaymentError(null);
     setPaymentSuccess(null);
     setProcessing(true);
 
     try {
-      const res = await billing.checkout(cardNumber, cvc, expiry);
+      const idempotencyKey = checkoutIdempotencyKeyRef.current;
+      const res = await billing.checkout(cardNumber, cvc, expiry, idempotencyKey);
       if (res.status === 'success') {
         setPaymentSuccess('Your Premium subscription has been successfully activated!');
+        checkoutIdempotencyKeyRef.current = generateIdempotencyKey();
         // Reload user profile
         const updatedProfile = await profileApi.get();
         setProfileData(updatedProfile);
@@ -182,10 +194,13 @@ export default function Pricing() {
         }, 2000);
       } else {
         setPaymentError(res.message || 'Payment verification failed.');
+        checkoutIdempotencyKeyRef.current = generateIdempotencyKey();
       }
     } catch (err: any) {
       setPaymentError(err.message || 'Failed to process payment. Please verify card credentials.');
+      checkoutIdempotencyKeyRef.current = generateIdempotencyKey();
     } finally {
+      isCheckoutSubmittingRef.current = false;
       setProcessing(false);
     }
   };
@@ -643,11 +658,15 @@ export default function Pricing() {
                 <button
                   type="submit"
                   disabled={processing}
-                  className="flex-1 h-[44px] text-white rounded-xl text-sm font-semibold transition-all hover:brightness-110 flex items-center justify-center gap-2 cursor-pointer"
+                  aria-busy={processing}
+                  className="flex-1 h-[44px] text-white rounded-xl text-sm font-semibold transition-all hover:brightness-110 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:pointer-events-none select-none"
                   style={{ backgroundColor: "#E94B6F" }}
                 >
                   {processing ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Processing Payment...</span>
+                    </>
                   ) : (
                     'Activate Trial'
                   )}

@@ -545,6 +545,7 @@ class SubscriptionCheckoutRequest(BaseModel):
     card_number: str
     cvc: str
     expiry: str
+    idempotency_key: Optional[str] = None
 
 
 # --- Notifications ---

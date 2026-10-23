@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router';
 import { useAuth } from '@/lib/auth';
 import { payments, profile as profileApi } from '@/lib/api';
 import { Loader2, ShieldCheck, AlertCircle, Sparkles, ArrowLeft, Check, Lock } from 'lucide-react';
 import GuestGate from '@/app/components/GuestGate';
+import { generateIdempotencyKey } from '@/lib/useIdempotency';
 
 export default function Billing() {
   const { user } = useAuth();
@@ -17,6 +18,12 @@ export default function Billing() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  // Synchronous mutex lock to immediately block concurrent/rapid clicks
+  const isActionLockedRef = useRef(false);
+  const checkoutIdempotencyKeyRef = useRef<string>(generateIdempotencyKey());
+  const trialIdempotencyKeyRef = useRef<string>(generateIdempotencyKey());
+
   const [trialStatus, setTrialStatus] = useState<{
     trial_active: boolean;
     days_remaining: number;
@@ -63,17 +70,31 @@ export default function Billing() {
   }, [user, searchParams]);
 
   const handleCreemCheckout = async () => {
+    // Synchronous mutex lock: if already processing or locked, drop redundant clicks immediately
+    if (isActionLockedRef.current || processing) {
+      return;
+    }
+
+    isActionLockedRef.current = true;
     setProcessing(true);
     setError('');
     setMessage('Connecting to Creem...');
+
     try {
-      const res = await payments.createCreemCheckout();
+      const idempotencyKey = checkoutIdempotencyKeyRef.current;
+      const res = await payments.createCreemCheckout(idempotencyKey);
       if (res.error) {
         setError(res.error);
         setProcessing(false);
+        isActionLockedRef.current = false;
+        // On failure, rotate the idempotency key so the user can safely retry
+        checkoutIdempotencyKeyRef.current = generateIdempotencyKey();
         return;
       }
       if (res.checkout_url) {
+        setMessage('Redirecting to secure Creem checkout...');
+        // Note: Keep isActionLockedRef.current = true and processing = true so the button
+        // remains locked while the browser navigates to the external payment URL
         window.location.href = res.checkout_url;
       } else {
         throw new Error('No checkout URL returned.');
@@ -81,18 +102,29 @@ export default function Billing() {
     } catch (err: any) {
       setError(err.message || 'Failed to create subscription checkout session.');
       setProcessing(false);
+      isActionLockedRef.current = false;
+      checkoutIdempotencyKeyRef.current = generateIdempotencyKey();
     }
   };
 
   const handleStartTrial = async () => {
+    if (isActionLockedRef.current || processing) {
+      return;
+    }
+
+    isActionLockedRef.current = true;
     setProcessing(true);
     setError('');
     setMessage('Starting your 7-day free trial...');
+
     try {
-      const res = await payments.startTrial();
+      const idempotencyKey = trialIdempotencyKeyRef.current;
+      const res = await payments.startTrial(idempotencyKey);
       if (res.error) {
         setError(res.error);
         setProcessing(false);
+        isActionLockedRef.current = false;
+        trialIdempotencyKeyRef.current = generateIdempotencyKey();
         return;
       }
       if (res.success) {
@@ -105,11 +137,14 @@ export default function Billing() {
           trial_used: true
         });
         setMessage('Your 7-day Premium trial is now active! Enjoy unlimited features.');
+        trialIdempotencyKeyRef.current = generateIdempotencyKey();
       }
     } catch (err: any) {
       setError(err.message || 'Failed to start trial.');
+      trialIdempotencyKeyRef.current = generateIdempotencyKey();
     } finally {
       setProcessing(false);
+      isActionLockedRef.current = false;
     }
   };
 
@@ -259,25 +294,45 @@ export default function Billing() {
             <div className="pt-6 border-t border-border/80 space-y-4">
               {!trialStatus.trial_used ? (
                 <button
+                  type="button"
                   onClick={handleStartTrial}
                   disabled={processing}
-                  className="w-full h-[54px] bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2.5 transition-all shadow-lg cursor-pointer"
+                  aria-busy={processing}
+                  className="w-full h-[54px] bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2.5 transition-all shadow-lg cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:pointer-events-none disabled:transform-none select-none"
                 >
-                  <span className="font-semibold tracking-tight">Start 7-Day Free Trial</span>
+                  {processing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 shrink-0 animate-spin" />
+                      <span className="font-semibold tracking-tight">Activating Trial...</span>
+                    </>
+                  ) : (
+                    <span className="font-semibold tracking-tight">Start 7-Day Free Trial</span>
+                  )}
                 </button>
               ) : (
                 <button
+                  type="button"
                   onClick={handleCreemCheckout}
                   disabled={processing}
-                  className="w-full h-[54px] bg-gradient-to-r from-violet-600 via-indigo-600 to-accent text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2.5 transition-all duration-300 shadow-lg hover:shadow-[0_0_24px_rgba(139,92,246,0.35)] hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                  aria-busy={processing}
+                  className="w-full h-[54px] bg-gradient-to-r from-violet-600 via-indigo-600 to-accent text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2.5 transition-all duration-300 shadow-lg hover:shadow-[0_0_24px_rgba(139,92,246,0.35)] hover:scale-[1.01] active:scale-[0.99] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:pointer-events-none disabled:transform-none select-none"
                 >
-                  {/* Premium Credit Card SVG Monogram */}
-                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="5" width="20" height="14" rx="2" />
-                    <line x1="2" y1="10" x2="22" y2="10" />
-                    <path d="M6 14h.01M10 14h2" />
-                  </svg>
-                  <span className="font-semibold tracking-tight">Pay with Creem</span>
+                  {processing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 shrink-0 animate-spin" />
+                      <span className="font-semibold tracking-tight">Connecting to Creem...</span>
+                    </>
+                  ) : (
+                    <>
+                      {/* Premium Credit Card SVG Monogram */}
+                      <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="5" width="20" height="14" rx="2" />
+                        <line x1="2" y1="10" x2="22" y2="10" />
+                        <path d="M6 14h.01M10 14h2" />
+                      </svg>
+                      <span className="font-semibold tracking-tight">Pay with Creem</span>
+                    </>
+                  )}
                 </button>
               )}
               

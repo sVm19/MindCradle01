@@ -1,3 +1,15 @@
+import socket
+
+# Prioritize IPv4 over IPv6 to avoid Windows/ISP network handshake and read timeouts on external APIs
+_orig_getaddrinfo = socket.getaddrinfo
+
+def _ipv4_preferred_getaddrinfo(*args, **kwargs):
+    responses = _orig_getaddrinfo(*args, **kwargs)
+    ipv4 = [r for r in responses if r[0] == socket.AF_INET]
+    return ipv4 if ipv4 else responses
+
+socket.getaddrinfo = _ipv4_preferred_getaddrinfo
+
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
