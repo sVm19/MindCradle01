@@ -45,18 +45,6 @@ export default function Login() {
         }
 
         await loginWithGoogleCode(codeResponse.code);
-
-        try {
-          const verificationStatus = await authApi.checkAgeVerified();
-          if (verificationStatus.age_verified) {
-            localStorage.setItem('age_verified', 'true');
-          } else {
-            setVerifyModalOpen(true);
-          }
-        } catch {
-          setVerifyModalOpen(true);
-        }
-
         navigate('/', { replace: true });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Google authentication failed.');

@@ -24,12 +24,8 @@ export default function Settings() {
   const [isExporting, setIsExporting] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
 
-  const [ageVerified, setAgeVerified] = useState(false);
-  const [ageVerifiedAt, setAgeVerifiedAt] = useState<string | null>(null);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [privacyAcceptedAt, setPrivacyAcceptedAt] = useState<string | null>(null);
-  const [isChangingAge, setIsChangingAge] = useState(false);
-  const [ageError, setAgeError] = useState<string | null>(null);
 
   const [isPolicyOpen, setIsPolicyOpen] = useState(false);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
@@ -81,14 +77,6 @@ export default function Settings() {
           console.error('Failed to load profile:', err);
         }
       });
-
-    // Fetch age verification from DB
-    authApi.checkAgeVerified()
-      .then((res) => {
-        setAgeVerified(res.age_verified);
-        setAgeVerifiedAt(res.verified_at);
-      })
-      .catch(() => { });
 
     // Fetch privacy acceptance from DB, fallback to localStorage
     authApi.checkPrivacy()
@@ -154,28 +142,6 @@ export default function Settings() {
       if (key === 'memories') setWidgetMemories(!value);
       if (key === 'aria') setWidgetAriaPersonalized(!value);
       if (key === 'sensitive') setWidgetSensitive(!value);
-    }
-  };
-
-  const handleToggleAgeVerification = async () => {
-    setIsChangingAge(true);
-    setAgeError(null);
-    const newStatus = !ageVerified;
-    try {
-      const res = await authApi.verifyAge(newStatus);
-      setAgeVerified(res.verified);
-      localStorage.setItem('age_verified', res.verified ? 'true' : 'false');
-      if (res.verified) {
-        const check = await authApi.checkAgeVerified();
-        setAgeVerifiedAt(check.verified_at);
-      } else {
-        setAgeVerifiedAt(null);
-      }
-    } catch (err) {
-      setAgeError(err instanceof Error ? err.message : 'Failed to update age verification.');
-      setTimeout(() => setAgeError(null), 8000);
-    } finally {
-      setIsChangingAge(false);
     }
   };
 
@@ -450,37 +416,6 @@ startxref
                 <span className={`text-xs font-semibold uppercase tracking-wider ${privacyAccepted ? 'text-green' : 'text-text3'}`}>
                   {privacyAccepted ? 'Accepted' : 'Not accepted'}
                 </span>
-              </div>
-
-              {/* Age Verification Info */}
-              <div className="flex items-center justify-between gap-4 text-sm pt-2 border-t border-border/40">
-                <div className="space-y-1">
-                  <div className="text-text2 font-medium flex items-center gap-1.5">
-                    <CheckCircle size={15} className={ageVerified ? 'text-green' : 'text-text3'} />
-                    <span>Age Verification State</span>
-                  </div>
-                  <div className="text-xs text-text3 flex items-center gap-1">
-                    <Clock size={12} />
-                    <span>{ageVerifiedAt ? `Verified on ${new Date(ageVerifiedAt).toLocaleDateString()}` : 'Not verified'}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {ageError && (
-                    <span className="text-xs text-rose font-medium animate-fadeIn max-w-[200px] text-right">
-                      {ageError}
-                    </span>
-                  )}
-                  <span className={`text-xs font-semibold uppercase tracking-wider ${ageVerified ? 'text-green' : 'text-text3'}`}>
-                    {ageVerified ? 'Verified (18+)' : 'Under 18'}
-                  </span>
-                  <button
-                    onClick={handleToggleAgeVerification}
-                    disabled={isChangingAge}
-                    className="px-3 py-1.5 bg-bg3 hover:bg-bg4 border border-border text-text2 hover:text-text rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                  >
-                    {isChangingAge ? 'Updating...' : ageVerified ? 'Change to Under 18' : 'Verify as 18+'}
-                  </button>
-                </div>
               </div>
 
               {/* Data Collection summary */}

@@ -6,7 +6,6 @@ import type { ResourceItem, MoodItem, JournalItem } from '@/lib/api';
 import { useAuth, getInitials, getAvatarGradient, UserSketchAvatar } from '@/lib/auth';
 import { useARIA } from '@/context/ARIAContext';
 import { Lock, Heart, Brain, Target, Lightbulb, Sparkles, Phone, MessageSquare, ThumbsUp, ThumbsDown, Meh, Wind, PhoneCall, X, Zap, Flower2, AlignLeft, HeartHandshake, Search, Pause } from 'lucide-react';
-import AgeVerificationModal from '@/app/components/AgeVerificationModal';
 import { auth as authApi } from '@/lib/api';
 import GuestGate from '@/app/components/GuestGate';
 import Logo from '@/app/components/Logo';
@@ -53,7 +52,7 @@ const renderMessageContent = (content: string) => {
 };
 
 export default function ARIA() {
-  const { user, setVerifyModalOpen, verifyModalOpen, setAuthModalOpen } = useAuth();
+  const { user, setAuthModalOpen } = useAuth();
   const navigate = useNavigate();
   const initials = user ? getInitials(user.name || user.email) : '?';
 
@@ -67,7 +66,6 @@ export default function ARIA() {
     clearARIAConversation,
   } = useARIA();
 
-  const [ageVerified, setAgeVerified] = useState<boolean | null>(null);
   const [isPremium, setIsPremium] = useState(false);
   const [linguisticShift, setLinguisticShift] = useState<string | null>(null);
   const [discovery, setDiscovery] = useState<any | null>(null);
@@ -149,10 +147,7 @@ export default function ARIA() {
   };
 
   const handleApiError = (err: any) => {
-    const errorMsg = (err as any)?.response?.data?.detail || (err as Error)?.message || "";
-    if (errorMsg.includes("Age verification") || errorMsg.includes("403") || errorMsg.includes("age_restricted")) {
-      setAgeVerified(false);
-    }
+    console.error("ARIA error:", err);
   };
 
   const handleSearchHistory = async (query: string) => {
@@ -273,17 +268,8 @@ export default function ARIA() {
   // Fetch resources, mood logs, journals, and memory insights on mount
   useEffect(() => {
     if (!user) return;
-    authApi.checkAgeVerified()
-      .then((res) => {
-        setAgeVerified(res.age_verified);
-        if (res.age_verified) {
-          loadAriaData();
-        }
-      })
-      .catch(() => {
-        setAgeVerified(false);
-      });
-  }, [user, verifyModalOpen]);
+    loadAriaData();
+  }, [user]);
 
   // Auto-scroll on new message
   useEffect(() => {
@@ -366,10 +352,6 @@ export default function ARIA() {
         return;
       }
       const errorMsg = (err as any)?.response?.data?.detail || (err as Error)?.message || "I'm having trouble connecting right now. Please try again in a moment.";
-      if (errorMsg.includes("Age verification") || errorMsg.includes("403") || errorMsg.includes("age_restricted")) {
-        setAgeVerified(false);
-        setVerifyModalOpen(true);
-      }
       setMessages((prev) => [...prev, { role: 'aria', content: errorMsg }]);
     } finally {
       if (abortControllerRef.current === controller) {
@@ -662,50 +644,6 @@ export default function ARIA() {
         description="Your private AI companion. Safe, compassionate, and ready to help you organize your thoughts and reflect on your day."
         icon={<Brain className="w-8 h-8 text-accent animate-pulse" />}
       />
-    );
-  }
-
-  if (ageVerified === null) {
-    return (
-      <div className="min-h-[400px] flex flex-col items-center justify-center animate-fadeIn gap-3">
-        <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
-        <p className="text-sm text-text3">Checking access...</p>
-      </div>
-    );
-  }
-
-  if (ageVerified === false) {
-    return (
-      <div style={{ textAlign: 'center', padding: '2rem' }} className="max-w-[600px] mx-auto mt-12 p-8 bg-bg2/40 backdrop-blur-md border border-rose/30 rounded-[24px] text-center space-y-6 animate-fadeIn">
-        <h1>ARIA is not available for you</h1>
-        <p>ARIA is designed for users 18 and older.</p>
-        <p>If you need support, please reach out:</p>
-
-        <div className="bg-bg3/50 border border-border rounded-xl p-4 space-y-3 text-left max-w-md mx-auto my-4">
-          <a
-            href="tel:988"
-            className="flex items-center gap-3 px-3 py-2 bg-rose/15 border border-rose/30 rounded-lg text-rose text-sm w-full"
-          >
-            <Phone size={16} />
-            <div>
-              <div className="font-semibold text-xs text-text">988 Suicide & Crisis Lifeline</div>
-              <div className="text-[10px] opacity-85">Call or Text 988 (Free, Confidential, 24/7)</div>
-            </div>
-          </a>
-          <a
-            href="sms:741741?&body=HOME"
-            className="flex items-center gap-3 px-3 py-2 bg-indigo/15 border border-indigo/30 rounded-lg text-indigo-400 text-sm w-full"
-          >
-            <MessageSquare size={16} />
-            <div>
-              <div className="font-semibold text-xs text-text">Crisis Text Line</div>
-              <div className="text-[10px] opacity-85">Text HOME to 741741 (Free, 24/7)</div>
-            </div>
-          </a>
-        </div>
-
-        <button onClick={() => navigate('/dashboard')} className="px-6 py-2.5 bg-bg3 hover:bg-bg4 border border-border text-text hover:text-white rounded-xl text-xs font-semibold transition-all cursor-pointer">Back to Dashboard</button>
-      </div>
     );
   }
 

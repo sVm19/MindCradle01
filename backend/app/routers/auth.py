@@ -35,7 +35,7 @@ from app.utils.email import (
     send_signup_welcome,
     send_magic_link_email,
 )
-from app.services.supabase import pb, extract_user_id
+from app.services.supabase import pb, extract_user_id, _get_client
 from app import config as settings
 
 
@@ -152,66 +152,15 @@ async def get_me():
 
 
 @router.get("/check-age-verified")
-async def check_age_verified(
-    authorization: Optional[str] = Header(None)
-):
-    """Check if current user is age verified from user_age_verification."""
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Missing authorization token")
-    
-    token = authorization.removeprefix("Bearer ").strip()
-    user_id = extract_user_id(token)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token")
-        
-    try:
-        res = await pb.list_records("user_age_verification", token=token, params={"filter": f'user_id="{user_id}"', "perPage": 1})
-        items = res.get("items") or []
-        if items:
-            item = items[0]
-            return {
-                "age_verified": item.get("age_verified", False),
-                "verified_at": item.get("verified_at")
-            }
-        return {"age_verified": False, "verified_at": None}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to check verification status: {str(e)}")
+async def check_age_verified():
+    """Always return verified since age verification system is detached."""
+    return {"age_verified": True, "verified_at": None}
 
 
 @router.post("/verify-age")
-async def verify_age(
-    req: AriaAgeVerifyRequest,
-    authorization: Optional[str] = Header(None)
-):
-    """Verify age for the current user in user_age_verification."""
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Missing authorization token")
-        
-    token = authorization.removeprefix("Bearer ").strip()
-    user_id = extract_user_id(token)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token")
-        
-    try:
-        # Check if record exists in user_age_verification
-        res = await pb.list_records("user_age_verification", token=token, params={"filter": f'user_id="{user_id}"', "perPage": 1})
-        items = res.get("items") or []
-        
-        payload = {
-            "age_verified": req.age_verified,
-            "verified_at": datetime.now(timezone.utc).isoformat() if req.age_verified else None
-        }
-        
-        if items:
-            record_id = items[0]["id"]
-            updated = await pb.update_record("user_age_verification", record_id, payload, token=token)
-        else:
-            payload["user_id"] = user_id
-            updated = await pb.create_record("user_age_verification", payload, token=token)
-            
-        return {"success": True, "verified": updated.get("age_verified", False)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update verification status: {str(e)}")
+async def verify_age():
+    """Always return success since age verification system is detached."""
+    return {"success": True, "verified": True}
 
 
 PRIVACY_POLICY_TEXT = """Effective Date: June 17, 2026

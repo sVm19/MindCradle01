@@ -6,7 +6,6 @@ import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, Ale
 
 import Logo from './Logo';
 import AuthCardModal from './AuthCardModal';
-import AgeVerificationModal from './AgeVerificationModal';
 import PrivacyPolicyModal from './PrivacyPolicyModal';
 import SemanticSearch from './SemanticSearch';
 import { TelemetryProvider } from '@/context/TelemetryContext';
@@ -19,7 +18,7 @@ function formatDate(d: Date): string {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const { user, authModalOpen, setAuthModalOpen, verifyModalOpen, setVerifyModalOpen } = useAuth();
+  const { user, authModalOpen, setAuthModalOpen } = useAuth();
   const [streak, setStreak] = useState(0);
   const [didCheckInToday, setDidCheckInToday] = useState(false);
   const [didCheckInYesterday, setDidCheckInYesterday] = useState(false);
@@ -388,18 +387,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                     />
                                     <div className="flex justify-between items-center">
                                       <Link
-                                        to={localStorage.getItem('age_verified') === 'false' ? '#' : `/aria?checkin=${n.id}`}
-                                        onClick={(e) => {
-                                          setShowNotifications(false);
-                                          if (localStorage.getItem('age_verified') === 'false') {
-                                            e.preventDefault();
-                                            alert("This feature is for users 18+. Please contact a crisis counselor instead.");
-                                          }
-                                        }}
-                                        className={`text-[11px] hover:underline ${localStorage.getItem('age_verified') === 'false'
-                                          ? 'text-text3 cursor-not-allowed opacity-50'
-                                          : 'text-accent'
-                                          }`}
+                                        to={`/aria?checkin=${n.id}`}
+                                        onClick={() => setShowNotifications(false)}
+                                        className="text-[11px] hover:underline text-accent"
                                       >
                                         Chat in ARIA →
                                       </Link>
@@ -472,25 +462,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             >
               {navItems.map((item) => {
                 const isActive = location.pathname === item.path;
-                const isBlocked = item.path === '/aria' && localStorage.getItem('age_verified') === 'false';
                 const isLockedForGuest = (item.path === '/aria' || item.path === '/insights') && !user;
 
                 return (
                   <Link
                     key={item.path}
-                    to={isBlocked ? '#' : item.path}
+                    to={item.path}
                     onClick={(e) => {
-                      if (isBlocked) {
-                        e.preventDefault();
-                        alert("This feature is for users 18+. Please contact a crisis counselor instead.");
-                      } else if (isLockedForGuest) {
+                      if (isLockedForGuest) {
                         e.preventDefault();
                         setAuthModalOpen(true);
                       }
                     }}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap min-h-[40px] ${isBlocked
-                      ? 'opacity-40 cursor-not-allowed text-text3 hover:bg-transparent'
-                      : isActive
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all whitespace-nowrap min-h-[40px] ${isActive
                         ? 'bg-accent-glow text-accent border border-accent/20'
                         : 'text-text2 hover:bg-white/5 hover:text-text'
                       }`}
@@ -761,13 +745,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Auth Modals */}
         {authModalOpen && <AuthCardModal />}
-        {verifyModalOpen && (
-          <AgeVerificationModal
-            isOpen={verifyModalOpen}
-            onVerified={() => setVerifyModalOpen(false)}
-            onDeclined={() => setVerifyModalOpen(false)}
-          />
-        )}
         <PrivacyPolicyModal />
 
         {/* Semantic Search overlay (⌘K / Ctrl+K) */}

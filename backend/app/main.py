@@ -19,7 +19,6 @@ from starlette.responses import Response
 from app.config import FRONTEND_URL, ENVIRONMENT, JWT_SECRET_KEY
 from app.routers import resources, mood, journal, ai, auth, rituals, profile, notifications, user, billing, payments, webhooks, growth, seo, widgets
 from app.middleware.rate_limit import RateLimitMiddleware
-from app.routers.ai import AgeGateException
 
 
 from fastapi_csrf_protect import CsrfProtect
@@ -135,12 +134,6 @@ csrf_protect = CsrfProtect()
 
 from fastapi.exceptions import RequestValidationError
 
-@app.exception_handler(AgeGateException)
-async def age_gate_exception_handler(request, exc: AgeGateException):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"error": exc.error, "code": exc.code}
-    )
 
 @app.exception_handler(CsrfProtectError)
 def csrf_protect_exception_handler(request: Request, exc: CsrfProtectError):

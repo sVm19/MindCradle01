@@ -229,7 +229,7 @@ export function getAvatarGradient(name: string): string {
   return gradients[sum % gradients.length];
 }
 
-export const isAgeVerified = () => localStorage.getItem('age_verified') === 'true';
+export const isAgeVerified = () => true;
 
 /** A stylized modern sketch of a human face/silhouette for avatars. */
 export function UserSketchAvatar({ className = "w-6 h-6 text-white" }: { className?: string }) {

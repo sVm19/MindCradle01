@@ -462,12 +462,10 @@ export const auth = {
 
 
   checkAgeVerified: () =>
-    request<{ age_verified: boolean; verified_at: string | null }>('GET', '/auth/check-age-verified'),
+    Promise.resolve({ age_verified: true, verified_at: null }),
 
-  verifyAge: (verified: boolean) =>
-    request<{ success: boolean; verified: boolean }>('POST', '/auth/verify-age', {
-      age_verified: verified,
-    }),
+  verifyAge: (_verified: boolean) =>
+    Promise.resolve({ success: true, verified: true }),
 
   acceptPrivacy: (accepted: boolean, requiresAuth = false) =>
     request<{ success: boolean; accepted: boolean; warning?: string }>('POST', '/auth/privacy-accepted', {
@@ -539,10 +537,8 @@ export const rituals = {
 // ─── AI ───────────────────────────────────────────────────────────────────────
 
 export const ai = {
-  verifyAge: (verified: boolean) =>
-    request<{ status: string; age_verified: boolean }>('POST', '/aria/verify-age', {
-      age_verified: verified,
-    }),
+  verifyAge: (_verified: boolean) =>
+    Promise.resolve({ status: 'success', age_verified: true }),
 
   chat: (
     message: string,

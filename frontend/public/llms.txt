@@ -65,9 +65,6 @@ All endpoints require JWT Bearer authentication in the `Authorization` header (`
 - **`POST /api/auth/reset-password`**: Overwrite password using token.
   - *Request Body*: `{"token": "...", "new_password": "..."}`
   - *Response*: `{"success": true}`
-- **`POST /api/auth/verify-age`**: Age verification gate (18+).
-  - *Request Body*: `{"dob": "YYYY-MM-DD"}`
-  - *Response*: `{"success": true, "verified": true}`
 - **`POST /api/auth/privacy-accepted`**: Record privacy policy agreement.
   - *Response*: `{"success": true}`
 

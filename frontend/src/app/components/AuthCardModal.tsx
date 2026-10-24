@@ -49,20 +49,7 @@ export default function AuthCardModal() {
         }
 
         await loginWithGoogleCode(codeResponse.code);
-
-        try {
-          const verificationStatus = await authApi.checkAgeVerified();
-          if (verificationStatus.age_verified) {
-            localStorage.setItem('age_verified', 'true');
-            handleClose();
-          } else {
-            setVerifyModalOpen(true);
-            handleClose();
-          }
-        } catch {
-          setVerifyModalOpen(true);
-          handleClose();
-        }
+        handleClose();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Google login failed');
       } finally {

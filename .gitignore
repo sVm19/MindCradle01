@@ -36,6 +36,9 @@ build/
 .vscode/
 .idea/
 .agents/
+.skill/
+.skills/
+ponytail/
 *.swp
 *.swo
 *~
