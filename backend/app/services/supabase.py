@@ -1,12 +1,11 @@
-import os
 import json
 import base64
 import asyncio
 import logging
-from typing import Any, Optional, Dict, List
+from typing import Any, Optional, List
 import httpx
 from supabase import create_client, ClientOptions
-from app.config import SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_JWT_SECRET
+from app.config import SUPABASE_URL, SUPABASE_ANON_KEY
 from app.core.security import (
     extract_user_id_verified,
     verify_custom_access_token,

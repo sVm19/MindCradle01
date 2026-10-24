@@ -1,5 +1,4 @@
 import asyncio
-import hashlib
 import json
 import logging
 from datetime import datetime, timedelta, timezone
@@ -23,9 +22,9 @@ from app.models.schemas import (
     RecoveryPatternsResponse, RecoveryStats, RecoveryDataResponse,
     TrackEngagementRequest, TrackEngagementResponse, EngagementStatsResponse,
     ConvoTypeEngagement, ABTestResult, DetectCrisisRequest, DetectCrisisResponse,
-    AriaAgeVerifyRequest, DailyDiscoveryResponse, DiscoveryFeedbackRequest,
-    TimelineEventResponse, TimelinePage,
-    SearchResultItem, SearchPage, SearchSuggestionsResponse, EmbeddingGenerateResponse,
+    DiscoveryFeedbackRequest,
+    TimelinePage,
+    SearchPage, SearchSuggestionsResponse, EmbeddingGenerateResponse,
     KnowledgeNodeResponse, KnowledgeEdgeResponse, KnowledgeGraphResponse,
     KnowledgeProcessRequest, KnowledgeProcessResponse, KnowledgeContextResponse,
     GrowthMetricItem, GrowthMetricsResponse,
@@ -34,15 +33,10 @@ from app.models.schemas import (
     KnowledgeComparisonResponse, KnowledgeComparisonItem
 )
 from app.services import openrouter_ai
-from app.services.relationship_memory import (
-    format_relationship_memory_context,
-    rank_relationship_memories,
-)
 from app.services import embeddings as embedding_svc
 from app.services import knowledge_graph as kg_svc
-from app.services.supabase import pb, JWTExpiredError, extract_user_id
+from app.services.supabase import pb, extract_user_id
 from app.core.security import verify_user_premium
-import os
 
 
 logger = logging.getLogger(__name__)
@@ -1173,7 +1167,7 @@ async def get_emotion_trends(
                 "  \"anxiety\": \"after evening work hours\",\n"
                 "  \"calm\": \"during morning meditation\"\n"
                 "}\n\n"
-                f"Data:\n"
+                "Data:\n"
                 + "\n\n".join(notes_section)
             )
             

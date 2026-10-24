@@ -1,5 +1,4 @@
 import logging
-import random
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Tuple
 from fastapi import APIRouter, Header, HTTPException

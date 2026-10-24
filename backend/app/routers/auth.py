@@ -13,7 +13,6 @@ from google.oauth2 import id_token as google_id_token
 from app.models.schemas import (
     AuthResponse,
     RefreshRequest,
-    AriaAgeVerifyRequest,
     PrivacyAcceptanceRequest,
     WithdrawConsentRequest,
     ChangePasswordRequest,

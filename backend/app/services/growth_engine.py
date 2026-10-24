@@ -1,8 +1,8 @@
 import logging
 import hashlib
 import math
-from typing import Dict, List, Optional, Any
-from app.services.supabase import pb, _get_client, _execute_query
+from typing import Dict, List, Any
+from app.services.supabase import pb
 
 logger = logging.getLogger(__name__)
 

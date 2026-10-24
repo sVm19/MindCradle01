@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Header, Query, Request, Depends, BackgroundTasks
 from typing import Optional
 from fastapi_csrf_protect import CsrfProtect
-from app.models.schemas import MoodCreate, MoodOut
+from app.models.schemas import MoodCreate
 from app.services.supabase import pb, extract_user_id
 from app.services import knowledge_graph as kg_svc
 

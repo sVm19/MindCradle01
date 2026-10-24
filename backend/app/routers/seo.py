@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime
-from typing import Optional
 from fastapi import APIRouter, HTTPException, Response
 
 from app.data.blog_data import BLOG_POSTS

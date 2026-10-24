@@ -309,7 +309,6 @@ async def get_csrf_token(request: Request):
 
 # ─── OpenAPI Customization ───────────────────────────────────────────────────
 from fastapi.openapi.utils import get_openapi
-from starlette.responses import Response
 import yaml
 
 def custom_openapi():

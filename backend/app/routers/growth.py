@@ -1,6 +1,6 @@
 import logging
-from fastapi import APIRouter, Header, HTTPException, Depends
-from typing import Optional, List
+from fastapi import APIRouter, Header, HTTPException
+from typing import Optional
 from app.models.schemas import (
     TrackEventRequest,
     ActiveAssignmentResponse,

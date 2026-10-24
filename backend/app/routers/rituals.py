@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -46,7 +45,7 @@ async def check_ritual_limit(user_id: str, token: str):
             )
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         # Fallback: if database fails, log and let request proceed or fail gracefully
         pass
 

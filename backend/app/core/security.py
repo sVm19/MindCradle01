@@ -53,7 +53,6 @@ from app.config import (
     SUPABASE_JWT_SECRET,
     SUPABASE_URL,
     JWT_SECRET_KEY,
-    JWT_REFRESH_SECRET_KEY,
 )
 
 logger = logging.getLogger(__name__)
@@ -269,7 +268,8 @@ def _unsafe_decode_for_dev(clean_token: str) -> Optional[TokenPayload]:
     the secret).  Never call this in production — config.py startup validation
     will sys.exit() first if the secret is missing in production mode.
     """
-    import base64, json
+    import base64
+    import json
     try:
         parts = clean_token.split(".")
         if len(parts) < 2:

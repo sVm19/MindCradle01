@@ -11,7 +11,7 @@ def send_signup_welcome(user_email: str):
             "from": "noreply@mindcradle.online",
             "to": user_email,
             "subject": "Welcome to MindCradle",
-            "html": f"""
+            "html": """
             <html>
               <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
                 <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #f0f0f0; border-radius: 16px;">
