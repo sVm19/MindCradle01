@@ -5,43 +5,45 @@
   --font-size: 15px;
   --font-serif: 'Fraunces', Georgia, serif;
   --font-sans: 'DM Sans', system-ui, sans-serif;
-  --font-pacifico: 'Pacifico', cursive;
 
-  /* Backgrounds */
-  --bg-gradient: radial-gradient(ellipse at 50% 25%, #2a4c44 0%, #1e3933 50%, #142823 100%); /* Deep Spruce Slate Green */
-  --bg: #1c3631; /* Solid deep spruce slate base background */
-  --bg2-solid: #23433c; /* Solid base fallback for bg2 glass cards */
-  --bg3-solid: #2c5048; /* Solid base fallback for bg3 glass cards */
-  --bg4-solid: #39645b; /* Solid base fallback for bg4 glass cards */
-  --bg2: rgba(255, 255, 255, 0.04); /* Transparent white glass card */
-  --bg3: rgba(255, 255, 255, 0.08);
-  --bg4: rgba(255, 255, 255, 0.14);
+  /* Backgrounds: Akebono (Dawn Horizon / Nocturnal Plum-Indigo) */
+  --bg-gradient: radial-gradient(ellipse at 50% 15%, #1d1828 0%, #110e19 55%, #09070d 100%);
+  --bg: #110e19;
+  --bg2-solid: #181423;
+  --bg3-solid: #211c30;
+  --bg4-solid: #2c2540;
+  --bg2: rgba(255, 255, 255, 0.04);
+  --bg3: rgba(255, 255, 255, 0.07);
+  --bg4: rgba(255, 255, 255, 0.12);
 
   /* Borders */
-  --border: rgba(255, 255, 255, 0.09);
-  --border2: rgba(255, 255, 255, 0.18);
+  --border: rgba(255, 255, 255, 0.08);
+  --border2: rgba(255, 255, 255, 0.16);
 
-  /* Text - High contrast WCAG AA/AAA compliant tokens */
-  --text: #ffffff;
-  --text2: #f3fcf7;
-  --text3: #d1dfd6;
+  /* Text - High contrast WCAG AAA compliant tokens */
+  --text: #faf5ff;   /* Silk White */
+  --text2: #f3e8ff;  /* Dawn Mist */
+  --text3: #c4b5fd;  /* Soft Lilac Metadata */
 
-  /* Accent Colors */
-  --accent: #fbbf24; /* Warm Amber */
-  --accent2: #fef3c7;
-  --accent-glow: rgba(251, 191, 36, 0.15);
+  /* Accent Colors (Akebono Restraint) */
+  --accent: #fb7185; /* Radiant Coral Peach */
+  --accent2: #fecdd3;
+  --accent-glow: rgba(251, 113, 133, 0.16);
 
-  --teal: #34d399;
-  --teal-dim: rgba(52,211,153,0.15);
+  --amber: #facc15;  /* Dawn Gold for streaks & morning focus */
+  --amber-dim: rgba(250, 204, 21, 0.12);
 
-  --amber: #fbbf24;
-  --amber-dim: rgba(251,191,36,0.12);
+  --lavender: #c084fc; /* Ethereal Lilac for ARIA & reflections */
+  --lavender-dim: rgba(192, 132, 252, 0.14);
 
-  --rose: #f87171;
-  --rose-dim: rgba(248,113,113,0.12);
+  --teal: #34d399;   /* Reserved strictly for completion checkmarks */
+  --teal-dim: rgba(52, 211, 153, 0.12);
+
+  --rose: #f43f5e;   /* Reserved strictly for crisis distress alerts */
+  --rose-dim: rgba(244, 63, 94, 0.14);
 
   --green: #34d399;
-  --green-dim: rgba(52,211,153,0.12);
+  --green-dim: rgba(52, 211, 153, 0.12);
 
   /* Radius */
   --r-sm: 8px;
@@ -64,6 +66,39 @@
   /* Custom variables mapping */
   --color-background-secondary: var(--bg2);
   --color-border-tertiary: var(--border);
+
+  /* Dimensional Layering: 1-4 Level Hierarchy (Genjutsu) */
+  --z-level-1: 1;   /* Base Content & Resting Cards */
+  --z-level-2: 10;  /* Raised Interactive States & Sticky Navigation */
+  --z-level-3: 30;  /* Floating Dropdowns, Menus & Tooltips */
+  --z-level-4: 50;  /* Overlays, Dialogs, Modals & Alerts */
+
+  /* Elevation Scale: Box Shadows with Ambient Depth + Key Light + Specular Rim */
+  --shadow-elevation-1: 
+    0 2px 5px rgba(9, 7, 13, 0.35),
+    0 4px 14px rgba(9, 7, 13, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+  --shadow-elevation-2: 
+    0 6px 18px -2px rgba(9, 7, 13, 0.45),
+    0 14px 32px -4px rgba(9, 7, 13, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+
+  --shadow-elevation-3: 
+    0 12px 30px -4px rgba(9, 7, 13, 0.55),
+    0 24px 52px -6px rgba(9, 7, 13, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+
+  --shadow-elevation-4: 
+    0 24px 54px -8px rgba(9, 7, 13, 0.65),
+    0 42px 96px -12px rgba(9, 7, 13, 0.60),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+
+  /* Dimensional Translation */
+  --depth-z-1: translateZ(0px);
+  --depth-z-2: translateZ(8px);
+  --depth-z-3: translateZ(18px);
+  --depth-z-4: translateZ(32px);
 
   /* Legacy compatibility */
   --background: var(--bg);
@@ -100,10 +135,12 @@
   --color-accent: var(--accent);
   --color-accent2: var(--accent2);
   --color-accent-glow: var(--accent-glow);
-  --color-teal: var(--teal);
-  --color-teal-dim: var(--teal-dim);
   --color-amber: var(--amber);
   --color-amber-dim: var(--amber-dim);
+  --color-lavender: var(--lavender);
+  --color-lavender-dim: var(--lavender-dim);
+  --color-teal: var(--teal);
+  --color-teal-dim: var(--teal-dim);
   --color-rose: var(--rose);
   --color-rose-dim: var(--rose-dim);
   --color-green: var(--green);
@@ -114,6 +151,15 @@
   --radius-md: var(--r-md);
   --radius-lg: var(--r-lg);
   --radius-xl: var(--r-xl);
+
+  --z-level-1: var(--z-level-1);
+  --z-level-2: var(--z-level-2);
+  --z-level-3: var(--z-level-3);
+  --z-level-4: var(--z-level-4);
+  --shadow-elevation-1: var(--shadow-elevation-1);
+  --shadow-elevation-2: var(--shadow-elevation-2);
+  --shadow-elevation-3: var(--shadow-elevation-3);
+  --shadow-elevation-4: var(--shadow-elevation-4);
 }
 
 @layer base {
@@ -137,24 +183,8 @@
     background-attachment: fixed;
     color: var(--text);
     position: relative;
+    perspective: 1200px; /* 3D perspective context for child translateZ transformations */
   }
-
-  /* Tactile Felt & Paper Texture Overlay */
-  body::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    pointer-events: none;
-    z-index: 9999;
-    opacity: 0.07;
-    mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.85 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-  }
-
-
 
   /* Scrollbar */
   ::-webkit-scrollbar {
@@ -182,44 +212,75 @@
   }
 }
 
-/* Custom Interactive Effects - Applied Globally */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Dimensional Layering & Elevation Utilities (Genjutsu 1-4 Level Hierarchy)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.perspective-stage {
+  perspective: 1200px;
+  transform-style: preserve-3d;
+}
+
+/* Level 1: Flat/resting content cards, list containers, ambient panels */
+.layer-1, .elevation-1 {
+  z-index: var(--z-level-1);
+  box-shadow: var(--shadow-elevation-1);
+  transform: translateZ(0);
+}
+
+/* Level 2: Raised interactive cards (hover/active), sticky nav bars, headers */
+.layer-2, .elevation-2 {
+  z-index: var(--z-level-2);
+  box-shadow: var(--shadow-elevation-2);
+  transform: translateZ(8px);
+}
+
+/* Level 3: Floating dropdown menus, popovers, search pills */
+.layer-3, .elevation-3 {
+  z-index: var(--z-level-3);
+  box-shadow: var(--shadow-elevation-3);
+  transform: translateZ(18px);
+}
+
+/* Level 4: Overlays, modals, dialogs, drawers */
+.layer-4, .elevation-4 {
+  z-index: var(--z-level-4);
+  box-shadow: var(--shadow-elevation-4);
+  transform: translateZ(32px);
+}
+
+/* Calm Ground Physics: Resting cards remain tranquil and grounded */
 .bg-bg2, .bg-bg3, .bg-bg4, .bg-card {
-  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
-              filter 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
-              border-color 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
-              box-shadow 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  box-shadow: var(--shadow-elevation-1);
+  transition: border-color 0.28s cubic-bezier(0.2, 0.8, 0.25, 1),
+              background-color 0.28s cubic-bezier(0.2, 0.8, 0.25, 1),
+              filter 0.28s cubic-bezier(0.2, 0.8, 0.25, 1);
 }
 
 .bg-bg2:hover, .bg-bg3:hover, .bg-bg4:hover, .bg-card:hover {
-  transform: translateY(-2px) translateZ(0);
-  filter: brightness(105%);
-  border-color: rgba(255, 255, 255, 0.16); /* Softer outline to prevent aliasing glow */
-  /* Elegant glass elevation shadow */
-  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.35);
+  filter: brightness(104%);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 button {
   min-height: 40px;
   min-width: 40px;
-  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
-              filter 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
-              box-shadow 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition: border-color 0.25s ease,
+              background-color 0.25s ease,
+              transform 0.25s ease,
+              filter 0.25s ease;
 }
 
 button:hover:not(:disabled) {
-  transform: scale(1.03);
-  filter: brightness(95%);
-  /* Soft glass button drop shadow */
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  filter: brightness(105%);
+  transform: translateY(-1px);
 }
 
 /* High-contrast text overlay for solid accent backgrounds and light-gradient primary buttons */
 .bg-accent,
 button.bg-gradient-to-r,
 a.bg-gradient-to-r {
-  color: #070c09 !important; /* Force deep dark forest green text for maximum legibility */
+  color: #120b18 !important; /* Deep plum charcoal text for maximum legibility against Coral Peach */
   font-weight: 600 !important;
 }
 
@@ -227,7 +288,7 @@ a.bg-gradient-to-r {
 .bg-accent:hover,
 button.bg-gradient-to-r:hover,
 a.bg-gradient-to-r:hover {
-  color: #070c09 !important;
+  color: #120b18 !important;
 }
 
 /* Hide scrollbar for elements with scrollbar-none class */
@@ -251,10 +312,6 @@ a.bg-gradient-to-r:hover {
 
 .grid-spacing {
   gap: var(--grid-gap);
-}
-
-.font-pacifico {
-  font-family: var(--font-pacifico);
 }
 
 

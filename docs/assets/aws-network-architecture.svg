@@ -1,0 +1,297 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 840" width="100%" height="100%" style="background:#0b0f19; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <!-- Background & Card Gradients -->
+    <linearGradient id="bgGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0e17"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+
+    <!-- Markers -->
+    <marker id="arrowWhite" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#f3f4f6"/>
+    </marker>
+    <marker id="arrowCyan" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#06b6d4"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981"/>
+    </marker>
+    <marker id="arrowOrange" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#a855f7"/>
+    </marker>
+
+    <!-- Shadows -->
+    <filter id="boxShadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Canvas Background -->
+  <rect width="1280" height="840" rx="16" fill="url(#bgGrad2)"/>
+  <rect width="1278" height="838" x="1" y="1" rx="15" fill="none" stroke="#1f2937" stroke-width="1.5"/>
+
+  <!-- Title Header -->
+  <text x="40" y="38" fill="#f9fafb" font-size="18" font-weight="700" letter-spacing="0.5">MINDCRADLE PRODUCTION AWS NETWORK &amp; SYSTEM ARCHITECTURE</text>
+  <text x="40" y="58" fill="#9ca3af" font-size="12">Multi-AZ Load Balancing, Cognito Zero-Code Authentication, Target Group Routing, and Isolated Container Topology</text>
+
+  <!-- ==================== EXTERNAL CLIENT ==================== -->
+  <g transform="translate(40, 110)" filter="url(#boxShadow)">
+    <rect width="110" height="230" rx="10" fill="#111827" stroke="#374151" stroke-width="1.5"/>
+    <text x="55" y="24" fill="#9ca3af" font-size="11" font-weight="700" text-anchor="middle">CLIENT TIER</text>
+    
+    <!-- User Icon -->
+    <g transform="translate(35, 45)">
+      <circle cx="20" cy="14" r="12" fill="#3b82f6"/>
+      <path d="M 4 44 C 4 30 36 30 36 44 Z" fill="#3b82f6"/>
+    </g>
+    <text x="55" y="112" fill="#f3f4f6" font-size="12" font-weight="600" text-anchor="middle">Web Browser</text>
+    <text x="55" y="128" fill="#9ca3af" font-size="10" text-anchor="middle">Desktop / Mobile</text>
+
+    <!-- HTTPS Call -->
+    <rect x="10" y="148" width="90" height="66" rx="6" fill="#1f2937" stroke="#374151"/>
+    <text x="55" y="168" fill="#34d399" font-size="10" font-weight="700" text-anchor="middle">HTTPS :443</text>
+    <text x="55" y="184" fill="#9ca3af" font-size="9" text-anchor="middle">mindcradle.online</text>
+    <text x="55" y="198" fill="#60a5fa" font-size="9" text-anchor="middle">TLS 1.3 Strict</text>
+  </g>
+
+  <!-- Flow Arrow: Client -> Route 53 -->
+  <path d="M 150 200 L 195 200" fill="none" stroke="#f3f4f6" stroke-width="2" marker-end="url(#arrowWhite)"/>
+
+  <!-- ==================== AWS CLOUD BOUNDARY ==================== -->
+  <g transform="translate(195, 80)">
+    <!-- Outer AWS Cloud Box -->
+    <rect width="1045" height="730" rx="14" fill="#0d1527" fill-opacity="0.7" stroke="#00bcd4" stroke-dasharray="6 3" stroke-width="1.5"/>
+    
+    <!-- AWS Badge -->
+    <rect x="16" y="-12" width="160" height="24" rx="4" fill="#00bcd4"/>
+    <image href="https://cdn.simpleicons.org/amazonaws/FFFFFF" x="22" y="-9" width="18" height="18"/>
+    <text x="46" y="4" fill="#0b0f19" font-size="11" font-weight="800">AWS Cloud Account</text>
+
+    <!-- Region Box -->
+    <rect x="18" y="22" width="1010" height="692" rx="12" fill="#10192e" fill-opacity="0.8" stroke="#0284c7" stroke-width="1"/>
+    <text x="32" y="40" fill="#38bdf8" font-size="11" font-weight="700">Region: us-east-1 (N. Virginia)</text>
+
+    <!-- ==================== VPC ==================== -->
+    <g transform="translate(15, 52)">
+      <rect width="980" height="645" rx="12" fill="#0f172a" stroke="#8b5cf6" stroke-width="1.5"/>
+      <rect x="12" y="-10" width="110" height="20" rx="3" fill="#8b5cf6"/>
+      <text x="67" y="4" fill="#ffffff" font-size="10" font-weight="700" text-anchor="middle">VPC: 10.0.0.0/16</text>
+
+      <!-- ==================== LEFT COLUMN: ROUTE 53 & ACM & COGNITO ==================== -->
+      <!-- Route 53 Card -->
+      <g transform="translate(20, 25)" filter="url(#boxShadow)">
+        <rect width="180" height="90" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+        <image href="https://cdn.simpleicons.org/amazonroute53/8C4FFF" x="14" y="14" width="32" height="32"/>
+        <text x="56" y="28" fill="#ffffff" font-size="12" font-weight="700">AWS Route 53</text>
+        <text x="56" y="44" fill="#c4b5fd" font-size="10">DNS Routing</text>
+        <text x="14" y="66" fill="#9ca3af" font-size="9">Apex: mindcradle.online (A)</text>
+        <text x="14" y="78" fill="#9ca3af" font-size="9">Subdomain: www (CNAME)</text>
+      </g>
+
+      <!-- ACM Card -->
+      <g transform="translate(20, 130)" filter="url(#boxShadow)">
+        <rect width="180" height="85" rx="8" fill="#1e293b" stroke="#ec4899" stroke-width="1.5"/>
+        <circle cx="30" cy="30" r="16" fill="#db2777"/>
+        <path d="M 24 30 L 28 34 L 37 25" fill="none" stroke="#ffffff" stroke-width="2.5"/>
+        <text x="56" y="28" fill="#ffffff" font-size="12" font-weight="700">AWS Certificate</text>
+        <text x="56" y="44" fill="#f472b6" font-size="10">ACM Managed SSL</text>
+        <text x="14" y="66" fill="#9ca3af" font-size="9">TLS 1.3 / Wildcard *.online</text>
+      </g>
+
+      <!-- Amazon Cognito Box -->
+      <g transform="translate(20, 235)" filter="url(#boxShadow)">
+        <rect width="180" height="175" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+        <image href="https://cdn.simpleicons.org/jsonwebtokens/000000" x="14" y="14" width="32" height="32"/>
+        <text x="56" y="28" fill="#ffffff" font-size="12" font-weight="700">Amazon Cognito</text>
+        <text x="56" y="44" fill="#fbbf24" font-size="10">User Directory &amp; Auth</text>
+        
+        <rect x="10" y="58" width="160" height="48" rx="4" fill="#0f172a" stroke="#374151"/>
+        <text x="16" y="74" fill="#fde68a" font-size="9" font-weight="600">Cognito User Pool</text>
+        <text x="16" y="88" fill="#9ca3af" font-size="9">mindcradle-user-pool</text>
+        <text x="16" y="100" fill="#9ca3af" font-size="8">Hosted UI / OAuth 2.0 Auth Code</text>
+
+        <rect x="10" y="112" width="160" height="52" rx="4" fill="#0f172a" stroke="#374151"/>
+        <text x="16" y="126" fill="#60a5fa" font-size="9" font-weight="600">ALB OIDC Header Injection</text>
+        <text x="16" y="138" fill="#9ca3af" font-size="8">- x-amzn-oidc-data (claims)</text>
+        <text x="16" y="149" fill="#9ca3af" font-size="8">- x-amzn-oidc-identity (sub)</text>
+        <text x="16" y="159" fill="#9ca3af" font-size="8">- x-amzn-oidc-accesstoken</text>
+      </g>
+
+      <!-- Connecting Arrow: Route 53 -> ALB -->
+      <path d="M 200 70 L 245 70" fill="none" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrowPurple)"/>
+      <!-- Connecting Arrow: ACM -> ALB -->
+      <path d="M 200 172 L 245 172" fill="none" stroke="#ec4899" stroke-width="1.5" stroke-dasharray="3 3"/>
+      <!-- Connecting Arrow: Cognito <-> ALB -->
+      <path d="M 200 320 L 245 320" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4 2" marker-end="url(#arrowOrange)"/>
+
+      <!-- ==================== MIDDLE COLUMN: APPLICATION LOAD BALANCER ==================== -->
+      <g transform="translate(245, 25)" filter="url(#boxShadow)">
+        <!-- ALB Container -->
+        <rect width="250" height="385" rx="10" fill="#111827" stroke="#10b981" stroke-width="1.5"/>
+        <rect width="250" height="34" rx="10" fill="#064e3b" fill-opacity="0.7"/>
+        <rect width="250" height="12" y="22" fill="#064e3b" fill-opacity="0.7"/>
+        <image href="https://cdn.simpleicons.org/amazonaws/FFFFFF" x="12" y="7" width="20" height="20"/>
+        <text x="38" y="22" fill="#ffffff" font-size="12" font-weight="700">Application Load Balancer</text>
+        <text x="240" y="22" fill="#34d399" font-size="9" text-anchor="end">mindcradle-alb</text>
+
+        <!-- Subnets Box -->
+        <rect x="12" y="44" width="226" height="58" rx="6" fill="#1e293b" stroke="#047857" stroke-width="1"/>
+        <text x="20" y="60" fill="#34d399" font-size="10" font-weight="700">Multi-AZ Public Subnet Mapping</text>
+        <text x="20" y="76" fill="#e5e7eb" font-size="9">Subnet 1: us-east-1a (Active)</text>
+        <text x="20" y="90" fill="#e5e7eb" font-size="9">Subnet 2: us-east-1b &amp; Subnet 3: us-east-1c</text>
+
+        <!-- Port 80 Listener -->
+        <rect x="12" y="110" width="226" height="50" rx="6" fill="#1f2937" stroke="#374151"/>
+        <text x="20" y="128" fill="#f87171" font-size="10" font-weight="700">Port 80 (HTTP Listener)</text>
+        <text x="20" y="146" fill="#9ca3af" font-size="9">Action: 301 Permanent Redirect to HTTPS</text>
+
+        <!-- Port 443 Listener -->
+        <rect x="12" y="168" width="226" height="106" rx="6" fill="#1f2937" stroke="#3b82f6"/>
+        <text x="20" y="186" fill="#60a5fa" font-size="11" font-weight="700">Port 443 (HTTPS Listener)</text>
+        <text x="20" y="202" fill="#f472b6" font-size="9">Attached Certificate: ACM (TLS 1.3)</text>
+        
+        <rect x="20" y="212" width="210" height="24" rx="4" fill="#0f172a"/>
+        <text x="26" y="228" fill="#f59e0b" font-size="9" font-weight="600">Rule 1: Authenticate with Cognito</text>
+        
+        <rect x="20" y="240" width="210" height="24" rx="4" fill="#0f172a"/>
+        <text x="26" y="256" fill="#10b981" font-size="9" font-weight="600">Rule 2: Forward to mindcradle-tg</text>
+
+        <!-- Target Group Routing Reference -->
+        <g transform="translate(12, 282)">
+          <rect width="226" height="90" rx="6" fill="#064e3b" fill-opacity="0.3" stroke="#059669" stroke-width="1"/>
+          <text x="12" y="20" fill="#34d399" font-size="11" font-weight="700">Target Group: mindcradle-tg</text>
+          <text x="12" y="38" fill="#e5e7eb" font-size="9">Protocol: HTTP | Port: 8080</text>
+          <text x="12" y="52" fill="#e5e7eb" font-size="9">Target: i-0b532745ffac5d935 (us-east-1c)</text>
+          <text x="12" y="66" fill="#34d399" font-size="9">Health Check: /api/health (200 OK)</text>
+          <text x="12" y="80" fill="#10b981" font-size="9">Status: Healthy (1/1 targets online)</text>
+        </g>
+      </g>
+
+      <!-- Connecting Arrow: ALB -> Target Group -> EC2 -->
+      <path d="M 495 240 L 540 240" fill="none" stroke="#10b981" stroke-width="2.5" marker-end="url(#arrowGreen)"/>
+
+      <!-- ==================== RIGHT COLUMN: EC2 COMPUTE & DOCKER TOPOLOGY ==================== -->
+      <g transform="translate(540, 25)" filter="url(#boxShadow)">
+        <rect width="415" height="385" rx="10" fill="#111827" stroke="#f59e0b" stroke-width="1.5"/>
+        <rect width="415" height="34" rx="10" fill="#78350f" fill-opacity="0.7"/>
+        <rect width="415" height="12" y="22" fill="#78350f" fill-opacity="0.7"/>
+        <image href="https://cdn.simpleicons.org/amazonec2/FF9900" x="12" y="7" width="20" height="20"/>
+        <text x="38" y="22" fill="#ffffff" font-size="12" font-weight="700">AWS EC2 Host: mindcradle-prod (us-east-1c)</text>
+        <text x="405" y="22" fill="#fde68a" font-size="9" text-anchor="end">i-0b532745ffac5d935</text>
+
+        <!-- Security Group & Port Badge -->
+        <rect x="14" y="44" width="387" height="36" rx="6" fill="#1e293b" stroke="#374151"/>
+        <text x="24" y="60" fill="#fbbf24" font-size="9" font-weight="700">Inbound Security Group:</text>
+        <text x="135" y="60" fill="#e5e7eb" font-size="9">Port 8080 (ALB SG only) | Port 22 (SSH Admin/CI Deploy)</text>
+        <text x="24" y="72" fill="#9ca3af" font-size="8">OS: Ubuntu 24.04 LTS | Docker Engine 27+ | Compose v2</text>
+
+        <!-- Docker Network Box -->
+        <g transform="translate(14, 88)">
+          <rect width="387" height="280" rx="8" fill="#0f172a" stroke="#2563eb" stroke-dasharray="4 2" stroke-width="1.5"/>
+          <text x="16" y="20" fill="#60a5fa" font-size="10" font-weight="700">Docker Bridge Network: app-network</text>
+
+          <!-- Frontend Container -->
+          <g transform="translate(12, 30)">
+            <rect width="363" height="105" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+            <image href="https://cdn.simpleicons.org/nginx/009639" x="12" y="10" width="22" height="22"/>
+            <text x="40" y="24" fill="#ffffff" font-size="11" font-weight="700">Frontend Container: mindcradle-frontend (:8080)</text>
+            <text x="350" y="24" fill="#34d399" font-size="9" text-anchor="end">Nginx Alpine</text>
+
+            <rect x="12" y="40" width="339" height="55" rx="4" fill="#111827"/>
+            <text x="20" y="56" fill="#93c5fd" font-size="9">- Serves React 19 SPA Static Chunks (Brotli/Gzip)</text>
+            <text x="20" y="70" fill="#93c5fd" font-size="9">- Pre-rendered SEO HTML Pages (/about, /blog, /docs)</text>
+            <text x="20" y="84" fill="#f59e0b" font-size="9">- Reverse Proxy: location /api/* -> http://backend:8080</text>
+          </g>
+
+          <!-- Internal Flow Arrow -->
+          <path d="M 193 140 L 193 162" fill="none" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrowOrange)"/>
+
+          <!-- Backend Container -->
+          <g transform="translate(12, 164)">
+            <rect width="363" height="105" rx="6" fill="#1e293b" stroke="#059669" stroke-width="1"/>
+            <image href="https://cdn.simpleicons.org/fastapi/009688" x="12" y="10" width="22" height="22"/>
+            <text x="40" y="24" fill="#ffffff" font-size="11" font-weight="700">Backend Container: mindcradle-backend (:8080)</text>
+            <text x="350" y="24" fill="#34d399" font-size="9" text-anchor="end">FastAPI ASGI</text>
+
+            <rect x="12" y="40" width="339" height="55" rx="4" fill="#111827"/>
+            <text x="20" y="56" fill="#a7f3d0" font-size="9">- Token Verification: Cognito RS256 JWKS &amp; Custom HS256</text>
+            <text x="20" y="70" fill="#a7f3d0" font-size="9">- JIT User Profile Synchronization via Supabase RPC</text>
+            <text x="20" y="84" fill="#a7f3d0" font-size="9">- API Controllers: /auth, /ai, /journal, /mood, /rituals</text>
+          </g>
+        </g>
+      </g>
+
+      <!-- ==================== BOTTOM ROW: EXTERNAL CLOUD SERVICES ==================== -->
+      <g transform="translate(20, 425)" filter="url(#boxShadow)">
+        <rect width="935" height="205" rx="10" fill="#111827" stroke="#374151" stroke-width="1.5"/>
+        <text x="16" y="22" fill="#9ca3af" font-size="11" font-weight="700">EXTERNAL CLOUD &amp; DATA SERVICES (OUTBOUND EGRESS)</text>
+
+        <!-- Service 1: Supabase -->
+        <g transform="translate(14, 34)">
+          <rect width="215" height="155" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+          <image href="https://cdn.simpleicons.org/supabase/3ECF8E" x="12" y="12" width="28" height="28"/>
+          <text x="48" y="26" fill="#ffffff" font-size="12" font-weight="700">Supabase DB</text>
+          <text x="48" y="40" fill="#34d399" font-size="9">PostgreSQL 15+</text>
+          
+          <rect x="10" y="52" width="195" height="92" rx="4" fill="#0f172a"/>
+          <text x="16" y="68" fill="#e5e7eb" font-size="9">- pgvector Semantic Index</text>
+          <text x="16" y="82" fill="#e5e7eb" font-size="9">- Row Level Security (RLS)</text>
+          <text x="16" y="96" fill="#e5e7eb" font-size="9">- Atomic RPC Stored Procs</text>
+          <text x="16" y="110" fill="#e5e7eb" font-size="9">- Realtime WebSockets</text>
+          <text x="16" y="124" fill="#34d399" font-size="9">Longitudinal PKG Storage</text>
+        </g>
+
+        <!-- Service 2: OpenRouter AI -->
+        <g transform="translate(242, 34)">
+          <rect width="215" height="155" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+          <image href="https://cdn.simpleicons.org/googlegemini/8E75B2" x="12" y="12" width="28" height="28"/>
+          <text x="48" y="26" fill="#ffffff" font-size="12" font-weight="700">OpenRouter AI</text>
+          <text x="48" y="40" fill="#c4b5fd" font-size="9">Inference Gateway</text>
+          
+          <rect x="10" y="52" width="195" height="92" rx="4" fill="#0f172a"/>
+          <text x="16" y="68" fill="#e5e7eb" font-size="9">- ARIA Companion Model:</text>
+          <text x="22" y="82" fill="#c4b5fd" font-size="8">google/gemini-3.5-flash-lite</text>
+          <text x="16" y="96" fill="#e5e7eb" font-size="9">- Semantic Embedding Model:</text>
+          <text x="22" y="110" fill="#c4b5fd" font-size="8">openai/text-embedding-3-small</text>
+          <text x="16" y="128" fill="#a855f7" font-size="9">Relational Context Memory</text>
+        </g>
+
+        <!-- Service 3: Creem Payments -->
+        <g transform="translate(470, 34)">
+          <rect width="215" height="155" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <image href="https://cdn.simpleicons.org/visa/1A1F71" x="12" y="12" width="28" height="28"/>
+          <text x="48" y="26" fill="#ffffff" font-size="12" font-weight="700">Creem Platform</text>
+          <text x="48" y="40" fill="#93c5fd" font-size="9">Merchant Checkout</text>
+          
+          <rect x="10" y="52" width="195" height="92" rx="4" fill="#0f172a"/>
+          <text x="16" y="68" fill="#e5e7eb" font-size="9">- Subscription Lifecycle</text>
+          <text x="16" y="84" fill="#e5e7eb" font-size="9">- 7-Day Free Trial Gating</text>
+          <text x="16" y="100" fill="#e5e7eb" font-size="9">- Webhook Signature Check</text>
+          <text x="16" y="116" fill="#e5e7eb" font-size="9">- Dynamic Checkout Portal</text>
+          <text x="16" y="132" fill="#60a5fa" font-size="9">Automated Provisioning</text>
+        </g>
+
+        <!-- Service 4: Mixpanel -->
+        <g transform="translate(698, 34)">
+          <rect width="222" height="155" rx="8" fill="#1e293b" stroke="#7c3aed" stroke-width="1.5"/>
+          <image href="https://cdn.simpleicons.org/mixpanel/7856FF" x="12" y="12" width="28" height="28"/>
+          <text x="48" y="26" fill="#ffffff" font-size="12" font-weight="700">Mixpanel Analytics</text>
+          <text x="48" y="40" fill="#c4b5fd" font-size="9">Behavioral Metrics</text>
+          
+          <rect x="10" y="52" width="202" height="92" rx="4" fill="#0f172a"/>
+          <text x="16" y="68" fill="#e5e7eb" font-size="9">- Single Source of Truth</text>
+          <text x="16" y="84" fill="#e5e7eb" font-size="9">- Gated until Privacy Consent</text>
+          <text x="16" y="100" fill="#e5e7eb" font-size="9">- Event Tracking (snake_case)</text>
+          <text x="16" y="116" fill="#e5e7eb" font-size="9">- Anonymous -> Identified ID</text>
+          <text x="16" y="132" fill="#a78bfa" font-size="9">mixpanel-browser ^2.82.0</text>
+        </g>
+      </g>
+
+      <!-- Connecting Arrow: Backend Container -> External Services -->
+      <path d="M 747 340 L 747 425" fill="none" stroke="#059669" stroke-width="2" marker-end="url(#arrowGreen)"/>
+    </g>
+  </g>
+</svg>

@@ -225,7 +225,16 @@ def extract_user_id_verified(token: Optional[str]) -> Optional[str]:
     except (ExpiredSignatureError, InvalidTokenError):
         pass
 
-    # 3. Supabase projects can use newer signing keys that are not verifiable
+    # 3. Try to verify as Cognito token directly
+    try:
+        from app.core.cognito import verify_cognito_jwt
+        cognito_payload = verify_cognito_jwt(clean)
+        if cognito_payload and cognito_payload.get("sub"):
+            return str(cognito_payload["sub"])
+    except Exception:
+        pass
+
+    # 4. Supabase projects can use newer signing keys that are not verifiable
     # with the legacy JWT secret. In that case, ask Supabase Auth to validate
     # the token and return the authenticated user instead of trusting an
     # unverified payload.

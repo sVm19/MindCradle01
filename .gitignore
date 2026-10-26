@@ -38,6 +38,7 @@ build/
 .agents/
 .skill/
 .skills/
+skills-lock.json
 ponytail/
 *.swp
 *.swo

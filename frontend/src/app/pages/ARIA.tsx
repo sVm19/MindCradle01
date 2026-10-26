@@ -1354,13 +1354,8 @@ export default function ARIA() {
                   )}
                 </div>
                 {message.role === 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-[#eef2f6] border border-[#b0b8c0] flex items-center justify-center flex-shrink-0 shadow-sm animate-fadeIn" aria-hidden="true">
-                    <span
-                      className="font-pacifico text-xs tracking-wide select-none"
-                      style={{
-                        color: '#612318ff'
-                      }}
-                    >
+                  <div className="w-8 h-8 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center flex-shrink-0 shadow-sm animate-fadeIn" aria-hidden="true">
+                    <span className="font-[family-name:var(--font-serif)] font-medium text-[10px] tracking-wider uppercase text-accent select-none">
                       {initials}
                     </span>
                   </div>

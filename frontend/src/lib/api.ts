@@ -435,12 +435,6 @@ export interface ResourcesResponse {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export const auth = {
-  loginWithGoogle: (token: string) =>
-    request<AuthResponse>('POST', '/auth/google', { token }, false),
-
-  loginWithGoogleCode: (code: string) =>
-    request<AuthResponse>('POST', '/auth/google', { code }, false),
-
   requestMagicLink: (email: string) =>
     request<{ message: string; session_id?: string }>('POST', '/auth/magic-link', { email }, false),
 
@@ -458,6 +452,12 @@ export const auth = {
 
   logout: () =>
     request<{ success: boolean }>('POST', '/auth/logout', undefined, false),
+
+  loginWithCognito: (payload: { code?: string; redirect_uri?: string; id_token?: string }) =>
+    request<AuthResponse>('POST', '/auth/cognito', payload, false),
+
+  checkAlbSession: () =>
+    request<AuthResponse>('GET', '/auth/alb-session', undefined, false),
 
 
 
@@ -994,6 +994,14 @@ export const growth = {
       status,
     }),
 };
+
+export function getCognitoHostedUiUrl(): string {
+  const domain = (import.meta.env.VITE_COGNITO_DOMAIN || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const clientId = import.meta.env.VITE_COGNITO_CLIENT_ID || '';
+  const redirectUri = import.meta.env.VITE_COGNITO_REDIRECT_URI || `${window.location.origin}/auth/callback`;
+  if (!domain || !clientId) return '';
+  return `https://${domain}/login?client_id=${encodeURIComponent(clientId)}&response_type=code&scope=email+openid+profile&redirect_uri=${encodeURIComponent(redirectUri)}`;
+}
 
 
 

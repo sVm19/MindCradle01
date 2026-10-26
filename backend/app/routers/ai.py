@@ -43,6 +43,26 @@ logger = logging.getLogger(__name__)
 FALLBACK_MODE = False  # Set to True only for local testing without OpenRouter API
 
 OFF_TOPIC_LIMITS = {}
+MAX_OFF_TOPIC_CACHE = 2000
+
+ERR_MISSING_AUTH_TOKEN = "Missing authorization token"
+ERR_INVALID_TOKEN = "Invalid token"
+ERR_AI_SERVICE_UNAVAILABLE = "AI service unavailable"
+STREAM_EVENT_DONE = "data: [DONE]\n\n"
+MEDIA_EVENT_STREAM = "text/event-stream"
+CATEGORY_BREATHING = "breathing exercise"
+TIMEZONE_UTC_SUFFIX = "+00:00"
+
+def get_or_create_off_topic_limit(user_id: str, now: datetime) -> dict:
+    if len(OFF_TOPIC_LIMITS) > MAX_OFF_TOPIC_CACHE:
+        expired = [uid for uid, lim in OFF_TOPIC_LIMITS.items() if not lim.get("paused_until") or lim["paused_until"] < now]
+        if expired:
+            for uid in expired[:500]:
+                OFF_TOPIC_LIMITS.pop(uid, None)
+        elif OFF_TOPIC_LIMITS:
+            OFF_TOPIC_LIMITS.pop(next(iter(OFF_TOPIC_LIMITS)), None)
+    return OFF_TOPIC_LIMITS.setdefault(user_id, {"count": 0, "paused_until": None})
+
 aria_router = APIRouter()
 telemetry_router = APIRouter()
 
@@ -50,6 +70,17 @@ def _normalize_token(token: Optional[str]) -> str:
     if not token:
         return ""
     return token.removeprefix("Bearer ").strip()
+
+
+def _require_auth(authorization: Optional[str]) -> tuple[str, str]:
+    token = _normalize_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail=ERR_MISSING_AUTH_TOKEN)
+    user_id = extract_user_id(token)
+    if not user_id or user_id == "unknown":
+        raise HTTPException(status_code=401, detail=ERR_INVALID_TOKEN)
+    return token, user_id
+
 
 async def check_aria_age_verified(authorization: Optional[str] = Header(None)):
     return True
@@ -479,7 +510,7 @@ async def _build_memory_insight_prompt(token: str, user_id: str) -> str:
         if ins.get("emotion"):
             for em in ins["emotion"].split(","):
                 emotions.add(em.strip())
-    emotions_list = ", ".join(sorted(list(emotions))[:6]) or "none recorded yet"
+    emotions_list = ", ".join(sorted(emotions)[:6]) or "none recorded yet"
 
     helps = set()
     for ins in all_insights:
@@ -1112,7 +1143,7 @@ async def get_emotion_trends(
                     emotion_notes[emotion] = []
                 emotion_notes[emotion].append(note.strip())
 
-        unique_emotions = sorted(list(set(emotions)))
+        unique_emotions = sorted(set(emotions))
         if len(unique_emotions) >= 2:
             import itertools
             for p in itertools.combinations(unique_emotions, 2):
@@ -2451,20 +2482,14 @@ async def chat(
     background_tasks: BackgroundTasks,
     authorization: Optional[str] = Header(None),
 ):
-    """Send a message to ARIA with safety, crisis, and context-rich prompts."""
-    token = _normalize_token(authorization)
-    if not token:
-        raise HTTPException(status_code=401, detail="Missing authorization token")
-        
+    token, user_id = _require_auth(authorization)
     from app.utils.sanitize import sanitize_text
     req.message = sanitize_text(req.message)
         
     logger.info(f"CHAT API: Received request - message: {req.message!r}, conversation_id: {req.conversation_id!r}, response_type: {req.response_type!r}")
     
     try:
-        user_id = extract_user_id(token) or "unknown"
-        if user_id != "unknown":
-            await check_chat_limit(user_id, token)
+        await check_chat_limit(user_id, token)
         
         # Run crisis keyword detection first
         crisis = detect_crisis_keywords(req.message)
@@ -2527,7 +2552,7 @@ async def chat(
 
         # Check active rate limit first
         now = datetime.now(timezone.utc)
-        user_limit = OFF_TOPIC_LIMITS.setdefault(user_id, {"count": 0, "paused_until": None})
+        user_limit = get_or_create_off_topic_limit(user_id, now)
         
         if user_limit["paused_until"] and now < user_limit["paused_until"]:
             remaining_mins = int((user_limit["paused_until"] - now).total_seconds() / 60) + 1
@@ -3027,6 +3052,8 @@ async def chat(
 
         # Build hyper-personalized instructions paragraph based on rich context
         persona_instructions = []
+        if dominant_emotions:
+            persona_instructions.append(f"Their primary recent emotions are {', '.join(dominant_emotions)}.")
         
         # 1. Themes & Emotions
         top_theme = user_themes[0] if user_themes else None
@@ -3244,10 +3271,8 @@ async def chat_stream(
     authorization: Optional[str] = Header(None),
 ):
     """Send a message to the AI wellness assistant (streaming SSE)."""
-    token = _normalize_token(authorization)
-    user_id = extract_user_id(token) or "unknown" if token else "unknown"
-    if user_id != "unknown":
-        await check_chat_limit(user_id, token)
+    token, user_id = _require_auth(authorization)
+    await check_chat_limit(user_id, token)
 
     # Run crisis keyword detection first
     crisis = detect_crisis_keywords(req.message)
@@ -3266,7 +3291,7 @@ async def chat_stream(
         return StreamingResponse(generate_crisis(), media_type="text/event-stream")
     
     now = datetime.now(timezone.utc)
-    user_limit = OFF_TOPIC_LIMITS.setdefault(user_id, {"count": 0, "paused_until": None})
+    user_limit = get_or_create_off_topic_limit(user_id, now)
     
     if user_limit["paused_until"] and now < user_limit["paused_until"]:
         remaining_mins = int((user_limit["paused_until"] - now).total_seconds() / 60) + 1
@@ -3842,11 +3867,7 @@ async def get_conversations(
     authorization: Optional[str] = Header(None),
 ):
     """Retrieve all conversation summaries for the user (privacy-focused timeline)."""
-    token = _normalize_token(authorization)
-    if not token:
-        raise HTTPException(status_code=401, detail="Missing authorization token")
-
-    user_id = extract_user_id(token) or "unknown"
+    token, user_id = _require_auth(authorization)
     try:
         resp = await pb.list_records(
             "ai_conversations",
@@ -3880,11 +3901,7 @@ async def get_active_conversation(
     authorization: Optional[str] = Header(None),
 ):
     """Retrieve the active conversation for the user, if one exists."""
-    token = _normalize_token(authorization)
-    if not token:
-        raise HTTPException(status_code=401, detail="Missing authorization token")
-
-    user_id = extract_user_id(token) or "unknown"
+    token, user_id = _require_auth(authorization)
     try:
         resp = await pb.list_records(
             "ai_conversations",
@@ -4206,8 +4223,8 @@ async def schedule_checkin(
             })
 
         # Rule 2: Weekday Anxiety Spike
-        weekday_counts = {i: 0 for i in range(7)}
-        weekday_anxiety_counts = {i: 0 for i in range(7)}
+        weekday_counts = dict.fromkeys(range(7), 0)
+        weekday_anxiety_counts = dict.fromkeys(range(7), 0)
         weekday_moods = {i: [] for i in range(7)}
         for log in mood_logs:
             created_str = log.get("created")
@@ -4249,9 +4266,7 @@ async def schedule_checkin(
                 continue
             checkin_wd = (anxiety_wd - 1) % 7
             days_ahead = checkin_wd - now.weekday()
-            if days_ahead < 0:
-                days_ahead += 7
-            elif days_ahead == 0 and now.hour >= 18:
+            if days_ahead < 0 or (days_ahead == 0 and now.hour >= 18):
                 days_ahead += 7
             scheduled_date = now + timedelta(days=days_ahead)
             scheduled_time = scheduled_date.replace(hour=18, minute=0, second=0, microsecond=0)

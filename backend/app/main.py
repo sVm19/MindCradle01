@@ -34,39 +34,40 @@ app = FastAPI(
     title="MindCradle API",
     description="Backend API for the MindCradle mental health dashboard",
     version="0.1.0",
+    docs_url=None if ENVIRONMENT == "production" else "/docs",
+    redoc_url=None if ENVIRONMENT == "production" else "/redoc",
+    openapi_url=None if ENVIRONMENT == "production" else "/openapi.json",
 )
 
 scheduler = AsyncIOScheduler()
 
-@app.on_event("startup")
-async def start_scheduler():
-    async def check_expired_trials_job():
-        try:
-            from app.services.supabase import pb
-            await pb.check_expired_trials()
-            logger.info("Checked and deactivated expired trials successfully")
-        except Exception as e:
-            logger.error("Failed to run check_expired_trials background job: %s", e)
-    scheduler.add_job(check_expired_trials_job, "interval", hours=1)
-    
-    async def pregenerate_daily_discoveries_job():
-        try:
-            logger.info("Daily Discovery background job ticked.")
-        except Exception as e:
-            logger.error("Failed to run pregenerate_daily_discoveries_job: %s", e)
+async def check_expired_trials_job():
+    try:
+        from app.services.supabase import pb
+        await pb.check_expired_trials()
+        logger.info("Checked and deactivated expired trials successfully")
+    except Exception:
+        logger.exception("Failed to run check_expired_trials background job")
 
-    scheduler.add_job(pregenerate_daily_discoveries_job, "interval", hours=24)
 
-    async def nightly_pkg_job():
-        try:
-            from app.services.supabase import pb
-            from app.services import knowledge_graph as kg_svc
-            # Query all user profiles to perform PKG decay/recalculation
-            profile_res = await pb.list_records("user_profiles", params={"perPage": 1000})
-            profiles = profile_res.get("items") or []
-            for p in profiles:
-                u_id = p.get("user_id")
-                if u_id:
+def pregenerate_daily_discoveries_job():
+    try:
+        logger.info("Daily Discovery background job ticked.")
+    except Exception:
+        logger.exception("Failed to run pregenerate_daily_discoveries_job")
+
+
+async def nightly_pkg_job():
+    try:
+        from app.services.supabase import pb
+        from app.services import knowledge_graph as kg_svc
+        # Query all user profiles to perform PKG decay/recalculation
+        profile_res = await pb.list_records("user_profiles", params={"perPage": 1000})
+        profiles = profile_res.get("items") or []
+        for p in profiles:
+            u_id = p.get("user_id")
+            if u_id:
+                try:
                     # Decay confidence of inactive nodes
                     await kg_svc.decay_confidence(u_id)
                     # Recompute 10 dimensions of growth metrics
@@ -77,11 +78,18 @@ async def start_scheduler():
                     await kg_svc.detect_behavioral_patterns(u_id)
                     # Evaluate and detect life chapter boundary shifts
                     await kg_svc.detect_life_chapters(u_id)
-            logger.info("Nightly PKG maintenance completed successfully")
-        except Exception as err:
-            logger.error("Failed to run nightly_pkg_job: %s", err)
+                except Exception as user_err:
+                    logger.warning("Nightly PKG maintenance step failed for user %s: %s", u_id, user_err)
+        logger.info("Nightly PKG maintenance completed successfully")
+    except Exception:
+        logger.exception("Failed to run nightly_pkg_job")
 
-    scheduler.add_job(nightly_pkg_job, "cron", hour=2) # run every night at 2 AM
+
+@app.on_event("startup")
+async def start_scheduler():
+    scheduler.add_job(check_expired_trials_job, "interval", hours=1)
+    scheduler.add_job(pregenerate_daily_discoveries_job, "interval", hours=24)
+    scheduler.add_job(nightly_pkg_job, "cron", hour=2)  # run every night at 2 AM
     scheduler.start()
     logger.info("Background AsyncIOScheduler started successfully")
 
@@ -100,7 +108,6 @@ app.include_router(ai.telemetry_router, prefix="/api/ai", tags=["ai"])
 app.include_router(ai.aria_router, prefix="/api/aria", tags=["aria"])
 app.include_router(rituals.router, prefix="/api/rituals", tags=["rituals"])
 app.include_router(profile.router, prefix="/api/profile", tags=["profile"])
-app.include_router(profile.router, prefix="/api", tags=["profile"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 app.include_router(user.router, prefix="/api/user", tags=["user"])
 app.include_router(billing.router, prefix="/api/billing", tags=["billing"])
@@ -219,12 +226,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Content Security Policy (strict)
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://cdn.jsdelivr.net https://abacklaunch.com https://nicklaunches.com https://invitejs.trustpilot.com https://*.trustpilot.com; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://abacklaunch.com https://nicklaunches.com https://invitejs.trustpilot.com https://*.trustpilot.com; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "img-src 'self' data: blob: https: https://*.trustpilot.com; "
             "font-src 'self' https://fonts.gstatic.com data:; "
             "connect-src 'self' https: wss: https://*.trustpilot.com; "
-            "frame-src 'self' https://accounts.google.com https://abacklaunch.com https://nicklaunches.com https://*.trustpilot.com; "
+            "frame-src 'self' https://abacklaunch.com https://nicklaunches.com https://*.trustpilot.com; "
             "frame-ancestors 'none';"
         )
         
@@ -295,6 +302,9 @@ app.add_middleware(
         "Accept",
         "X-Requested-With",
         "X-CSRF-Token",  # Required for CSRF-protected POST/PUT/DELETE requests
+        "Idempotency-Key",  # Required for idempotent payment and trial requests
+        "x-creem-signature",
+        "creem-signature",
     ],
 )
 
@@ -310,6 +320,52 @@ async def get_csrf_token(request: Request):
 # ─── OpenAPI Customization ───────────────────────────────────────────────────
 from fastapi.openapi.utils import get_openapi
 import yaml
+
+PUBLIC_EXPLICIT_PATHS = {
+    "/api/auth/signup",
+    "/api/auth/login",
+    "/api/auth/forgot-password",
+    "/api/auth/reset-password",
+    "/api/auth/privacy-policy",
+    "/health",
+    "/api/health",
+    "/api/csrf-token",
+}
+
+
+def _is_public_route(path: str) -> bool:
+    return path in PUBLIC_EXPLICIT_PATHS or path.startswith(("/api/webhooks", "/api/seo"))
+
+
+def _post_process_operation(path: str, operation: dict) -> None:
+    params = operation.get("parameters", [])
+    has_auth = any(param.get("name", "").lower() == "authorization" for param in params)
+    operation["parameters"] = [p for p in params if p.get("name", "").lower() != "authorization"]
+
+    if has_auth or not _is_public_route(path):
+        operation.setdefault("security", []).append({"bearerAuth": []})
+        responses = operation.setdefault("responses", {})
+        responses.setdefault("401", {
+            "description": "Unauthorized - Missing or invalid JWT access token",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "$ref": "#/components/schemas/ErrorResponse"
+                    }
+                }
+            }
+        })
+        responses.setdefault("403", {
+            "description": "Forbidden - Account restrictions or age gate validation failed",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "$ref": "#/components/schemas/ErrorResponse"
+                    }
+                }
+            }
+        })
+
 
 def custom_openapi():
     if app.openapi_schema:
@@ -334,24 +390,15 @@ def custom_openapi():
         }
     ]
     
-    # 1. Add security schemes (Bearer JWT)
-    if "components" not in openapi_schema:
-        openapi_schema["components"] = {}
-    if "securitySchemes" not in openapi_schema["components"]:
-        openapi_schema["components"]["securitySchemes"] = {}
-        
-    openapi_schema["components"]["securitySchemes"]["bearerAuth"] = {
+    # Add security schemes and standard error structures
+    components = openapi_schema.setdefault("components", {})
+    components.setdefault("securitySchemes", {})["bearerAuth"] = {
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
         "description": "JWT Access Token for MindCradle user authentication. Get this by calling /api/auth/login or /api/auth/signup."
     }
-    
-    # 2. Add standard HTTP error structures to components
-    if "schemas" not in openapi_schema["components"]:
-        openapi_schema["components"]["schemas"] = {}
-        
-    openapi_schema["components"]["schemas"]["ErrorResponse"] = {
+    components.setdefault("schemas", {})["ErrorResponse"] = {
         "type": "object",
         "properties": {
             "detail": {
@@ -361,69 +408,11 @@ def custom_openapi():
         }
     }
     
-    # 3. Post-process paths to associate authorization requirement
+    # Post-process paths to associate authorization requirement
     for path, path_item in openapi_schema.get("paths", {}).items():
         for method, operation in path_item.items():
-            params = operation.get("parameters", [])
-            has_auth = False
-            new_params = []
-            
-            # Filter out the raw 'authorization' header input from the params list
-            for param in params:
-                if param.get("name", "").lower() == "authorization":
-                    has_auth = True
-                else:
-                    new_params.append(param)
-            
-            # Determine if this route is private/protected
-            # Exclude endpoints that are explicitly public
-            is_public = (
-                path in [
-                    "/api/auth/signup",
-                    "/api/auth/login",
-                    "/api/auth/forgot-password",
-                    "/api/auth/reset-password",
-                    "/api/auth/privacy-policy",
-                    "/health",
-                    "/api/health",
-                    "/api/csrf-token"
-                ]
-                or path.startswith("/api/webhooks")
-                or path.startswith("/api/seo")
-            )
-            
-            if has_auth or not is_public:
-                operation["parameters"] = new_params
-                if "security" not in operation:
-                    operation["security"] = []
-                operation["security"].append({"bearerAuth": []})
-                
-                # Standardize error responses on protected routes
-                if "responses" not in operation:
-                    operation["responses"] = {}
-                
-                if "401" not in operation["responses"]:
-                    operation["responses"]["401"] = {
-                        "description": "Unauthorized - Missing or invalid JWT access token",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    }
-                if "403" not in operation["responses"]:
-                    operation["responses"]["403"] = {
-                        "description": "Forbidden - Account restrictions or age gate validation failed",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    }
+            if isinstance(operation, dict):
+                _post_process_operation(path, operation)
                     
     app.openapi_schema = openapi_schema
     return app.openapi_schema
@@ -433,6 +422,8 @@ app.openapi = custom_openapi
 @app.get("/openapi.yaml", include_in_schema=False)
 async def get_openapi_yaml():
     """Return the OpenAPI specification in YAML format."""
+    if ENVIRONMENT == "production":
+        raise HTTPException(status_code=404, detail="Not found")
     openapi_json = app.openapi()
     yaml_str = yaml.dump(openapi_json, default_flow_style=False, sort_keys=False)
     return Response(content=yaml_str, media_type="application/x-yaml")

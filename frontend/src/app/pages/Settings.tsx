@@ -285,13 +285,8 @@ startxref
         <section className="bg-bg2 border border-border rounded-[20px] px-6 py-6">
           <div className="text-xs text-text3 uppercase tracking-wider mb-5">Profile</div>
           <div className="flex items-center gap-5">
-            <div className="w-16 h-16 rounded-full bg-[#eef2f6] border border-[#b0b8c0] flex items-center justify-center flex-shrink-0 shadow-[0_4px_12px_rgba(0,0,0,0.15)] animate-fadeIn">
-              <span
-                className="font-pacifico text-2xl tracking-wide select-none"
-                style={{
-                  color: '#612318ff'
-                }}
-              >
+            <div className="w-16 h-16 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center flex-shrink-0 shadow-sm animate-fadeIn">
+              <span className="font-[family-name:var(--font-serif)] font-medium text-xl tracking-wider uppercase text-accent select-none">
                 {initials}
               </span>
             </div>
@@ -799,10 +794,10 @@ startxref
             {/* Password input */}
             <form onSubmit={handleDeleteAccount} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs text-text2 font-medium">Confirm Password (leave blank for Google accounts)</label>
+                <label className="text-xs text-text2 font-medium">Confirm Password (leave blank for passwordless/Cognito accounts)</label>
                 <input
                   type="password"
-                  placeholder="Enter password, or leave blank if using Google"
+                  placeholder="Enter password, or leave blank if passwordless"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full bg-bg3 border border-border rounded-xl px-4 py-2.5 text-xs text-text placeholder:text-text3 focus:outline-none focus:border-rose/40 transition-colors"

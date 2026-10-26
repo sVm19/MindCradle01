@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router';
-import { GoogleOAuthProvider } from '@react-oauth/google';
 import Clarity from '@microsoft/clarity';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ARIAProvider } from '@/context/ARIAContext';
@@ -134,7 +133,7 @@ function AppRoutes() {
 
   return (
     <Routes>
-      {/* Dedicated Login page handles traditional Sign In + Google OAuth */}
+      {/* Dedicated Login page handles Passwordless Magic Link & Cognito */}
       <Route path="/login" element={<Login />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/auth/magic-link" element={<MagicLinkRequest />} />
@@ -194,8 +193,6 @@ function AppRoutes() {
 }
 
 export default function App() {
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '959765770210-ke5oeq1e67bo6a8051259qgi3ek24ipj.apps.googleusercontent.com';
-
   useEffect(() => {
     // Initialize Microsoft Clarity tracking
     try {
@@ -228,16 +225,14 @@ export default function App() {
   }, []);
 
   return (
-    <GoogleOAuthProvider clientId={clientId}>
-      <AuthProvider>
-        <GrowthProvider>
-          <ARIAProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </ARIAProvider>
-        </GrowthProvider>
-      </AuthProvider>
-    </GoogleOAuthProvider>
+    <AuthProvider>
+      <GrowthProvider>
+        <ARIAProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </ARIAProvider>
+      </GrowthProvider>
+    </AuthProvider>
   );
 }

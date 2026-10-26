@@ -289,14 +289,15 @@ async def delete_account(
     try:
         client = _get_client(token)
         user_res = client.auth.get_user(token)
-        is_google = False
+        is_passwordless = False
         if user_res and user_res.user:
             app_metadata = getattr(user_res.user, "app_metadata", {}) or {}
             providers = app_metadata.get("providers", [])
-            if "google" in providers or app_metadata.get("provider") == "google":
-                is_google = True
+            provider = app_metadata.get("provider")
+            if provider in ["cognito", "magiclink", "sso"] or any(p in providers for p in ["cognito", "magiclink", "sso"]):
+                is_passwordless = True
 
-        if not is_google:
+        if not is_passwordless:
             if not req.password:
                 raise HTTPException(status_code=400, detail="Password is required for legacy accounts.")
             await pb.auth_with_password(email, get_deterministic_hash(req.password))

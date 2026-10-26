@@ -1,0 +1,277 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" width="100%" height="100%" style="background:#0b0f19; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0e17"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1f2937" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#111827" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="accentBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="accentOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+
+    <!-- Markers -->
+    <marker id="arrowBlue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981"/>
+    </marker>
+    <marker id="arrowOrange" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrowGray" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#6b7280"/>
+    </marker>
+    <filter id="dropGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="1200" height="520" rx="16" fill="url(#bgGrad)"/>
+  <rect width="1198" height="518" x="1" y="1" rx="15" fill="none" stroke="#1f2937" stroke-width="1.5"/>
+
+  <!-- Title & Subtitle -->
+  <text x="40" y="42" fill="#f3f4f6" font-size="18" font-weight="700" letter-spacing="0.5">MINDCRADLE CI/CD PIPELINE &amp; AUTOMATED RELEASE FLOW</text>
+  <text x="40" y="64" fill="#9ca3af" font-size="12">End-to-End Delivery Architecture from Local Development to Docker Hub and AWS EC2 Rollout</text>
+
+  <!-- ==================== 1. LOCAL MACHINE ==================== -->
+  <g transform="translate(40, 95)" filter="url(#dropGlow)">
+    <rect width="180" height="380" rx="12" fill="#111827" stroke="#374151" stroke-width="1.5"/>
+    <rect width="180" height="36" rx="12" fill="#1f2937"/>
+    <rect width="180" height="12" y="24" fill="#1f2937"/>
+    <text x="16" y="24" fill="#f9fafb" font-size="13" font-weight="600">Local Environment</text>
+
+    <!-- Laptop Icon SVG -->
+    <g transform="translate(62, 60)">
+      <rect x="4" y="6" width="48" height="32" rx="3" fill="#1e293b" stroke="#60a5fa" stroke-width="2"/>
+      <rect x="8" y="10" width="40" height="24" fill="#0f172a"/>
+      <path d="M 0 42 L 56 42 L 50 46 L 6 46 Z" fill="#60a5fa"/>
+    </g>
+
+    <text x="90" y="125" fill="#e5e7eb" font-size="13" font-weight="600" text-anchor="middle">Developer Machine</text>
+    <text x="90" y="142" fill="#9ca3af" font-size="11" text-anchor="middle">VS Code / Terminal</text>
+
+    <!-- Git Commit Card -->
+    <g transform="translate(14, 165)">
+      <rect width="152" height="60" rx="8" fill="#1f2937" stroke="#3b82f6" stroke-width="1"/>
+      <!-- Git Icon -->
+      <image href="https://cdn.simpleicons.org/git/F05032" x="12" y="15" width="28" height="28"/>
+      <text x="48" y="28" fill="#f3f4f6" font-size="12" font-weight="600">Git Commit</text>
+      <text x="48" y="44" fill="#9ca3af" font-size="10">Pre-commit checks</text>
+    </g>
+
+    <!-- Git Push Card -->
+    <g transform="translate(14, 240)">
+      <rect width="152" height="60" rx="8" fill="#1f2937" stroke="#374151" stroke-width="1"/>
+      <image href="https://cdn.simpleicons.org/github/FFFFFF" x="12" y="15" width="28" height="28"/>
+      <text x="48" y="28" fill="#f3f4f6" font-size="12" font-weight="600">git push</text>
+      <text x="48" y="44" fill="#9ca3af" font-size="10">Branch: feat/* or PR</text>
+    </g>
+
+    <rect x="14" y="315" width="152" height="45" rx="6" fill="#0f172a" stroke="#1f2937" stroke-width="1"/>
+    <text x="90" y="334" fill="#60a5fa" font-size="11" font-weight="600" text-anchor="middle">GitHub Webhook</text>
+    <text x="90" y="348" fill="#9ca3af" font-size="10" text-anchor="middle">Triggers Actions API</text>
+  </g>
+
+  <!-- Flow Line 1: Local -> GitHub CI -->
+  <path d="M 220 225 L 260 225" fill="none" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlue)"/>
+
+  <!-- ==================== 2. GITHUB ACTIONS (CI / PR GATE) ==================== -->
+  <g transform="translate(265, 95)" filter="url(#dropGlow)">
+    <rect width="250" height="380" rx="12" fill="#111827" stroke="#2563eb" stroke-dasharray="4 2" stroke-width="1.5"/>
+    <rect width="250" height="36" rx="12" fill="#1e3a8a" fill-opacity="0.6"/>
+    <rect width="250" height="12" y="24" fill="#1e3a8a" fill-opacity="0.6"/>
+    
+    <image href="https://cdn.simpleicons.org/githubactions/2088FF" x="14" y="7" width="22" height="22"/>
+    <text x="44" y="23" fill="#93c5fd" font-size="12" font-weight="700">CI GATEWAY: ci.yml</text>
+    <text x="235" y="23" fill="#60a5fa" font-size="10" text-anchor="end">PR to main</text>
+
+    <!-- Sub-Jobs List -->
+    <g transform="translate(15, 48)">
+      <!-- Job 1 -->
+      <rect width="220" height="54" rx="8" fill="#1f2937" stroke="#374151" stroke-width="1"/>
+      <image href="https://cdn.simpleicons.org/python/3776AB" x="12" y="13" width="26" height="26"/>
+      <text x="46" y="25" fill="#f3f4f6" font-size="12" font-weight="600">backend-checks</text>
+      <text x="46" y="42" fill="#10b981" font-size="10">Ruff Linter + Pytest Suite</text>
+    </g>
+
+    <g transform="translate(15, 110)">
+      <!-- Job 2 -->
+      <rect width="220" height="54" rx="8" fill="#1f2937" stroke="#374151" stroke-width="1"/>
+      <image href="https://cdn.simpleicons.org/nodedotjs/5FA04E" x="12" y="13" width="26" height="26"/>
+      <text x="46" y="25" fill="#f3f4f6" font-size="12" font-weight="600">frontend-checks</text>
+      <text x="46" y="42" fill="#10b981" font-size="10">Vite Build + prerender.py</text>
+    </g>
+
+    <g transform="translate(15, 172)">
+      <!-- Job 3 -->
+      <rect width="220" height="54" rx="8" fill="#1f2937" stroke="#374151" stroke-width="1"/>
+      <image href="https://cdn.simpleicons.org/docker/2496ED" x="12" y="13" width="26" height="26"/>
+      <text x="46" y="25" fill="#f3f4f6" font-size="12" font-weight="600">docker-build-test</text>
+      <text x="46" y="42" fill="#10b981" font-size="10">Test build images locally</text>
+    </g>
+
+    <g transform="translate(15, 234)">
+      <!-- Job 4 -->
+      <rect width="220" height="54" rx="8" fill="#1f2937" stroke="#374151" stroke-width="1"/>
+      <image href="https://cdn.simpleicons.org/aquasec/19B7C7" x="12" y="13" width="26" height="26"/>
+      <text x="46" y="25" fill="#f3f4f6" font-size="12" font-weight="600">security-scan</text>
+      <text x="46" y="42" fill="#10b981" font-size="10">Gitleaks Secrets + Trivy FS</text>
+    </g>
+
+    <!-- Pass Banner -->
+    <rect x="15" y="300" width="220" height="64" rx="8" fill="#064e3b" fill-opacity="0.4" stroke="#059669" stroke-width="1"/>
+    <text x="125" y="324" fill="#34d399" font-size="12" font-weight="700" text-anchor="middle">Quality Gate Status: PASSED</text>
+    <text x="125" y="342" fill="#a7f3d0" font-size="10" text-anchor="middle">Branch Protected | Ready to Merge</text>
+  </g>
+
+  <!-- Flow Line 2: CI Pass -> CD Merge -->
+  <path d="M 515 285 L 545 285" fill="none" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)"/>
+
+  <!-- ==================== 3. CD PIPELINE (BUILD & PUSH) ==================== -->
+  <g transform="translate(550, 95)" filter="url(#dropGlow)">
+    <rect width="210" height="380" rx="12" fill="#111827" stroke="#10b981" stroke-width="1.5"/>
+    <rect width="210" height="36" rx="12" fill="#064e3b" fill-opacity="0.6"/>
+    <rect width="210" height="12" y="24" fill="#064e3b" fill-opacity="0.6"/>
+    
+    <image href="https://cdn.simpleicons.org/githubactions/2088FF" x="12" y="7" width="22" height="22"/>
+    <text x="40" y="23" fill="#a7f3d0" font-size="12" font-weight="700">RELEASE: build.yml</text>
+    <text x="198" y="23" fill="#34d399" font-size="10" text-anchor="end">main</text>
+
+    <!-- Step 1: Docker Buildx -->
+    <g transform="translate(12, 48)">
+      <rect width="186" height="66" rx="8" fill="#1f2937" stroke="#374151" stroke-width="1"/>
+      <image href="https://cdn.simpleicons.org/docker/2496ED" x="10" y="18" width="28" height="28"/>
+      <text x="46" y="26" fill="#f3f4f6" font-size="11" font-weight="600">Docker Buildx</text>
+      <text x="46" y="42" fill="#9ca3af" font-size="10">Multi-stage compilation</text>
+      <text x="46" y="56" fill="#60a5fa" font-size="9">backend + frontend:alpine</text>
+    </g>
+
+    <!-- Step 2: Trivy Container Scan -->
+    <g transform="translate(12, 124)">
+      <rect width="186" height="60" rx="8" fill="#1f2937" stroke="#374151" stroke-width="1"/>
+      <image href="https://cdn.simpleicons.org/aquasec/19B7C7" x="10" y="16" width="28" height="28"/>
+      <text x="46" y="26" fill="#f3f4f6" font-size="11" font-weight="600">Trivy Image Scan</text>
+      <text x="46" y="42" fill="#10b981" font-size="10">CRITICAL,HIGH audit</text>
+      <text x="46" y="54" fill="#9ca3af" font-size="9">SARIF output generation</text>
+    </g>
+
+    <!-- Step 3: Dual Tagging -->
+    <g transform="translate(12, 194)">
+      <rect width="186" height="74" rx="8" fill="#1f2937" stroke="#374151" stroke-width="1"/>
+      <text x="14" y="22" fill="#f3f4f6" font-size="11" font-weight="600">Image Tags (Immutable)</text>
+      <text x="14" y="40" fill="#f59e0b" font-family="monospace" font-size="10">:latest</text>
+      <text x="14" y="56" fill="#60a5fa" font-family="monospace" font-size="10">:${{ github.sha }}</text>
+      <text x="14" y="68" fill="#9ca3af" font-size="9">Pushed to Docker Hub</text>
+    </g>
+
+    <!-- Step 4: Login Action -->
+    <g transform="translate(12, 278)">
+      <rect width="186" height="86" rx="8" fill="#0f172a" stroke="#1f2937" stroke-width="1"/>
+      <text x="14" y="20" fill="#93c5fd" font-size="10" font-weight="600">Secrets Handshake</text>
+      <text x="14" y="38" fill="#e5e7eb" font-size="10">- DOCKERHUB_USERNAME</text>
+      <text x="14" y="54" fill="#e5e7eb" font-size="10">- DOCKERHUB_TOKEN</text>
+      <text x="14" y="70" fill="#10b981" font-size="10">docker/login-action@v3</text>
+    </g>
+  </g>
+
+  <!-- Flow Line 3: Push -> Docker Hub -->
+  <path d="M 760 225 L 800 225" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#arrowBlue)"/>
+
+  <!-- ==================== 4. DOCKER HUB REGISTRY ==================== -->
+  <g transform="translate(805, 95)" filter="url(#dropGlow)">
+    <rect width="170" height="380" rx="12" fill="#111827" stroke="#2563eb" stroke-width="1.5"/>
+    <rect width="170" height="36" rx="12" fill="#1e3a8a"/>
+    <rect width="170" height="12" y="24" fill="#1e3a8a"/>
+
+    <image href="https://cdn.simpleicons.org/docker/2496ED" x="12" y="7" width="22" height="22"/>
+    <text x="40" y="23" fill="#ffffff" font-size="12" font-weight="700">Docker Hub</text>
+    <text x="158" y="23" fill="#93c5fd" font-size="10" text-anchor="end">docker.io</text>
+
+    <!-- Hub Logo Illustration -->
+    <g transform="translate(55, 60)">
+      <rect x="0" y="16" width="16" height="14" fill="#0284c7" rx="1"/>
+      <rect x="18" y="16" width="16" height="14" fill="#0284c7" rx="1"/>
+      <rect x="36" y="16" width="16" height="14" fill="#0284c7" rx="1"/>
+      <rect x="18" y="0" width="16" height="14" fill="#0284c7" rx="1"/>
+      <rect x="36" y="0" width="16" height="14" fill="#0284c7" rx="1"/>
+      <path d="M -8 32 C 0 46 50 46 68 32 C 72 26 65 24 60 26 C 55 28 50 28 45 28 C 30 28 20 28 0 32 Z" fill="#0284c7"/>
+    </g>
+
+    <text x="85" y="125" fill="#f9fafb" font-size="12" font-weight="600" text-anchor="middle">Official Repositories</text>
+    <text x="85" y="140" fill="#9ca3af" font-size="10" text-anchor="middle">xuvm19 Organization</text>
+
+    <!-- Repo 1 -->
+    <g transform="translate(12, 160)">
+      <rect width="146" height="85" rx="8" fill="#1f2937" stroke="#374151" stroke-width="1"/>
+      <text x="10" y="20" fill="#60a5fa" font-size="11" font-weight="700">backend</text>
+      <text x="10" y="38" fill="#e5e7eb" font-size="10">FastAPI App + Uvicorn</text>
+      <rect x="10" y="48" width="126" height="24" rx="4" fill="#0f172a"/>
+      <text x="73" y="64" fill="#9ca3af" font-family="monospace" font-size="9" text-anchor="middle">:latest &amp; :sha</text>
+    </g>
+
+    <!-- Repo 2 -->
+    <g transform="translate(12, 260)">
+      <rect width="146" height="85" rx="8" fill="#1f2937" stroke="#374151" stroke-width="1"/>
+      <text x="10" y="20" fill="#60a5fa" font-size="11" font-weight="700">frontend</text>
+      <text x="10" y="38" fill="#e5e7eb" font-size="10">Nginx + React Static</text>
+      <rect x="10" y="48" width="126" height="24" rx="4" fill="#0f172a"/>
+      <text x="73" y="64" fill="#9ca3af" font-family="monospace" font-size="9" text-anchor="middle">:latest &amp; :sha</text>
+    </g>
+  </g>
+
+  <!-- Flow Line 4: Registry -> EC2 -->
+  <path d="M 975 225 L 1010 225" fill="none" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrowOrange)"/>
+
+  <!-- ==================== 5. AWS EC2 DEPLOYMENT ==================== -->
+  <g transform="translate(1015, 95)" filter="url(#dropGlow)">
+    <rect width="145" height="380" rx="12" fill="#111827" stroke="#f59e0b" stroke-width="1.5"/>
+    <rect width="145" height="36" rx="12" fill="#78350f" fill-opacity="0.6"/>
+    <rect width="145" height="12" y="24" fill="#78350f" fill-opacity="0.6"/>
+
+    <image href="https://cdn.simpleicons.org/amazonec2/FF9900" x="10" y="7" width="22" height="22"/>
+    <text x="36" y="23" fill="#fde68a" font-size="12" font-weight="700">AWS EC2</text>
+    <text x="135" y="23" fill="#fbbf24" font-size="9" text-anchor="end">Deploy</text>
+
+    <g transform="translate(10, 48)">
+      <rect width="125" height="60" rx="6" fill="#1f2937" stroke="#374151" stroke-width="1"/>
+      <text x="8" y="18" fill="#fde68a" font-size="10" font-weight="600">SSH Handshake</text>
+      <text x="8" y="34" fill="#9ca3af" font-size="9">appleboy/ssh-action</text>
+      <text x="8" y="48" fill="#60a5fa" font-size="9">Port 22 (SSH Key)</text>
+    </g>
+
+    <g transform="translate(10, 118)">
+      <rect width="125" height="74" rx="6" fill="#1f2937" stroke="#374151" stroke-width="1"/>
+      <text x="8" y="18" fill="#fde68a" font-size="10" font-weight="600">Docker Pull &amp; Up</text>
+      <text x="8" y="34" fill="#9ca3af" font-size="9">compose pull</text>
+      <text x="8" y="48" fill="#9ca3af" font-size="9">compose up -d</text>
+      <text x="8" y="64" fill="#10b981" font-size="9">Zero-downtime swap</text>
+    </g>
+
+    <g transform="translate(10, 202)">
+      <rect width="125" height="60" rx="6" fill="#1f2937" stroke="#374151" stroke-width="1"/>
+      <text x="8" y="18" fill="#fde68a" font-size="10" font-weight="600">Garbage Clean</text>
+      <text x="8" y="34" fill="#9ca3af" font-size="9">image prune -af</text>
+      <text x="8" y="48" fill="#10b981" font-size="9">Reclaims disk space</text>
+    </g>
+
+    <g transform="translate(10, 272)">
+      <rect width="125" height="92" rx="6" fill="#064e3b" fill-opacity="0.5" stroke="#059669" stroke-width="1"/>
+      <text x="8" y="18" fill="#34d399" font-size="10" font-weight="700">Health Check</text>
+      <text x="8" y="34" fill="#a7f3d0" font-size="9">GET /api/health</text>
+      <text x="8" y="50" fill="#34d399" font-size="10" font-weight="700">HTTP 200 OK</text>
+      <text x="8" y="66" fill="#a7f3d0" font-size="9">mindcradle.online</text>
+      <text x="8" y="80" fill="#10b981" font-size="9">Live verified</text>
+    </g>
+  </g>
+</svg>

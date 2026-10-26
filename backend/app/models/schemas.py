@@ -43,9 +43,10 @@ class VerifyMagicLinkRequest(BaseModel):
     device_info: str = Field(alias="device_info")
 
 
-class GoogleLoginRequest(BaseModel):
-    token: Optional[str] = None
+class CognitoLoginRequest(BaseModel):
     code: Optional[str] = None
+    redirect_uri: Optional[str] = None
+    id_token: Optional[str] = None
 
 
 

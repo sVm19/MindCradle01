@@ -9,10 +9,18 @@ from app.core.security import verify_user_premium
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+from collections import OrderedDict
+
 # Server-side cache to control AI API costs and network overhead
 # Key: user_id, Value: (expiry_timestamp, widget_payload_dict)
-WIDGET_CACHE: Dict[str, Tuple[datetime, dict]] = {}
+MAX_WIDGET_CACHE_SIZE = 1000
+WIDGET_CACHE: OrderedDict[str, Tuple[datetime, dict]] = OrderedDict()
 CACHE_DURATION_HOURS = 4
+
+def set_cached_widget(user_id: str, expiry: datetime, payload: dict) -> None:
+    if len(WIDGET_CACHE) >= MAX_WIDGET_CACHE_SIZE:
+        WIDGET_CACHE.popitem(last=False)
+    WIDGET_CACHE[user_id] = (expiry, payload)
 
 # Curated daily reflective questions (fallback/randomized pool)
 REFLECTIVE_QUESTIONS = [
@@ -56,7 +64,10 @@ async def get_widgets_consolidated(
     if user_id in WIDGET_CACHE:
         expiry, cached_payload = WIDGET_CACHE[user_id]
         if now < expiry:
+            WIDGET_CACHE.move_to_end(user_id)
             return cached_payload
+        else:
+            del WIDGET_CACHE[user_id]
 
     try:
         # 2. Fetch User Profile & Preferences
@@ -269,7 +280,7 @@ async def get_widgets_consolidated(
 
         # 6. Save cache
         expiry_time = now + timedelta(hours=CACHE_DURATION_HOURS)
-        WIDGET_CACHE[user_id] = (expiry_time, payload)
+        set_cached_widget(user_id, expiry_time, payload)
 
         return payload
 

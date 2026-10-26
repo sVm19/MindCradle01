@@ -357,7 +357,7 @@ export default function SemanticSearch({ open, onClose, embedded = false }: Prop
 
   const panelCls = embedded
     ? 'w-full'
-    : 'relative z-50 w-full max-w-[640px] max-h-[82vh] flex flex-col bg-bg border border-border/70 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden animate-fadeIn';
+    : 'relative w-full max-w-[640px] max-h-[82vh] flex flex-col bg-bg border border-border/70 rounded-2xl layer-4 overflow-hidden animate-fadeIn';
 
   return (
     <>

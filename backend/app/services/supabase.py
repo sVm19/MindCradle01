@@ -56,20 +56,45 @@ def extract_user_id(token: Optional[str]) -> Optional[str]:
 
 
 def extract_user_email(token: Optional[str]) -> Optional[str]:
+    """Verify JWT signature and return the authenticated user's email."""
     if not token:
         return None
-    try:
-        clean_token = token.removeprefix("Bearer ").strip()
-        parts = clean_token.split(".")
-        if len(parts) < 2:
-            return None
-        payload_part = parts[1]
-        padded = payload_part + "=" * (-len(payload_part) % 4)
-        decoded = base64.urlsafe_b64decode(padded)
-        data_dict = json.loads(decoded)
-        return data_dict.get("email")
-    except Exception:
+    clean_token = token.removeprefix("Bearer ").strip()
+    if not clean_token:
         return None
+
+    # 1. Custom JWT verification
+    try:
+        from app.core.security import verify_custom_access_token
+        custom = verify_custom_access_token(clean_token)
+        if custom:
+            import jwt
+            from app.config import JWT_SECRET_KEY
+            claims = jwt.decode(clean_token, JWT_SECRET_KEY, algorithms=["HS256"], options={"verify_signature": True})
+            return claims.get("email")
+    except Exception:
+        pass
+
+    # 2. Supabase JWT verification
+    try:
+        from app.core.security import verify_supabase_token
+        sb = verify_supabase_token(clean_token)
+        if sb and sb.email:
+            return sb.email
+    except Exception:
+        pass
+
+    # 3. Cognito JWT verification
+    try:
+        from app.core.cognito import verify_cognito_jwt
+        cog = verify_cognito_jwt(clean_token)
+        if cog and cog.get("email"):
+            return cog.get("email")
+    except Exception:
+        pass
+
+    return None
+
 
 def _apply_filter(query, filter_str: str):
     if not filter_str:
@@ -334,15 +359,10 @@ class SupabaseService:
         if not auth_token:
             raise ValueError("Missing auth token for profile sync")
             
-        parts = auth_token.split(".")
-        if len(parts) < 2:
-            raise ValueError("Invalid JWT token structure")
-            
-        payload_part = parts[1]
-        padded = payload_part + "=" * (-len(payload_part) % 4)
-        decoded = base64.urlsafe_b64decode(padded)
-        data_dict = json.loads(decoded)
-        user_id = data_dict["sub"]
+        user_id = extract_user_id(auth_token)
+        if not user_id:
+            raise ValueError("Invalid or unverified JWT token for profile sync")
+
         
         def _call():
             client = _get_client(auth_token)

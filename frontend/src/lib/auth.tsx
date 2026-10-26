@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import { auth as authApi, setTokenExpiredCallback, setAccessToken } from '@/lib/api';
 import type { AuthResponse } from '@/lib/api';
 import { mixpanel } from './mixpanel';
+import { useUserProfileRealtime } from './realtime';
+import type { UserProfileChange } from './realtime';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -16,9 +18,8 @@ interface User {
 interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
-  loginWithGoogle: (token: string) => Promise<void>;
-  loginWithGoogleCode: (code: string) => Promise<void>;
   loginWithMagicToken: (token: string) => Promise<void>;
+  loginWithCognito: (code: string, redirectUri?: string) => Promise<void>;
   loginWithSessionData: (res: any) => void;
   logout: () => void;
   authModalOpen: boolean;
@@ -42,6 +43,11 @@ function toUser(res: AuthResponse): User {
   };
 }
 
+function sanitizeUserForStorage(u: User): Omit<User, 'token'> {
+  const { token, ...rest } = u;
+  return rest;
+}
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -62,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const res = await authApi.refresh();
         setAccessToken(res.token);
         const u = toUser(res);
-        localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(u));
+        localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(sanitizeUserForStorage(u)));
         setUser(u);
 
         // Mixpanel Identify on session restore
@@ -114,9 +120,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [logout]);
 
+  // Listen for live database updates from Supabase Realtime
+  const handleProfileRealtimeUpdate = useCallback((updated: UserProfileChange) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const nextUser: User = {
+        ...prev,
+        name: updated.name || prev.name,
+        email: updated.email || prev.email,
+      };
+      localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(nextUser));
+      return nextUser;
+    });
+  }, []);
+
+  useUserProfileRealtime(user?.userId, handleProfileRealtimeUpdate);
+
   const persist = useCallback((u: User) => {
     setAccessToken(u.token);
-    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(u));
+    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(sanitizeUserForStorage(u)));
     setUser(u);
 
     // Mixpanel Identify & User Profiles update
@@ -151,20 +173,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
 
-  const loginWithGoogle = useCallback(async (token: string) => {
-    const res = await authApi.loginWithGoogle(token);
-    persist(toUser(res));
-  }, [persist]);
 
-  const loginWithGoogleCode = useCallback(async (code: string) => {
-    const res = await authApi.loginWithGoogleCode(code);
-    persist(toUser(res));
-  }, [persist]);
 
   const loginWithMagicToken = useCallback(async (token: string) => {
     const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
     const deviceInfo = isMobile ? 'mobile' : 'pc';
     const res = await authApi.verifyMagicLink(token, deviceInfo);
+    persist(toUser(res));
+  }, [persist]);
+
+  const loginWithCognito = useCallback(async (code: string, redirectUri?: string) => {
+    const res = await authApi.loginWithCognito({ code, redirect_uri: redirectUri });
     persist(toUser(res));
   }, [persist]);
 
@@ -178,9 +197,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoading,
-        loginWithGoogle,
-        loginWithGoogleCode,
         loginWithMagicToken,
+        loginWithCognito,
         loginWithSessionData,
         logout,
         authModalOpen,

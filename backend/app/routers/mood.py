@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Header, Query, Request, Depends, BackgroundTasks
+from fastapi import APIRouter, Header, Query, Request, Depends, BackgroundTasks, HTTPException
 from typing import Optional
 from fastapi_csrf_protect import CsrfProtect
 from app.models.schemas import MoodCreate
@@ -20,34 +20,30 @@ async def log_mood(
     csrf_protect: CsrfProtect = Depends(),
 ):
     await csrf_protect.validate_csrf(request)
-    logger.info(
-        "Mood log request received: level=%s emotions=%s note_length=%s auth_present=%s",
-        req.level,
-        req.emotions,
-        len(req.note or ""),
-        authorization is not None,
-    )
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    user_id = extract_user_id(authorization)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     from app.utils.sanitize import sanitize_mood_notes
-    
+
     sanitized_note = sanitize_mood_notes(req.note) if req.note else ""
     data = {
+        "user": user_id,
         "level": req.level,
         "emotions": req.emotions,
         "note": sanitized_note,
     }
-    user_id = extract_user_id(authorization)
-    logger.info("Extracted user_id=%s from authorization header", user_id)
-    if user_id:
-        data["user"] = user_id
 
     record = await pb.create_record(
         "mood_logs",
         data,
         token=authorization,
     )
-    logger.info("Mood record created: id=%s", record.get("id"))
-    if user_id and sanitized_note:
+    logger.info("Mood record created: id=%s for user_id=%s", record.get("id"), user_id)
+    if sanitized_note:
         background_tasks.add_task(
             kg_svc.process_source,
             user_id,
@@ -65,16 +61,18 @@ async def get_mood_history(
     authorization: Optional[str] = Header(None),
 ):
     """Get mood history for the authenticated user."""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
     user_id = extract_user_id(authorization)
-    logger.info(
-        "Mood history request received: range=%s auth_present=%s user_id=%s",
-        range,
-        authorization is not None,
-        user_id,
-    )
-    params = {"sort": "-created", "perPage": 100}
-    if user_id:
-        params["filter"] = f'user_id="{user_id}"'
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    params = {
+        "sort": "-created",
+        "perPage": 100,
+        "filter": f'user_id="{user_id}"'
+    }
 
     result = await pb.list_records(
         "mood_logs",

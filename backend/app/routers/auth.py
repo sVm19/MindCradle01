@@ -1,15 +1,11 @@
-import asyncio
 import logging
 import uuid
 import bcrypt
-import httpx
 from typing import Optional
 from datetime import datetime, timedelta, timezone
 import jwt
 
 from fastapi import APIRouter, HTTPException, Header, Response, Cookie
-from google.auth.transport import requests as google_requests
-from google.oauth2 import id_token as google_id_token
 from app.models.schemas import (
     AuthResponse,
     RefreshRequest,
@@ -20,8 +16,8 @@ from app.models.schemas import (
     ResetPasswordRequest,
     MagicLinkRequest,
     MagicLoginRequest,
-    GoogleLoginRequest,
     VerifyMagicLinkRequest,
+    CognitoLoginRequest,
 )
 from app.utils.security import (
     hash_password,
@@ -35,6 +31,12 @@ from app.utils.email import (
     send_magic_link_email,
 )
 from app.services.supabase import pb, extract_user_id, _get_client
+from app.core.cognito import (
+    verify_cognito_jwt,
+    exchange_cognito_code_for_tokens,
+    extract_alb_oidc_payload,
+)
+from app.core.jit_sync import sync_user_to_supabase
 from app import config as settings
 
 
@@ -298,14 +300,15 @@ async def withdraw_consent(
     try:
         client = _get_client(token)
         user_res = client.auth.get_user(token)
-        is_google = False
+        is_passwordless = False
         if user_res and user_res.user:
             app_metadata = getattr(user_res.user, "app_metadata", {}) or {}
             providers = app_metadata.get("providers", [])
-            if "google" in providers or app_metadata.get("provider") == "google":
-                is_google = True
+            provider = app_metadata.get("provider")
+            if provider in ["cognito", "magiclink", "sso"] or any(p in providers for p in ["cognito", "magiclink", "sso"]):
+                is_passwordless = True
 
-        if not is_google:
+        if not is_passwordless:
             if not req.password:
                 raise HTTPException(status_code=400, detail="Password is required for legacy accounts.")
             await pb.auth_with_password(email, get_deterministic_hash(req.password))
@@ -728,134 +731,123 @@ async def magic_login(req: MagicLoginRequest, response: Response):
         raise HTTPException(status_code=500, detail="Failed to log in with magic link.")
 
 
-@router.get("/google")
-async def google_login_get():
-    """Handle GET requests gracefully instead of returning 405 Method Not Allowed"""
-    raise HTTPException(
-        status_code=400,
-        detail="Google authentication requires a POST request with an authorization code or token."
+@router.post("/cognito", response_model=AuthResponse)
+async def cognito_login(
+    req: CognitoLoginRequest,
+    response: Response,
+    x_amzn_oidc_data: Optional[str] = Header(None, alias="x-amzn-oidc-data"),
+    x_amzn_oidc_identity: Optional[str] = Header(None, alias="x-amzn-oidc-identity"),
+):
+    """
+    Authenticate a user via AWS Cognito:
+    1. Authorization Code exchange from Cognito Hosted UI (req.code).
+    2. Direct Cognito ID token verification (req.id_token).
+    3. ALB Zero-Code Authentication headers (x-amzn-oidc-data).
+    Performs Just-In-Time (JIT) sync into Supabase user_profiles and issues a MindCradle session.
+    """
+    cognito_payload = None
+
+    # 1. Authorization Code exchange with Cognito Hosted UI
+    if req.code:
+        redirect_uri = req.redirect_uri or f"{settings.FRONTEND_URL}/auth/callback"
+        tokens = await exchange_cognito_code_for_tokens(req.code, redirect_uri)
+        if not tokens or "id_token" not in tokens:
+            raise HTTPException(
+                status_code=400,
+                detail="Failed to exchange authorization code with Amazon Cognito.",
+            )
+        cognito_payload = verify_cognito_jwt(tokens["id_token"])
+        if not cognito_payload:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid ID token received from Amazon Cognito.",
+            )
+
+    # 2. Direct ID token passed from client
+    elif req.id_token:
+        cognito_payload = verify_cognito_jwt(req.id_token)
+        if not cognito_payload:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid Cognito token provided.",
+            )
+
+    # 3. ALB Zero-Code Authentication Header (Requires valid cryptographically signed JWT)
+    elif x_amzn_oidc_data:
+        cognito_payload = extract_alb_oidc_payload(x_amzn_oidc_data)
+        if not cognito_payload:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid or unverified ALB authentication signature.",
+            )
+
+    if not cognito_payload or not cognito_payload.get("sub"):
+        raise HTTPException(
+            status_code=400,
+            detail="No valid Cognito credentials, code, or verified ALB header provided.",
+        )
+
+    user_id = str(cognito_payload["sub"])
+    email = cognito_payload.get("email") or ""
+    name = (
+        cognito_payload.get("name")
+        or cognito_payload.get("cognito:username")
+        or (email.split("@")[0] if email else "Cognito User")
+    )
+
+    # Perform atomic JIT sync to Supabase
+    await sync_user_to_supabase(user_id=user_id, email=email, name=name)
+
+    # Issue custom access and refresh tokens
+    access_token = create_access_token(user_id, email)
+    refresh_token = create_refresh_token(user_id, email, name)
+
+    # Auto-start trial and age verification
+    await _auto_start_trial_if_needed(user_id, access_token)
+    await _auto_verify_age_if_needed(user_id, access_token)
+
+    # Set refresh token in HttpOnly cookie
+    is_prod = (settings.ENVIRONMENT == "production")
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True if is_prod else False,
+        samesite="none" if is_prod else "lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        path="/",
+    )
+
+    return AuthResponse(
+        token=access_token,
+        refresh_token="",
+        user_id=user_id,
+        name=name,
+        email=email,
     )
 
 
-@router.post("/google", response_model=AuthResponse)
-async def google_login(req: GoogleLoginRequest, response: Response):
-    """Verify Google token and create or authenticate user session"""
-    try:
-        if not settings.GOOGLE_CLIENT_ID:
-            raise HTTPException(
-                status_code=500,
-                detail="GOOGLE_CLIENT_ID is not configured on the backend."
-            )
+@router.get("/alb-session", response_model=AuthResponse)
+async def alb_session(
+    response: Response,
+    x_amzn_oidc_data: Optional[str] = Header(None, alias="x-amzn-oidc-data"),
+):
+    """
+    Check if the user is authenticated via ALB listener Cognito rule.
+    Validates the cryptographic ES256 signature from AWS ALB before creating a session.
+    """
+    if not x_amzn_oidc_data:
+        raise HTTPException(status_code=401, detail="No ALB Cognito session found.")
 
-        idinfo = None
+    return await cognito_login(
+        req=CognitoLoginRequest(),
+        response=response,
+        x_amzn_oidc_data=x_amzn_oidc_data,
+    )
 
-        # Auth-code flow: exchange code for tokens using client secret
-        if req.code:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                token_resp = await client.post(
-                    "https://oauth2.googleapis.com/token",
-                    data={
-                        "code": req.code,
-                        "client_id": settings.GOOGLE_CLIENT_ID,
-                        "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                        "redirect_uri": "postmessage",
-                        "grant_type": "authorization_code",
-                    },
-                )
-            if token_resp.status_code != 200:
-                logger.error(f"Google token exchange failed: {token_resp.text}")
-                raise HTTPException(status_code=400, detail="Failed to exchange Google authorization code.")
-            token_data = token_resp.json()
-            id_token_str = token_data.get("id_token")
-            if not id_token_str:
-                raise HTTPException(status_code=400, detail="No id_token returned from Google token exchange.")
-            
-            try:
-                idinfo = await asyncio.to_thread(
-                    google_id_token.verify_oauth2_token,
-                    id_token_str,
-                    google_requests.Request(),
-                    settings.GOOGLE_CLIENT_ID,
-                    clock_skew_in_seconds=10
-                )
-            except Exception as verify_err:
-                logger.warning("verify_oauth2_token cert fetch error (%s); decoding direct TLS token payload", verify_err)
-                idinfo = jwt.decode(id_token_str, options={"verify_signature": False})
-                if idinfo.get("aud") != settings.GOOGLE_CLIENT_ID:
-                    raise HTTPException(status_code=400, detail="Google token audience mismatch.")
 
-        # Legacy ID-token flow (from <GoogleLogin> component)
-        elif req.token:
-            try:
-                idinfo = await asyncio.to_thread(
-                    google_id_token.verify_oauth2_token,
-                    req.token,
-                    google_requests.Request(),
-                    settings.GOOGLE_CLIENT_ID,
-                    clock_skew_in_seconds=10
-                )
-            except Exception as verify_err:
-                logger.warning("verify_oauth2_token error (%s); verifying token claims", verify_err)
-                idinfo = jwt.decode(req.token, options={"verify_signature": False})
-                if idinfo.get("aud") != settings.GOOGLE_CLIENT_ID:
-                    raise HTTPException(status_code=400, detail="Google token audience mismatch.")
-        else:
-            raise HTTPException(status_code=400, detail="Either 'token' or 'code' must be provided.")
-        
-        email = idinfo['email']
-        name = idinfo.get('name', 'User')
-        google_sub = idinfo['sub']
-        
-        # Use database RPC to find or create the user securely and return details
-        user_info_list = await pb.call_rpc(
-            "get_or_create_google_user",
-            {
-                "p_email_address": email,
-                "p_user_name": name,
-                "p_google_sub": google_sub
-            }
-        )
-        
-        if not user_info_list or len(user_info_list) == 0:
-            raise HTTPException(status_code=400, detail="Failed to retrieve or create Google user account.")
-            
-        user_info = user_info_list[0]
-        user_id = str(user_info["user_id"])
-        ret_email = user_info["user_email"]
-        ret_name = user_info["user_name"]
-        
-        # Generate custom tokens (same custom JWT flow as magic login)
-        access_token = create_access_token(user_id, ret_email)
-        refresh_token = create_refresh_token(user_id, ret_email, ret_name)
-        
-        # Auto-start 7-day trial if first time signing in
-        await _auto_start_trial_if_needed(user_id, access_token)
 
-        # Auto-verify age to prevent prompt
-        await _auto_verify_age_if_needed(user_id, access_token)
-        
-        # Set refresh token in HttpOnly cookie
-        is_prod = (settings.ENVIRONMENT == "production")
-        response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            httponly=True,
-            secure=True if is_prod else False,
-            samesite="none" if is_prod else "lax",
-            max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-            path="/"
-        )
-        
-        return AuthResponse(
-            token=access_token,
-            refresh_token="",  # Do not return in body
-            user_id=user_id,
-            name=ret_name,
-            email=ret_email,
-        )
-    except Exception as e:
-        logger.error(f"Google login failed: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Google authentication failed: {str(e)}")
+
 
 
 

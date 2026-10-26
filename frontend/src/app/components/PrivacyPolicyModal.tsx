@@ -86,7 +86,7 @@ export default function PrivacyPolicyModal() {
       // 3. Close modal
       setIsOpen(false);
 
-      // 4. Redirect to Login page (Google OAuth signup is handled here)
+      // 4. Redirect to Login page (Authentication is handled here)
       navigate('/login');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save agreement');
@@ -106,7 +106,7 @@ export default function PrivacyPolicyModal() {
       {/* Background click interceptor — doesn't allow closing */}
       <div className="absolute inset-0" onClick={handleAttemptClose} />
 
-      <div className="w-full max-w-2xl bg-bg2 border border-border rounded-[24px] p-6 md:p-8 relative shadow-2xl animate-slideIn flex flex-col max-h-[90vh] z-10 text-left">
+      <div className="w-full max-w-2xl bg-bg2 border border-border rounded-[24px] p-6 md:p-8 relative layer-4 animate-slideIn flex flex-col max-h-[90vh] text-left">
         {/* Logo */}
         <div className="flex justify-start mb-4">
           <Logo className="h-8 w-auto text-text" />

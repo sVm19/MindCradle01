@@ -10,7 +10,7 @@ server {
     add_header X-Frame-Options "DENY" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://cdn.jsdelivr.net https://abacklaunch.com https://nicklaunches.com https://www.clarity.ms https://*.clarity.ms https://invitejs.trustpilot.com https://*.trustpilot.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https: https://*.trustpilot.com; connect-src 'self' https: wss: https://*.clarity.ms https://c.clarity.ms https://*.trustpilot.com; frame-src 'self' https://accounts.google.com https://abacklaunch.com https://nicklaunches.com https://*.trustpilot.com;" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://abacklaunch.com https://nicklaunches.com https://www.clarity.ms https://*.clarity.ms https://invitejs.trustpilot.com https://*.trustpilot.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https: https://*.trustpilot.com; connect-src 'self' https: wss: https://*.clarity.ms https://c.clarity.ms https://*.trustpilot.com; frame-src 'self' https://abacklaunch.com https://nicklaunches.com https://*.trustpilot.com;" always;
 
     location /assets/ {
         expires 1y;
@@ -28,6 +28,9 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        # Strip spoofable upstream authentication headers from external clients
+        proxy_set_header x-amzn-oidc-data "";
+        proxy_set_header x-amzn-oidc-identity "";
     }
 
     location /api/ {
@@ -36,6 +39,9 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        # Strip spoofable upstream authentication headers from external clients
+        proxy_set_header x-amzn-oidc-data "";
+        proxy_set_header x-amzn-oidc-identity "";
     }
 
     location ~ ^/(sitemap(-pages|-blog|-docs)?\.xml|robots\.txt|rss\.xml)$ {

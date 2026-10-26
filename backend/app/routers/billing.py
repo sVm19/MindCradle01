@@ -8,6 +8,7 @@ from app.models.schemas import SubscriptionCheckoutRequest
 from app.services.supabase import pb, extract_user_id
 from app.core.security import generate_subscription_token
 from app.utils.idempotency import execute_idempotent
+from app.config import ENVIRONMENT
 
 router = APIRouter()
 
@@ -54,6 +55,12 @@ async def checkout(
     authorization: Optional[str] = Header(None),
     idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key")
 ):
+    if ENVIRONMENT == "production":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Direct card checkout is disabled in production. Please use Creem checkout portal."
+        )
+
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing authorization header")
 
@@ -61,6 +68,7 @@ async def checkout(
     user_id = extract_user_id(token)
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
+
 
     # Resolve idempotency key from header or request payload
     effective_idempotency_key = idempotency_key or req.idempotency_key
@@ -134,7 +142,7 @@ async def checkout(
                 "subscription_expires_at": expires_at.isoformat()
             }
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+            raise HTTPException(status_code=500, detail="Subscription processing failed")
 
     return await execute_idempotent(cache_key, _do_checkout)
 
@@ -176,4 +184,4 @@ async def cancel(
 
         return {"status": "success", "message": "Subscription cancelled successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Subscription cancellation failed")

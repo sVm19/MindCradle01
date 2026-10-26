@@ -4,112 +4,368 @@
   </a>
 </p>
 
-**MindCradle** is a premium, high-retention mental wellness companion designed to help you track your emotional well-being, establish mindful habits, and reflect on your days with a gentle, non-clinical AI companion named ARIA.
+<p align="center">
+  <strong>Enterprise-Grade Mental Wellness Platform Powered by Autonomous Relational Intelligence</strong>
+</p>
 
-Unlike generic wellness utility apps that track isolated metrics, MindCradle is powered by a custom **Compounding Intelligence Engine (CIE)** that works to become smarter about one specific person: **you**.
-
----
-
-## ⚡ The MindCradle Superpowers
-
-* <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; display: inline-block;"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M12 8v8"/><path d="M12 16H5"/><path d="M12 16h7"/></svg> **Compounding Intelligence Engine (CIE)**: MindCradle builds a secure **Personal Knowledge Graph (PKG)** for you. It maps emotional triggers, stressors, and coping strategies over time, recognizing distinct life chapters (e.g., *Finding My Rhythm*) and providing cross-chapter growth comparisons.
-* <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; display: inline-block;"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/><path d="m5 3 1 2.5L8.5 6 6 7 5 9.5 4 7 1.5 6 4 5Z"/><path d="m19 17 1 2.5 2.5.5-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1Z"/></svg> **ARIA (Dynamic AI Companion)**: Powered by OpenRouter (`google/gemini-3.5-flash-lite`). ARIA isn't a static chatbot; she is a validating companion with longitudinal relational memory. She notices themes, tracks vocabulary shifts (e.g., soft vs. high-friction language), and offers gentle reflections.
-* <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; display: inline-block;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg> **Hybrid Semantic Search**: Search all your historical logs (mood, journal, rituals, ARIA check-ins) using a pgvector-based hybrid semantic and keyword search. Ask ARIA questions like *"When was I happiest?"*, *"What was I worried about in January?"*, or *"Show me everything related to interviews."*
-* <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; display: inline-block;"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> **The Daily Loom (Synergistic Routine)**: Features are not isolated utilities. Your morning focus shapes your day, your afternoon check-in informs ARIA's chat starters, and your evening letting-go list feeds your seasonal reviews.
-* <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; display: inline-block;"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"/><path d="M12 2a5 5 0 0 0-5 5v3c0 2.2 1.8 4 4 4h2c2.2 0 4-1.8 4-4V7a5 5 0 0 0-5-5z"/></svg> **The Personal Solstice**: Like "Spotify Wrapped for the Mind," once every month or season, the app generates a gorgeous narrative digest. It highlights your mental seasons, patterns of resilience, and growth trajectories.
-* <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; display: inline-block;"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> **Guided Journaling with Ambient Layers**: Log your thoughts in response to daily prompts with an integrated ambient layer (Rain on Glass, Forest Morning, or Ocean Waves) to induce focus and calm.
-* <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; display: inline-block;"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg> **Evening Wind Down & Let-Go Rituals**: Release daily stress by logging what you wish to let go of (and watching it check-off and visually vanish), listing gratitudes, and setting a sleep timer.
-* <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; display: inline-block;"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg> **Curated & Crisis-Screened Resources**: Instant access to mental health tools and emergency crisis support, with safety guardrails that detect crisis intent and escalate immediately to 988.
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-Production-brightgreen?style=flat-square" alt="Production Status" />
+  <img src="https://img.shields.io/badge/AWS-ALB%20%7C%20EC2%20%7C%20Route53-orange?style=flat-square&logo=amazon-aws" alt="AWS Infrastructure" />
+  <img src="https://img.shields.io/badge/Auth-Amazon%20Cognito-blue?style=flat-square&logo=jsonwebtokens" alt="Amazon Cognito" />
+  <img src="https://img.shields.io/badge/Database-Supabase%20pgvector-emerald?style=flat-square&logo=supabase" alt="Supabase Database" />
+  <img src="https://img.shields.io/badge/Container-Docker%20Hub-2496ED?style=flat-square&logo=docker" alt="Docker Hub" />
+</p>
 
 ---
 
-## <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px; display: inline-block;"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M9 1v3"/><path d="M15 1v3"/><path d="M9 20v3"/><path d="M15 20v3"/><path d="M20 9h3"/><path d="M20 15h3"/><path d="M1 9h3"/><path d="M1 15h3"/></svg> Tech Stack
+## Overview
 
-### Frontend
-* **Core**: React (TypeScript) + Vite + Tailwind CSS (v4) + Framer Motion
-* **Styling**: Modern CSS (featuring responsive layouts, dark glassmorphic aesthetics, and smooth animations)
-* **Routing**: React Router
-
-### Backend
-* **Core**: Python + FastAPI + Uvicorn
-* **Database**: Supabase (PostgreSQL) with `pgvector` extension
-* **Database Client**: Supabase-py + PostgREST (stateless JWT handling)
-* **AI Integration**: OpenRouter API (google/gemini-3.5-flash-lite model + openai/text-embedding-3-small embedding model)
+MindCradle is a mental wellness platform designed to facilitate longitudinal emotional reflection, habit formation, and stress modulation. Powered by a custom **Compounding Intelligence Engine (CIE)** and a relational companion named **ARIA**, MindCradle constructs a private, client-isolated **Personal Knowledge Graph (PKG)** to map emotional triggers, resilience trajectories, and seasonal shifts over time.
 
 ---
 
-## <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px; display: inline-block;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> Setup & Installation
+## CI/CD Pipeline Architecture (Local to AWS)
 
-For a full breakdown of the application architecture, database schemas, and endpoints, please refer to the [Project Brain](project%20details/BRAIN.md).
+The continuous integration and continuous deployment (CI/CD) pipeline automates code validation, container compilation, image scanning, and zero-downtime deployment from local environments to production AWS infrastructure.
 
-### 1. Database Setup (Supabase)
-1. Create a new project on [Supabase](https://supabase.com).
-2. Go to the **SQL Editor** in the Supabase Dashboard.
-3. Paste and run the SQL migration scripts in order from `backend/supabase/migrations/` starting with `001_initial_schema.sql` up to the latest migration (e.g., enabling pgvector and the PKG database tables).
+### Figure 1: CI/CD Pipeline & Automated Release Flow
 
-### 2. Backend Setup
-1. Navigate to the backend directory:
+<p align="center">
+  <img src="docs/assets/ci-cd-architecture.svg" alt="MindCradle CI/CD Pipeline & Automated Release Flow" width="100%" />
+</p>
+
+```mermaid
+flowchart LR
+    subgraph S1["1. Local Development"]
+        LocalCode["Developer Workspace"]
+        GitCommit["git push origin <branch>"]
+        LocalCode --> GitCommit
+    end
+
+    subgraph S2["2. Pull Request CI (ci.yml)"]
+        direction TB
+        RuffCheck["Ruff Linter (backend/app)"]
+        PytestRun["Pytest Suite (test_*.py)"]
+        ViteBuild["Vite Build & prerender.py"]
+        SecretScan["Gitleaks Secret Detection"]
+        TrivyFS["Trivy Filesystem Vulnerability Scan"]
+    end
+
+    subgraph S3["3. Production Release CD (build.yml)"]
+        direction TB
+        MergeMain["Push / Merge to main"]
+        BuildBackend["docker build (mindcradle-backend)"]
+        BuildFrontend["docker build (mindcradle-frontend)"]
+        TrivyImages["Trivy Container Security Scan"]
+    end
+
+    subgraph S4["4. Central Container Registry"]
+        HubPush["Docker Hub (docker.io)"]
+        TagBackend["xuvm19/mindcradle-backend:latest"]
+        TagFrontend["xuvm19/mindcradle-frontend:latest"]
+    end
+
+    subgraph S5["5. Production AWS EC2 Rollout"]
+        direction TB
+        SSHTrigger["appleboy/ssh-action (Port 22, EC2_SSH_KEY)"]
+        DockerPull["docker compose -f docker-compose.prod.yml pull"]
+        ComposeUp["docker compose up -d --remove-orphans"]
+        ImagePrune["docker image prune -af --filter until=24h"]
+        HealthCurl["Live Health Verification: GET /api/health (200 OK)"]
+    end
+
+    GitCommit -->|Open Pull Request| S2
+    S2 -->|All checks pass & merged| MergeMain
+    MergeMain --> BuildBackend & BuildFrontend
+    BuildBackend & BuildFrontend --> TrivyImages
+    TrivyImages --> HubPush
+    HubPush --> TagBackend & TagFrontend
+    TagBackend & TagFrontend --> SSHTrigger
+    SSHTrigger --> DockerPull
+    DockerPull --> ComposeUp
+    ComposeUp --> ImagePrune
+    ImagePrune --> HealthCurl
+```
+
+---
+
+## Web Application Infrastructure & Network Flow
+
+MindCradle is deployed as an enterprise-grade, multi-tier containerized architecture in AWS `us-east-1`. Ingress traffic is managed by an Application Load Balancer across multiple Availability Zones with ACM TLS 1.3 encryption, native Amazon Cognito authentication hooks, and an isolated EC2 Docker bridge network.
+
+### Figure 2: AWS Cloud Network Flow & Infrastructure Topology
+
+<p align="center">
+  <img src="docs/assets/aws-network-architecture.svg" alt="MindCradle AWS Production Network Flow & Infrastructure Topology" width="100%" />
+</p>
+
+```mermaid
+flowchart TD
+    UserClient(["User Web Client / Browser"])
+
+    subgraph AWS_Edge["AWS Edge & DNS Ingress"]
+        R53["AWS Route 53 (mindcradle.online & www.mindcradle.online)"]
+        ACM["AWS Certificate Manager (Wildcard SSL / TLS 1.3)"]
+    end
+
+    subgraph AWS_ALB["AWS Application Load Balancer (mindcradle-alb)"]
+        direction TB
+        Subnets["Multi-AZ Subnet Mapping: us-east-1a, us-east-1b, us-east-1c"]
+        HTTPListener["Port 80 Listener (Default Action: 301 Redirect to HTTPS Port 443)"]
+        HTTPSListener["Port 443 Listener (Attached ACM SSL Certificate)"]
+        
+        subgraph ALB_Routing_Rules["Listener Rules & Authentication"]
+            CognitoRule["Authenticate with Amazon Cognito (OIDC Action)"]
+            ForwardAction["Forward Action: mindcradle-tg Target Group"]
+        end
+    end
+
+    subgraph AWS_Cognito["AWS Identity & Access Management"]
+        UserPool["Cognito User Pool (mindcradle-user-pool)"]
+        HostedUI["Cognito Hosted UI (OAuth 2.0 Auth Code Grant)"]
+        OIDCHeaders["Inject Headers: x-amzn-oidc-data, x-amzn-oidc-identity, x-amzn-oidc-accesstoken"]
+        UserPool --- HostedUI
+        HostedUI --> OIDCHeaders
+    end
+
+    subgraph AWS_TG["AWS Target Group (mindcradle-tg)"]
+        direction TB
+        TGConfig["Protocol: HTTP | Port: 8080 | Type: Instance"]
+        HealthCheck["Health Check Path: /api/health (Interval: 30s, Healthy Threshold: 3)"]
+        TargetInstance["Registered Target: i-0b532745ffac5d935 (mindcradle-prod) in us-east-1c [Healthy]"]
+        TGConfig --- HealthCheck --- TargetInstance
+    end
+
+    subgraph AWS_EC2["AWS EC2 Host (Ubuntu 24.04 LTS | Instance: i-0b532745ffac5d935 in us-east-1c)"]
+        HostPort["EC2 Host Inbound Port 8080 (Security Group: Allow traffic from ALB only)"]
+        
+        subgraph DockerNetwork["Internal Bridge Network (app-network)"]
+            direction TB
+            FrontendContainer["Frontend Container (mindcradle-frontend :8080)
+            - Nginx Unprivileged Alpine
+            - Serves React 19 Static Bundles + Pre-rendered SEO HTML
+            - Reverse Proxy: /api/* -> http://backend:8080"]
+
+            BackendContainer["Backend Container (mindcradle-backend :8080)
+            - Python 3.11 + FastAPI ASGI (Uvicorn)
+            - Decodes x-amzn-oidc-data & validates Bearer JWTs
+            - Rate Limiting, CORS, CSRF Protection
+            - Atomic Just-In-Time (JIT) Sync via RPC"]
+        end
+    end
+
+    subgraph CloudServices["External Cloud, Persistence & AI Tier"]
+        direction TB
+        SupabaseDB[("Supabase Managed Database
+        - PostgreSQL 15+
+        - pgvector Semantic Embeddings Index
+        - Row Level Security (RLS)
+        - Realtime WebSocket Channels")]
+
+        OpenRouterAPI["OpenRouter AI Gateway
+        - Model: google/gemini-3.5-flash-lite (ARIA Companion)
+        - Model: openai/text-embedding-3-small (Embeddings)"]
+
+        CreemAPI["Creem Payment Infrastructure
+        - Subscriptions & Checkout Sessions
+        - Webhook Signature Verification"]
+
+        MixpanelTelemetry["Mixpanel Product Analytics
+        - Privacy-Gated Telemetry & Event Tracking"]
+    end
+
+    UserClient -->|HTTPS Request :443| R53
+    R53 --> ACM
+    ACM --> HTTPSListener
+    UserClient -.->|HTTP Request :80| HTTPListener
+    HTTPListener -->|301 Redirect| HTTPSListener
+    HTTPSListener --> CognitoRule
+    CognitoRule <-->|OIDC Auth Flow| AWS_Cognito
+    CognitoRule --> ForwardAction
+    ForwardAction --> AWS_TG
+    AWS_TG -->|Route Traffic :8080| HostPort
+    AWS_TG -.->|Periodic Health Checks| HealthCheck
+    HostPort --> FrontendContainer
+    FrontendContainer -->|Serve UI Assets & HTML| UserClient
+    FrontendContainer -->|Proxy /api Requests| BackendContainer
+    BackendContainer <-->|JIT Profile Sync & Realtime WS| SupabaseDB
+    BackendContainer <-->|AI Reflections & Vector Search| OpenRouterAPI
+    BackendContainer <-->|Payment Verification & Webhooks| CreemAPI
+    UserClient <-->|Consented User Events| MixpanelTelemetry
+```
+
+### Detailed AWS Network Routing Specification
+
+1. **DNS Resolution & Edge Ingress**:
+   - The user visits `https://mindcradle.online`.
+   - **AWS Route 53** resolves the domain via an ALIAS A-record directly to the dual-stack DNS endpoint of the Application Load Balancer.
+   - **AWS Certificate Manager (ACM)** validates the wildcard domain certificate and terminates TLS 1.3 encryption at the edge.
+
+2. **Load Balancer & Multi-AZ Mapping**:
+   - The ALB is configured with subnets spanning three availability zones: `us-east-1a`, `us-east-1b`, and `us-east-1c`.
+   - Port 80 listener intercepts non-secure requests and returns a 301 permanent redirect to port 443 with HTTPS protocol preserved.
+
+3. **Cognito Zero-Code & Token Authentication**:
+   - The port 443 listener integrates natively with **Amazon Cognito User Pool** (`mindcradle-user-pool`).
+   - Unauthenticated visitors are redirected to the Cognito Hosted UI or authenticate through the client SPA application.
+   - Upon successful verification, the ALB injects the user's validated cryptographic identity into HTTP headers:
+     - `x-amzn-oidc-data`: Base64url-encoded JSON claims payload containing user identity, email, and attributes.
+     - `x-amzn-oidc-identity`: Unique Amazon Cognito user identity sub.
+     - `x-amzn-oidc-accesstoken`: Raw Cognito OAuth 2.0 access token.
+
+4. **Target Group Routing & Health Checks**:
+   - Validated traffic is routed to target group `mindcradle-tg` on port 8080.
+   - The target group continuously verifies instance health by requesting `/api/health` every 30 seconds.
+   - The target instance `i-0b532745ffac5d935` (`mindcradle-prod`) is hosted in `us-east-1c` and maintains a `Healthy` status.
+
+5. **Host Isolation & Docker Bridge Routing**:
+   - The EC2 security group only allows inbound TCP traffic on port 8080 originating from the ALB security group, blocking direct public access.
+   - Inside the host, Docker Compose exposes port 8080 through the Nginx frontend container.
+   - Nginx serves pre-rendered static assets directly to clients with cache headers, and reverse-proxies `/api/*` traffic over the internal Docker network `app-network` to `http://backend:8080`.
+   - FastAPI parses `x-amzn-oidc-data` or verifies Bearer tokens, runs atomic Just-In-Time synchronization against Supabase, and connects to OpenRouter for AI inference.
+
+---
+
+## Core Engineering Features
+
+- **Compounding Intelligence Engine (CIE)**: Dynamically extracts user themes, linguistic markers, and recurring coping mechanisms, building a persistent personal knowledge base.
+- **ARIA Relational AI Companion**: Operates with longitudinal memory instead of isolated session contexts, detecting cognitive shifts, validating feelings, and offering non-clinical guidance.
+- **Hybrid Semantic Search**: Combines traditional keyword matching with pgvector embeddings to retrieve entries, journal reflections, and past mood states via natural language queries.
+- **Just-In-Time (JIT) Identity Sync**: Decodes and cryptographically validates incoming Cognito RS256 JWTs or ALB OIDC headers and atomically synchronizes identity records into Supabase `user_profiles`.
+- **Pre-Rendered Static Generation**: Custom build script executes after Vite compilation to generate prerendered HTML for all public marketing, documentation, and blog routes to maximize search indexing speed.
+
+---
+
+## Local Development & Setup
+
+### Prerequisites
+
+- **Docker & Docker Compose**: Version 24+
+- **Node.js**: Version 20.x or higher
+- **Python**: Version 3.11.x
+- **Supabase Account**: With active PostgreSQL database
+
+### 1. Database Setup
+
+1. Open your Supabase project dashboard.
+2. Navigate to the **SQL Editor**.
+3. Execute the migration scripts sequentially from `backend/supabase/migrations/` (from `001_initial_schema.sql` through `030_add_cognito_support_and_realtime.sql`).
+
+### 2. Backend Configuration
+
+1. Move to the backend folder:
    ```bash
    cd backend
    ```
-2. Create and activate a virtual environment:
+2. Initialize and activate Python virtual environment:
    ```bash
    python -m venv .venv
-   # On Windows:
+   # Windows:
    .venv\Scripts\activate
-   # On macOS/Linux:
+   # Linux/macOS:
    source .venv/bin/activate
    ```
 3. Install dependencies:
    ```bash
-   pip install -e .
+   pip install -r requirements.txt
    ```
-4. Copy the environment template and fill in your credentials in `.env`:
+4. Configure environment parameters:
    ```bash
    cp .env.example .env
    ```
-   * *Required Env Variables:* Supabase credentials (URL, anonymous key, JWT secret) and OpenRouter credentials (API key, model)
-5. Run the server:
+5. Start development API service:
    ```bash
-   uvicorn app.main:app --reload
+   uvicorn app.main:app --reload --port 8080
    ```
 
-### 3. Frontend Setup
-1. Navigate to the frontend directory:
+### 3. Frontend Configuration
+
+1. Move to the frontend folder:
    ```bash
    cd ../frontend
    ```
-2. Install npm packages:
+2. Install npm dependencies:
    ```bash
    npm install
    ```
-3. Start the dev server (Vite proxies api calls to the FastAPI server running on `http://localhost:8000`):
+3. Copy local environment variables:
+   ```bash
+   cp .env.example .env.local
+   ```
+4. Start the Vite development server:
    ```bash
    npm run dev
    ```
 
+### 4. Running Full Stack via Production Compose
+
+To replicate the production environment locally:
+```bash
+docker compose -f docker-compose.prod.yml up --build
+```
+The application will be accessible at `http://localhost:3000`.
+
 ---
 
-## <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px; display: inline-block;"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/></svg> Repository Structure
+## Production Deployment & Secrets Matrix
+
+The following secrets must be configured in the GitHub repository settings (`Settings -> Secrets and variables -> Actions`) to enable automated CI/CD deployment:
+
+| Secret Name | Description | Example / Format |
+|---|---|---|
+| `DOCKERHUB_USERNAME` | Docker Hub organization or username | `xuvm19` |
+| `DOCKERHUB_TOKEN` | Docker Hub Personal Access Token (Read & Write permissions) | `dckr_pat_...` |
+| `EC2_HOST` | Public IP or Elastic IP of the AWS EC2 instance | `54.xxx.xxx.xxx` |
+| `EC2_USER` | Remote SSH login user | `ubuntu` |
+| `EC2_SSH_KEY` | Private SSH key (PEM format) associated with the EC2 instance key pair | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
+
+---
+
+## Security & Verification Standards
+
+- **Zero Hardcoded Secrets**: All credentials and sensitive API tokens are decoupled into environment variables.
+- **Static Analysis & Security Scans**: Continuous integration scans all pull requests with Gitleaks for leaked tokens and Trivy for filesystem and container vulnerabilities.
+- **Strict Headers**: Production responses enforce Content Security Policy (CSP), HTTP Strict Transport Security (HSTS with preload), `X-Frame-Options: DENY`, and `X-Content-Type-Options: nosniff`.
+- **Stateless Authentication**: Access tokens are signed JWTs with short expiry periods; refresh tokens are stored in secure, `HttpOnly`, `SameSite=Strict` cookies.
+
+---
+
+## Repository Structure
 
 ```text
-├── backend/
-│   ├── app/
-│   │   ├── models/        # Pydantic validation schemas
-│   │   ├── routers/       # API endpoints (auth, ai, journal, mood, rituals)
-│   │   ├── services/      # Supabase, Embeddings, PKG & OpenRouter AI connectors
-│   │   ├── config.py      # App configurations & settings
-│   │   └── main.py        # FastAPI entrypoint & middleware
-│   ├── supabase/          # Database SQL migration scripts (001 to 024)
-│   ├── .env               # Private environment configurations
-│   └── pyproject.toml     # Backend dependencies list
-│
-├── frontend/
-│   ├── src/
-│   │   ├── app/pages/     # React pages (Dashboard, ARIA, Journal, Rituals, Login, Understanding)
-│   │   ├── components/    # Common UI widgets (SemanticSearch, AriaTerminalCard, GuestGate)
-│   │   ├── lib/           # Fetch API wrappers and auth context providers
-│   │   ├── styles/        # Global typography, color variables & themes
-│   │   └── main.tsx       # Vite render entrypoint
-│   └── vite.config.ts     # Dev proxy and asset resolvers
+.
+|-- .github/
+|   `-- workflows/
+|       |-- ci.yml                   # Pull request validation: Lint, Test, Build, Scan
+|       `-- build.yml                # Main push deployment: Buildx, Docker Hub, SSH EC2 Deploy
+|-- backend/
+|   |-- app/
+|   |   |-- core/                    # Security, JWT cryptography, Cognito token exchange, JIT sync
+|   |   |-- models/                  # Pydantic validation schemas
+|   |   |-- routers/                 # API controllers (auth, ai, journal, mood, rituals, user)
+|   |   |-- services/                # Supabase, pgvector embeddings, OpenRouter integration
+|   |   |-- config.py                # Environment configuration loader
+|   |   `-- main.py                  # FastAPI application entrypoint and middleware
+|   |-- supabase/
+|   |   `-- migrations/              # SQL database schemas and stored procedures (001-030)
+|   |-- Dockerfile                   # Multi-stage production container build for backend
+|   `-- requirements.txt             # Python production dependencies
+|-- frontend/
+|   |-- src/
+|   |   |-- app/
+|   |   |   |-- components/          # Reusable UI components and modals
+|   |   |   `-- pages/               # Application view controllers and route pages
+|   |   |-- lib/                     # API client, Auth Context, Realtime WebSocket listener
+|   |   `-- styles/                  # Tailwind CSS styling and theme specifications
+|   |-- nginx.conf.template          # Production reverse proxy and caching configuration
+|   |-- Dockerfile                   # Multi-stage container build with pre-rendered pages
+|   `-- package.json                 # Frontend dependencies and npm scripts
+|-- docker-compose.prod.yml          # Production multi-container composition
+`-- prerender.py                     # Headless static page generation script for SEO
 ```
+
+---
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

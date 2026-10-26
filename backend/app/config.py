@@ -20,9 +20,12 @@ SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
 # NEVER log or expose this value.
 SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")
 
-# Google OAuth
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+# AWS Cognito
+AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+COGNITO_USER_POOL_ID = os.getenv("COGNITO_USER_POOL_ID", "")
+COGNITO_APP_CLIENT_ID = os.getenv("COGNITO_APP_CLIENT_ID", "")
+COGNITO_APP_CLIENT_SECRET = os.getenv("COGNITO_APP_CLIENT_SECRET", "")
+COGNITO_DOMAIN = os.getenv("COGNITO_DOMAIN", "")
 
 # AI API (OpenRouter)
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
@@ -37,6 +40,8 @@ RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 CREEM_API_KEY = os.getenv("CREEM_API_KEY", "")
 CREEM_API_URL = os.getenv("CREEM_API_URL", "https://test-api.creem.io")
 CREEM_PRODUCT_ID = os.getenv("CREEM_PRODUCT_ID", "")
+CREEM_WEBHOOK_SECRET = os.getenv("CREEM_WEBHOOK_SECRET", "")
+
 
 
 # CORS — the URL of the frontend that is allowed to call this API.

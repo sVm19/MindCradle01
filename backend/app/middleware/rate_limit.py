@@ -33,12 +33,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if request.method == "OPTIONS":
             return await call_next(request)
             
-        # Check X-Forwarded-For header first if behind reverse proxies (like Google Cloud Run)
-        x_forwarded_for = request.headers.get("x-forwarded-for")
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(",")[0].strip()
+        # Prefer X-Real-IP set by trusted upstream reverse proxy (e.g. Nginx/ALB),
+        # falling back to the ASGI peer address. Do not trust client-controlled X-Forwarded-For.
+        x_real_ip = request.headers.get("x-real-ip")
+        if x_real_ip:
+            ip = x_real_ip.strip()
+        elif request.client and request.client.host:
+            ip = request.client.host
         else:
-            ip = request.client.host if request.client else "unknown-ip"
+            ip = "unknown-ip"
+
         
         now = datetime.utcnow()
         

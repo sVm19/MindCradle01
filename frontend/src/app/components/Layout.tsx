@@ -225,10 +225,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             robots="noindex, nofollow"
           />
         )}
-        {/* Ambient orbs */}
-        <div className="fixed w-[500px] h-[500px] rounded-full blur-[80px] bg-accent/8 -top-[150px] -right-[100px] pointer-events-none z-0" />
-        <div className="fixed w-[400px] h-[400px] rounded-full blur-[80px] bg-teal/6 bottom-[100px] -left-[100px] pointer-events-none z-0" />
-        <div className="fixed w-[300px] h-[300px] rounded-full blur-[80px] bg-rose/5 top-1/2 left-[40%] pointer-events-none z-0" />
+        {/* Ambient orbs: Akebono dawn harmony */}
+        <div className="fixed w-[500px] h-[500px] rounded-full blur-[80px] bg-accent/10 -top-[150px] -right-[100px] pointer-events-none z-0" />
+        <div className="fixed w-[400px] h-[400px] rounded-full blur-[80px] bg-lavender/8 bottom-[100px] -left-[100px] pointer-events-none z-0" />
+        <div className="fixed w-[300px] h-[300px] rounded-full blur-[80px] bg-amber/6 top-1/2 left-[40%] pointer-events-none z-0" />
 
         {hasCriticalCrisis && (
           <div
@@ -240,13 +240,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        <div className="flex flex-col min-h-screen relative z-[1]">
+        <div className="flex flex-col min-h-screen relative z-[1] perspective-stage">
           {/* Skip Link for Keyboard Accessibility */}
           <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-[#05020c] focus:font-bold focus:rounded-lg">
             Skip to main content
           </a>
 
-          <header role="banner" className="w-full bg-transparent relative z-20">
+          <header role="banner" className="w-full bg-transparent relative layer-2">
             <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-x-4 gap-y-2 px-6 md:px-10 py-4 max-w-[900px] w-full mx-auto">
               {/* Left: Logo */}
               <div className="flex items-center flex-shrink-0 order-1">
@@ -318,7 +318,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   </button>
 
                   {showNotifications && (
-                    <div className="absolute right-0 mt-2.5 w-[290px] sm:w-[360px] bg-bg2 border border-border rounded-[20px] shadow-[0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-[20px] p-5 z-50 text-left animate-fadeIn">
+                    <div className="absolute right-0 mt-2.5 w-[290px] sm:w-[360px] bg-bg2 border border-border rounded-[20px] backdrop-blur-[20px] p-5 layer-3 text-left animate-fadeIn">
                       <div className="flex items-center justify-between pb-3 border-b border-border mb-3">
                         <div className="font-[family-name:var(--font-serif)] text-sm font-medium text-text">
                           ✦ Aria's Reached Out
@@ -423,15 +423,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 {user ? (
                   <Link
                     to="/settings"
-                    className="w-11 h-11 rounded-full bg-[#eef2f6] border border-[#b0b8c0] flex items-center justify-center flex-shrink-0 hover:scale-105 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
+                    className="w-11 h-11 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center flex-shrink-0 hover:border-accent hover:bg-accent/25 transition-all shadow-sm"
                     title="Settings / Profile"
                   >
-                    <span
-                      className="font-pacifico text-[15px] tracking-wide select-none animate-fadeIn"
-                      style={{
-                        color: '#612318ff'
-                      }}
-                    >
+                    <span className="font-[family-name:var(--font-serif)] font-medium text-xs tracking-wider uppercase text-accent select-none animate-fadeIn">
                       {initials}
                     </span>
                   </Link>
@@ -458,7 +453,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               onWheel={handleWheel}
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
-              className="flex items-center gap-1.5 sm:gap-2 px-5 py-2.5 overflow-x-auto scrollbar-none max-w-[820px] w-full mx-auto bg-bg2/40 backdrop-blur-md border border-border/60 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
+              className="flex items-center gap-1.5 sm:gap-2 px-5 py-2.5 overflow-x-auto scrollbar-none max-w-[820px] w-full mx-auto bg-bg2/40 backdrop-blur-md border border-border/60 rounded-full layer-2"
             >
               {navItems.map((item) => {
                 const isActive = location.pathname === item.path;
@@ -656,7 +651,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         {showCrisisModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
-            <div className="bg-bg2 border border-border w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slideIn">
+            <div className="bg-bg2 border border-border w-full max-w-lg rounded-2xl overflow-hidden flex flex-col layer-4 animate-slideIn">
               <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-bg3">
                 <h2 className="text-sm font-semibold text-rose uppercase tracking-wider flex items-center gap-2">
                   <AlertTriangle size={16} /> Crisis Support & Resources
