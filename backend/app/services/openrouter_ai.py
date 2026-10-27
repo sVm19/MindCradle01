@@ -94,7 +94,7 @@ async def chat_completion(
         elif getattr(last_err, "message", None):
             err_msg = last_err.message
 
-        if last_err.status_code == 402:
+        if last_err.status_code == 402 or (last_err.status_code == 404 and "not found" in err_msg.lower()):
             raise HTTPException(
                 status_code=402, detail=f"OpenRouter credits exhausted: {err_msg}"
             )
@@ -163,7 +163,7 @@ async def chat_completion_stream(
         elif getattr(last_err, "message", None):
             err_msg = last_err.message
 
-        if last_err.status_code == 402:
+        if last_err.status_code == 402 or (last_err.status_code == 404 and "not found" in err_msg.lower()):
             raise HTTPException(
                 status_code=402, detail=f"OpenRouter credits exhausted: {err_msg}"
             )

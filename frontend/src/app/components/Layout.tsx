@@ -621,6 +621,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
 
+              {/* Community Support Banner */}
+              <div className="bg-bg2/70 border border-amber-500/20 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-left shadow-sm">
+                <div className="space-y-1">
+                  <div className="text-xs font-semibold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <span>☕</span> Keep MindCradle Independent &amp; Ad-Free
+                  </div>
+                  <p className="text-xs text-text2 max-w-xl leading-relaxed">
+                    MindCradle is built independently with zero tracking ads or data selling. Your support directly funds our AI server compute so ARIA stays awake and accessible for everyone.
+                  </p>
+                </div>
+                <a
+                  href="https://buymeacoffee.com/imshubham7h"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-[#FFDD00] hover:bg-[#FFDD00]/90 text-black font-semibold rounded-xl text-xs transition-all shadow-sm shrink-0 flex items-center gap-2 cursor-pointer"
+                >
+                  <span>☕</span>
+                  <span>Buy Me a Coffee</span>
+                </a>
+              </div>
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-xs text-text3 text-left">
                 {/* Column 1: App Features / Core */}
                 <div className="flex flex-col gap-3">
@@ -652,6 +673,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <Link to="/terms" className="hover:text-text transition-all py-1">Terms of Service</Link>
                   <Link to="/refund" className="hover:text-text transition-all py-1">Refund Policy</Link>
                   <a href="mailto:support@mindcradle.online" className="hover:text-text transition-all py-1">Contact Us</a>
+                  <a
+                    href="https://buymeacoffee.com/imshubham7h"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-amber-300 transition-all py-1 flex items-center gap-1.5 font-medium text-amber-400"
+                  >
+                    <span>☕</span> Support Us
+                  </a>
                 </div>
 
                 {/* Column 4: Verification & Badges */}

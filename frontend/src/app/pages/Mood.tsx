@@ -134,7 +134,8 @@ export default function Mood() {
 
   const handleSave = async () => {
     if (selectedMood === null) {
-      setError('Please select a mood level.');
+      setError('Please select an energy level above before saving your reflection.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     const moodLevel = MOOD_TO_LEVEL[selectedMood];
@@ -321,20 +322,25 @@ export default function Mood() {
 
 
       {/* Submit */}
-      <div className="flex gap-3 pt-4">
+      <div className="flex flex-wrap items-center gap-3 pt-4">
         <button
           onClick={handleSave}
-          disabled={saving || selectedMood === null || notesError !== ''}
-          className="px-6 py-3 bg-accent text-white rounded-full font-semibold text-sm hover:bg-accent2 transition-all disabled:opacity-40 disabled:cursor-not-allowed smooth-hover-btn shadow-md animate-fadeIn"
+          disabled={saving || notesError !== ''}
+          className="px-6 py-3 bg-accent text-white rounded-full font-semibold text-sm hover:bg-accent2 transition-all disabled:opacity-40 disabled:cursor-not-allowed smooth-hover-btn shadow-md animate-fadeIn cursor-pointer"
         >
           {saving ? 'Saving…' : 'Save Daily Reflection'}
         </button>
         <button
-          onClick={() => { setSelectedMood(null); setFeelings([]); setNotes(''); setError(''); }}
-          className="px-6 py-3 bg-bg3 border border-border text-text2 rounded-full font-medium text-sm hover:bg-bg4 transition-all smooth-hover-btn"
+          onClick={() => { setSelectedMood(null); setFeelings([]); setNotes(''); setError(''); setNotesError(''); }}
+          className="px-6 py-3 bg-bg3 border border-border text-text2 rounded-full font-medium text-sm hover:bg-bg4 transition-all smooth-hover-btn cursor-pointer"
         >
           Clear
         </button>
+        {selectedMood === null && (
+          <span className="text-xs text-text3 animate-fadeIn">
+            Select an energy level above to complete your reflection.
+          </span>
+        )}
       </div>
 
       {/* AI Insight */}

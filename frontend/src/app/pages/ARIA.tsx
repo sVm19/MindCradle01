@@ -351,8 +351,32 @@ export default function ARIA() {
       if (err?.name === 'AbortError' || controller.signal.aborted) {
         return;
       }
-      const errorMsg = (err as any)?.response?.data?.detail || (err as Error)?.message || "I'm having trouble connecting right now. Please try again in a moment.";
-      setMessages((prev) => [...prev, { role: 'aria', content: errorMsg }]);
+      const status = (err as any)?.response?.status;
+      const detail = (err as any)?.response?.data?.detail;
+      const rawErrorMsg = typeof detail === 'string' ? detail : ((err as Error)?.message || '');
+      const isCreditOrCapacityIssue =
+        status === 402 ||
+        status === 404 ||
+        status === 502 ||
+        status === 503 ||
+        rawErrorMsg.toLowerCase().includes('not found') ||
+        rawErrorMsg.toLowerCase().includes('credit') ||
+        rawErrorMsg.toLowerCase().includes('openrouter') ||
+        rawErrorMsg.toLowerCase().includes('unavailable');
+
+      if (isCreditOrCapacityIssue) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'aria',
+            type: 'community_support',
+            content: "ARIA is currently resting while we replenish our AI community compute credits. As an independent, ad-free sanctuary, we rely on community contributions to keep our models online and accessible to everyone. If MindCradle has brought you peace, consider supporting us to keep ARIA awake."
+          }
+        ]);
+      } else {
+        const errorMsg = rawErrorMsg || "I'm having trouble connecting right now. Please try again in a moment.";
+        setMessages((prev) => [...prev, { role: 'aria', content: errorMsg }]);
+      }
     } finally {
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null;
@@ -1253,7 +1277,37 @@ export default function ARIA() {
                       <span>{message.thinkingMessage}</span>
                     </div>
                   )}
-                  {message.role === 'aria' && message.type === 'crisis_alert' ? (
+                  {message.role === 'aria' && message.type === 'community_support' ? (
+                    <div className="bg-gradient-to-br from-amber-500/10 via-bg3 to-purple-500/10 border border-amber-500/30 rounded-2xl p-5 text-left space-y-4 animate-slideIn w-full">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0 text-base">
+                          ☕
+                        </div>
+                        <div className="space-y-1.5 flex-1">
+                          <div className="text-xs text-amber-300 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                            ARIA Is Resting Briefly
+                          </div>
+                          <p className="text-sm text-text leading-relaxed">
+                            {message.content}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="pt-2 border-t border-border/60 flex flex-wrap items-center justify-between gap-3">
+                        <span className="text-[11px] text-text3">
+                          100% of contributions go directly toward AI server compute.
+                        </span>
+                        <a
+                          href="https://buymeacoffee.com/imshubham7h"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-[#FFDD00] hover:bg-[#FFDD00]/90 text-black font-semibold rounded-xl text-xs transition-all shadow-sm flex items-center gap-2 cursor-pointer smooth-hover-btn"
+                        >
+                          <span>☕</span>
+                          <span>Support on Buy Me a Coffee</span>
+                        </a>
+                      </div>
+                    </div>
+                  ) : message.role === 'aria' && message.type === 'crisis_alert' ? (
                     <div className="bg-rose/15 border border-rose/30 rounded-2xl p-5 text-left space-y-4 animate-slideIn">
                       <div className="flex items-start gap-3.5">
                         <Heart size={24} className="text-red-500 mt-0.5 flex-shrink-0" />
@@ -1315,7 +1369,7 @@ export default function ARIA() {
                       <p className="text-sm leading-relaxed">{renderMessageContent(sanitizeForDisplay(message.content))}</p>
                     </div>
                   )}
-                  {message.role === 'aria' && (
+                  {message.role === 'aria' && message.type !== 'community_support' && (
                     <div className="mt-1 ml-2 flex flex-col gap-1.5">
                       <span className="text-[10px] text-text3 flex items-center gap-1">
                         <Lock size={10} className="text-blue-500" /> This helps ARIA know you better
