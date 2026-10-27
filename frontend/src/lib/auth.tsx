@@ -20,6 +20,7 @@ interface AuthContextValue {
   isLoading: boolean;
   loginWithMagicToken: (token: string) => Promise<void>;
   loginWithCognito: (code: string, redirectUri?: string) => Promise<void>;
+  loginWithCognitoDirect: (email: string, password: string) => Promise<void>;
   loginWithSessionData: (res: any) => void;
   logout: () => void;
   authModalOpen: boolean;
@@ -187,6 +188,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persist(toUser(res));
   }, [persist]);
 
+  const loginWithCognitoDirect = useCallback(async (email: string, password: string) => {
+    const res = await authApi.cognitoDirectLogin(email, password);
+    persist(toUser(res));
+  }, [persist]);
+
   const loginWithSessionData = useCallback((res: any) => {
     persist(toUser(res));
   }, [persist]);
@@ -199,6 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         loginWithMagicToken,
         loginWithCognito,
+        loginWithCognitoDirect,
         loginWithSessionData,
         logout,
         authModalOpen,

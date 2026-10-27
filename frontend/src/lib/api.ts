@@ -456,6 +456,33 @@ export const auth = {
   loginWithCognito: (payload: { code?: string; redirect_uri?: string; id_token?: string }) =>
     request<AuthResponse>('POST', '/auth/cognito', payload, false),
 
+  cognitoDirectLogin: (email: string, password: string) =>
+    request<AuthResponse>('POST', '/auth/cognito/direct-login', { email, password }, false),
+
+  cognitoDirectSignup: (email: string, password: string, name?: string) =>
+    request<{ success: boolean; requires_confirmation: boolean; email: string; user_sub?: string }>(
+      'POST',
+      '/auth/cognito/direct-signup',
+      { email, password, name },
+      false
+    ),
+
+  cognitoConfirmSignup: (email: string, code: string) =>
+    request<{ success: boolean; confirmed: boolean; message: string }>(
+      'POST',
+      '/auth/cognito/confirm-signup',
+      { email, code },
+      false
+    ),
+
+  cognitoResendCode: (email: string) =>
+    request<{ success: boolean; message: string }>(
+      'POST',
+      '/auth/cognito/resend-code',
+      { email },
+      false
+    ),
+
   checkAlbSession: () =>
     request<AuthResponse>('GET', '/auth/alb-session', undefined, false),
 

@@ -18,6 +18,10 @@ from app.models.schemas import (
     MagicLoginRequest,
     VerifyMagicLinkRequest,
     CognitoLoginRequest,
+    CognitoDirectLoginRequest,
+    CognitoDirectSignupRequest,
+    CognitoConfirmSignupRequest,
+    CognitoResendCodeRequest,
 )
 from app.utils.security import (
     hash_password,
@@ -35,6 +39,10 @@ from app.core.cognito import (
     verify_cognito_jwt,
     exchange_cognito_code_for_tokens,
     extract_alb_oidc_payload,
+    cognito_direct_authenticate,
+    cognito_direct_sign_up,
+    cognito_confirm_sign_up,
+    cognito_resend_confirmation_code,
 )
 from app.core.jit_sync import sync_user_to_supabase
 from app import config as settings
@@ -844,6 +852,118 @@ async def alb_session(
         response=response,
         x_amzn_oidc_data=x_amzn_oidc_data,
     )
+
+
+@router.post("/cognito/direct-login", response_model=AuthResponse)
+async def cognito_direct_login(
+    req: CognitoDirectLoginRequest,
+    response: Response,
+):
+    """
+    Direct in-app login with Amazon Cognito using USER_PASSWORD_AUTH.
+    No external redirects. Embeds securely in MindCradle UI.
+    Performs JIT sync to Supabase user_profiles and issues tokens.
+    """
+    auth_result = await cognito_direct_authenticate(req.email, req.password)
+    id_token = auth_result.get("IdToken")
+    if not id_token:
+        raise HTTPException(status_code=401, detail="Authentication failed: No ID token returned from AWS Cognito.")
+
+    cognito_payload = verify_cognito_jwt(id_token)
+    if not cognito_payload:
+        try:
+            cognito_payload = jwt.decode(id_token, options={"verify_signature": False})
+        except Exception as e:
+            logger.error("Failed to decode Cognito ID token: %s", e)
+            raise HTTPException(status_code=401, detail="Invalid token from AWS Cognito.")
+
+    user_id = str(cognito_payload.get("sub"))
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Missing user identifier in Cognito token.")
+
+    email = cognito_payload.get("email") or req.email.strip().lower()
+    name = (
+        cognito_payload.get("name")
+        or cognito_payload.get("cognito:username")
+        or (email.split("@")[0] if email else "User")
+    )
+
+    # Perform atomic JIT sync to Supabase
+    await sync_user_to_supabase(user_id=user_id, email=email, name=name)
+
+    # Issue custom access and refresh tokens
+    access_token = create_access_token(user_id, email)
+    refresh_token = create_refresh_token(user_id, email, name)
+
+    # Auto-start trial and age verification
+    await _auto_start_trial_if_needed(user_id, access_token)
+    await _auto_verify_age_if_needed(user_id, access_token)
+
+    # Set refresh token in HttpOnly cookie
+    is_prod = (settings.ENVIRONMENT == "production")
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True if is_prod else False,
+        samesite="none" if is_prod else "lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        path="/",
+    )
+
+    return AuthResponse(
+        token=access_token,
+        refresh_token="",
+        user_id=user_id,
+        name=name,
+        email=email,
+    )
+
+
+@router.post("/cognito/direct-signup")
+async def cognito_direct_signup(req: CognitoDirectSignupRequest):
+    """
+    Direct in-app registration with Amazon Cognito.
+    Cognito automatically emails a 6-digit confirmation code.
+    """
+    res = await cognito_direct_sign_up(
+        email=req.email,
+        password=req.password,
+        name=req.name,
+    )
+    user_confirmed = res.get("UserConfirmed", False)
+    return {
+        "success": True,
+        "requires_confirmation": not user_confirmed,
+        "email": req.email,
+        "user_sub": res.get("UserSub"),
+    }
+
+
+@router.post("/cognito/confirm-signup")
+async def cognito_confirm_signup(req: CognitoConfirmSignupRequest):
+    """
+    Confirm account using the 6-digit confirmation code delivered to user's email.
+    """
+    await cognito_confirm_sign_up(email=req.email, code=req.code)
+    return {
+        "success": True,
+        "confirmed": True,
+        "message": "Account successfully verified. You may now log in.",
+    }
+
+
+@router.post("/cognito/resend-code")
+async def cognito_resend_code(req: CognitoResendCodeRequest):
+    """
+    Resend the 6-digit confirmation code to user's email.
+    """
+    await cognito_resend_confirmation_code(email=req.email)
+    return {
+        "success": True,
+        "message": "A new verification code has been sent to your email.",
+    }
+
 
 
 

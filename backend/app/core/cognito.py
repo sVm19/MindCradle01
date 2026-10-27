@@ -1,7 +1,10 @@
 import logging
 import base64
 import json
+import hmac
+import hashlib
 from typing import Optional, Dict, Any
+from fastapi import HTTPException
 import jwt
 from jwt import PyJWKClient, PyJWKClientError
 import httpx
@@ -173,4 +176,149 @@ def verify_alb_oidc_payload(oidc_data_header: Optional[str]) -> Optional[Dict[st
 def extract_alb_oidc_payload(oidc_data_header: Optional[str]) -> Optional[Dict[str, Any]]:
     """Verified wrapper around verify_alb_oidc_payload for backward compatibility."""
     return verify_alb_oidc_payload(oidc_data_header)
+
+
+# ── Direct Cognito API (Zero Hosted UI Redirects) ──────────────────────────────
+
+def calculate_secret_hash(username: str) -> Optional[str]:
+    """Calculate HMAC-SHA256 secret hash if app client has a secret."""
+    if not COGNITO_APP_CLIENT_SECRET or not COGNITO_APP_CLIENT_ID:
+        return None
+    message = username + COGNITO_APP_CLIENT_ID
+    dig = hmac.new(
+        COGNITO_APP_CLIENT_SECRET.encode("utf-8"),
+        message.encode("utf-8"),
+        hashlib.sha256,
+    ).digest()
+    return base64.b64encode(dig).decode()
+
+
+async def _call_cognito_idp(target_action: str, body: Dict[str, Any]) -> Dict[str, Any]:
+    """Call low-level AWS Cognito IDP JSON 1.1 API."""
+    region = AWS_REGION or "us-east-1"
+    endpoint = f"https://cognito-idp.{region}.amazonaws.com/"
+    headers = {
+        "Content-Type": "application/x-amz-json-1.1",
+        "X-Amz-Target": f"AWSCognitoIdentityProviderService.{target_action}",
+    }
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            resp = await client.post(endpoint, json=body, headers=headers)
+            data = resp.json() if resp.text else {}
+        except Exception as e:
+            logger.error("Network error contacting AWS Cognito: %s", e)
+            raise HTTPException(status_code=502, detail="Unable to connect to AWS Cognito service.")
+
+    if resp.status_code != 200:
+        err_type = data.get("__type", "").split("#")[-1]
+        msg = data.get("message", "Cognito request failed.")
+        logger.warning("Cognito %s failed: [%s] %s", target_action, err_type, msg)
+
+        if err_type == "NotAuthorizedException":
+            raise HTTPException(status_code=401, detail=msg or "Incorrect email or password.")
+        elif err_type == "UserNotConfirmedException":
+            raise HTTPException(status_code=403, detail="USER_NOT_CONFIRMED")
+        elif err_type == "UsernameExistsException":
+            raise HTTPException(status_code=409, detail="An account with this email already exists.")
+        elif err_type == "UserNotFoundException":
+            raise HTTPException(status_code=401, detail="No account found with this email.")
+        elif err_type == "CodeMismatchException":
+            raise HTTPException(status_code=400, detail="Invalid verification code. Please check and try again.")
+        elif err_type == "ExpiredCodeException":
+            raise HTTPException(status_code=400, detail="Verification code has expired. Please request a new one.")
+        elif err_type == "InvalidPasswordException":
+            raise HTTPException(status_code=400, detail=msg)
+        else:
+            raise HTTPException(status_code=400, detail=msg)
+
+    return data
+
+
+async def cognito_direct_authenticate(email: str, password: str) -> Dict[str, Any]:
+    """Authenticate directly with Cognito using USER_PASSWORD_AUTH."""
+    if not COGNITO_APP_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="COGNITO_APP_CLIENT_ID is not configured.")
+
+    username = email.strip().lower()
+    auth_params: Dict[str, str] = {
+        "USERNAME": username,
+        "PASSWORD": password,
+    }
+    secret_hash = calculate_secret_hash(username)
+    if secret_hash:
+        auth_params["SECRET_HASH"] = secret_hash
+
+    body = {
+        "AuthFlow": "USER_PASSWORD_AUTH",
+        "ClientId": COGNITO_APP_CLIENT_ID,
+        "AuthParameters": auth_params,
+    }
+    data = await _call_cognito_idp("InitiateAuth", body)
+    result = data.get("AuthenticationResult")
+    if not result:
+        raise HTTPException(status_code=401, detail="Authentication failed: No token returned.")
+    return result
+
+
+async def cognito_direct_sign_up(email: str, password: str, name: Optional[str] = None) -> Dict[str, Any]:
+    """Register a new user directly in Cognito."""
+    if not COGNITO_APP_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="COGNITO_APP_CLIENT_ID is not configured.")
+
+    username = email.strip().lower()
+    user_attrs = [
+        {"Name": "email", "Value": username},
+    ]
+    if name:
+        user_attrs.append({"Name": "name", "Value": name.strip()})
+
+    body: Dict[str, Any] = {
+        "ClientId": COGNITO_APP_CLIENT_ID,
+        "Username": username,
+        "Password": password,
+        "UserAttributes": user_attrs,
+    }
+    secret_hash = calculate_secret_hash(username)
+    if secret_hash:
+        body["SecretHash"] = secret_hash
+
+    return await _call_cognito_idp("SignUp", body)
+
+
+async def cognito_confirm_sign_up(email: str, code: str) -> bool:
+    """Confirm user registration using the 6-digit confirmation code."""
+    if not COGNITO_APP_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="COGNITO_APP_CLIENT_ID is not configured.")
+
+    username = email.strip().lower()
+    body: Dict[str, Any] = {
+        "ClientId": COGNITO_APP_CLIENT_ID,
+        "Username": username,
+        "ConfirmationCode": code.strip(),
+    }
+    secret_hash = calculate_secret_hash(username)
+    if secret_hash:
+        body["SecretHash"] = secret_hash
+
+    await _call_cognito_idp("ConfirmSignUp", body)
+    return True
+
+
+async def cognito_resend_confirmation_code(email: str) -> bool:
+    """Resend 6-digit confirmation code."""
+    if not COGNITO_APP_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="COGNITO_APP_CLIENT_ID is not configured.")
+
+    username = email.strip().lower()
+    body: Dict[str, Any] = {
+        "ClientId": COGNITO_APP_CLIENT_ID,
+        "Username": username,
+    }
+    secret_hash = calculate_secret_hash(username)
+    if secret_hash:
+        body["SecretHash"] = secret_hash
+
+    await _call_cognito_idp("ResendConfirmationCode", body)
+    return True
 

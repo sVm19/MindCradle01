@@ -49,6 +49,26 @@ class CognitoLoginRequest(BaseModel):
     id_token: Optional[str] = None
 
 
+class CognitoDirectLoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class CognitoDirectSignupRequest(BaseModel):
+    email: EmailStr
+    password: str
+    name: Optional[str] = None
+
+
+class CognitoConfirmSignupRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class CognitoResendCodeRequest(BaseModel):
+    email: EmailStr
+
+
 
 
 class ResetPasswordRequest(BaseModel):
