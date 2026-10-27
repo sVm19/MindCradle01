@@ -21,10 +21,11 @@ def _get_client() -> OpenAI:
     )
 
 
-# Fallback models ordered by priority if the primary model is rate limited
-# Restrained to only the primary model as requested: google/gemini-3.5-flash-lite
+# Fallback models ordered by priority if primary model is rate limited or credits exhausted
 FALLBACK_MODELS = [
     PRIMARY_OPENROUTER_MODEL,
+    "google/gemini-2.0-flash-exp:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
 ]
 
 

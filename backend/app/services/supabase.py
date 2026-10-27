@@ -352,6 +352,9 @@ class SupabaseService:
             return res.data
         return await asyncio.to_thread(_call)
 
+    # Alias for convenience
+    rpc = call_rpc
+
     async def upsert_user_profile(self, token: str, payload: dict) -> dict:
 
 

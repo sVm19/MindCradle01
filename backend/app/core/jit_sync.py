@@ -8,25 +8,25 @@ from app.services.supabase import pb, extract_user_id, extract_user_email
 
 logger = logging.getLogger(__name__)
 
-# In-memory TTL deduplication cache: {user_id: expire_timestamp}
-_sync_cache: Dict[str, float] = {}
+# In-memory TTL deduplication cache: {user_id: (canonical_id, expire_timestamp)}
+_sync_cache: Dict[str, tuple[str, float]] = {}
 CACHE_TTL_SECONDS = 600  # 10 minutes
 
 
-async def sync_user_to_supabase(user_id: str, email: Optional[str], name: Optional[str] = None) -> bool:
+async def sync_user_to_supabase(user_id: str, email: Optional[str], name: Optional[str] = None) -> str:
     """
     Idempotently upsert user profile into Supabase.
-    Uses in-memory cache to skip database writes if synced within the last 10 minutes.
+    Returns the canonical Supabase user_id (linked to auth.users).
     """
     now = time.time()
-    last_synced_expiry = _sync_cache.get(user_id)
+    cached = _sync_cache.get(user_id)
+    if cached and now < cached[1]:
+        return cached[0]
 
-    if last_synced_expiry and now < last_synced_expiry:
-        return True  # Cache hit — user recently synced, skip DB write
-
+    canonical_user_id = user_id
     try:
         # Call the atomic RPC function (created in migration 030)
-        await pb.rpc(
+        res = await pb.call_rpc(
             "get_or_create_cognito_user",
             {
                 "p_cognito_sub": user_id,
@@ -34,26 +34,29 @@ async def sync_user_to_supabase(user_id: str, email: Optional[str], name: Option
                 "p_user_name": name or "",
             },
         )
-        _sync_cache[user_id] = now + CACHE_TTL_SECONDS
-        logger.info("JIT User synced to Supabase via RPC: user_id=%s, email=%s", user_id, email)
-        return True
+        if res and isinstance(res, list) and len(res) > 0 and res[0].get("user_id"):
+            canonical_user_id = str(res[0]["user_id"])
+            logger.info("JIT User synced to Supabase via RPC: cognito_sub=%s -> canonical_user_id=%s", user_id, canonical_user_id)
+            _sync_cache[user_id] = (canonical_user_id, now + CACHE_TTL_SECONDS)
+            return canonical_user_id
     except Exception as rpc_err:
-        logger.debug("RPC get_or_create_cognito_user unavailable or failed, falling back: %s", rpc_err)
-        # Fallback to direct user_profiles upsert
-        try:
-            record: Dict[str, Any] = {
-                "user_id": user_id,
-                "cognito_sub": user_id,
-                "email": email or "",
-                "name": name or "",
-            }
-            await pb.upsert_records("user_profiles", [record], on_conflict="user_id")
-            _sync_cache[user_id] = now + CACHE_TTL_SECONDS
-            logger.info("JIT User synced to user_profiles fallback: user_id=%s", user_id)
-            return True
-        except Exception as fallback_err:
-            logger.warning("JIT sync failed for user %s (will continue request): %s", user_id, fallback_err)
-            return False
+        logger.warning("RPC get_or_create_cognito_user failed, falling back: %s", rpc_err)
+
+    # Fallback to direct user_profiles upsert
+    try:
+        record: Dict[str, Any] = {
+            "user_id": canonical_user_id,
+            "cognito_sub": user_id,
+            "email": email or "",
+            "name": name or "",
+        }
+        await pb.upsert_records("user_profiles", [record], on_conflict="user_id")
+        _sync_cache[user_id] = (canonical_user_id, now + CACHE_TTL_SECONDS)
+        logger.info("JIT User synced to user_profiles fallback: user_id=%s", canonical_user_id)
+    except Exception as fallback_err:
+        logger.warning("JIT sync fallback failed for user %s: %s", user_id, fallback_err)
+
+    return canonical_user_id
 
 
 async def get_current_user_and_sync(
@@ -106,10 +109,10 @@ async def get_current_user_and_sync(
         )
 
     # 3. Perform Just-In-Time sync to Supabase (debounced by in-memory TTL cache)
-    await sync_user_to_supabase(user_id=user_id, email=user_email, name=user_name)
+    canonical_id = await sync_user_to_supabase(user_id=user_id, email=user_email, name=user_name)
 
     return {
-        "user_id": user_id,
+        "user_id": canonical_id,
         "email": user_email,
         "name": user_name,
         "auth_provider": auth_provider,

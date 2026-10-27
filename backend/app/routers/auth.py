@@ -807,16 +807,16 @@ async def cognito_login(
         or (email.split("@")[0] if email else "Cognito User")
     )
 
-    # Perform atomic JIT sync to Supabase
-    await sync_user_to_supabase(user_id=user_id, email=email, name=name)
+    # Perform atomic JIT sync to Supabase and retrieve canonical auth.users ID
+    canonical_user_id = await sync_user_to_supabase(user_id=user_id, email=email, name=name)
 
     # Issue custom access and refresh tokens
-    access_token = create_access_token(user_id, email)
-    refresh_token = create_refresh_token(user_id, email, name)
+    access_token = create_access_token(canonical_user_id, email)
+    refresh_token = create_refresh_token(canonical_user_id, email, name)
 
     # Auto-start trial and age verification
-    await _auto_start_trial_if_needed(user_id, access_token)
-    await _auto_verify_age_if_needed(user_id, access_token)
+    await _auto_start_trial_if_needed(canonical_user_id, access_token)
+    await _auto_verify_age_if_needed(canonical_user_id, access_token)
 
     # Set refresh token in HttpOnly cookie
     is_prod = (settings.ENVIRONMENT == "production")
@@ -833,7 +833,7 @@ async def cognito_login(
     return AuthResponse(
         token=access_token,
         refresh_token="",
-        user_id=user_id,
+        user_id=canonical_user_id,
         name=name,
         email=email,
     )
@@ -892,16 +892,16 @@ async def cognito_direct_login(
         or (email.split("@")[0] if email else "User")
     )
 
-    # Perform atomic JIT sync to Supabase
-    await sync_user_to_supabase(user_id=user_id, email=email, name=name)
+    # Perform atomic JIT sync to Supabase and retrieve canonical auth.users ID
+    canonical_user_id = await sync_user_to_supabase(user_id=user_id, email=email, name=name)
 
     # Issue custom access and refresh tokens
-    access_token = create_access_token(user_id, email)
-    refresh_token = create_refresh_token(user_id, email, name)
+    access_token = create_access_token(canonical_user_id, email)
+    refresh_token = create_refresh_token(canonical_user_id, email, name)
 
     # Auto-start trial and age verification
-    await _auto_start_trial_if_needed(user_id, access_token)
-    await _auto_verify_age_if_needed(user_id, access_token)
+    await _auto_start_trial_if_needed(canonical_user_id, access_token)
+    await _auto_verify_age_if_needed(canonical_user_id, access_token)
 
     # Set refresh token in HttpOnly cookie
     is_prod = (settings.ENVIRONMENT == "production")
@@ -918,7 +918,7 @@ async def cognito_direct_login(
     return AuthResponse(
         token=access_token,
         refresh_token="",
-        user_id=user_id,
+        user_id=canonical_user_id,
         name=name,
         email=email,
     )
