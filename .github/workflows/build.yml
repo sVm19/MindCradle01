@@ -91,11 +91,31 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
           script: |
-            cd ~/mindcradle || cd /home/ubuntu/mindcradle
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            if [ -d "$HOME/mindcradle" ]; then
+              cd "$HOME/mindcradle"
+            elif [ -d "/home/ubuntu/mindcradle" ]; then
+              cd "/home/ubuntu/mindcradle"
+            else
+              cd "$HOME"
+            fi
+
+            echo "Current deployment directory: $(pwd)"
+
+            if [ -f "docker-compose.prod.yml" ]; then
+              docker compose -f docker-compose.prod.yml pull
+              docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            elif [ -f "docker-compose.yml" ]; then
+              docker compose pull
+              docker compose up -d --remove-orphans
+            else
+              echo "No compose file found, pulling images directly..."
+              docker pull ${{ secrets.DOCKERHUB_USERNAME || 'xuvm19' }}/mindcradle-backend:latest
+              docker pull ${{ secrets.DOCKERHUB_USERNAME || 'xuvm19' }}/mindcradle-frontend:latest
+              docker restart mindcradle-frontend || true
+              docker restart mindcradle-backend || true
+            fi
+
             docker image prune -af --filter "until=24h"
 
       - name: Verify Deployment Health

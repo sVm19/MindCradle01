@@ -134,6 +134,66 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }, [location.pathname]);
 
+  // Genjutsu :: Material Ripple for all Card surfaces
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const cardSelector = '.bg-bg2, .bg-bg3, .bg-card, [data-ripple="card"], .layer-1, .layer-2';
+
+    const triggerRipple = (e: MouseEvent, targetCard: HTMLElement) => {
+      // Ensure the card has overflow containment
+      if (!targetCard.classList.contains('card-ripple-host')) {
+        targetCard.classList.add('card-ripple-host');
+      }
+
+      const rect = targetCard.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const size = Math.max(rect.width, rect.height) * 1.6;
+
+      const ripple = document.createElement('span');
+      ripple.className = 'card-material-ripple';
+      ripple.style.width = `${size}px`;
+      ripple.style.height = `${size}px`;
+      ripple.style.left = `${x}px`;
+      ripple.style.top = `${y}px`;
+
+      targetCard.appendChild(ripple);
+      setTimeout(() => {
+        ripple.remove();
+      }, 700);
+    };
+
+    const handleMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const card = target.closest(cardSelector) as HTMLElement | null;
+      // Trigger when the cursor enters the card boundary from outside
+      if (card && (target === card || !card.contains(e.relatedTarget as Node))) {
+        triggerRipple(e, card);
+      }
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      // Do not spawn card ripple if user clicked a button or form control inside the card
+      if (target.closest('button, a, input, textarea, select, [role="button"]')) return;
+      const card = target.closest(cardSelector) as HTMLElement | null;
+      if (card) {
+        triggerRipple(e, card);
+      }
+    };
+
+    document.addEventListener('mouseover', handleMouseOver, { passive: true });
+    document.addEventListener('click', handleClick, { passive: true });
+
+    return () => {
+      document.removeEventListener('mouseover', handleMouseOver);
+      document.removeEventListener('click', handleClick);
+    };
+  }, []);
+
   // Fetch streak from user service
   useEffect(() => {
     if (!user) {
@@ -243,8 +303,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             robots="noindex, nofollow"
           />
         )}
-        {/* Ambient orbs: Akebono dawn harmony */}
-        <div className="fixed w-[500px] h-[500px] rounded-full blur-[80px] bg-accent/10 -top-[150px] -right-[100px] pointer-events-none z-0" />
+        {/* Ambient orbs: Akebono dawn harmony (subtle depth without foggy header haze) */}
+        <div className="fixed w-[420px] h-[420px] rounded-full blur-[100px] bg-accent/6 -top-[180px] -right-[120px] pointer-events-none z-0" />
         <div className="fixed w-[400px] h-[400px] rounded-full blur-[80px] bg-lavender/8 bottom-[100px] -left-[100px] pointer-events-none z-0" />
         <div className="fixed w-[300px] h-[300px] rounded-full blur-[80px] bg-amber/6 top-1/2 left-[40%] pointer-events-none z-0" />
 
@@ -258,13 +318,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        <div className="flex flex-col min-h-screen relative z-[1] perspective-stage">
+        <div className="flex flex-col min-h-screen relative z-[1]">
           {/* Skip Link for Keyboard Accessibility */}
           <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-[#05020c] focus:font-bold focus:rounded-lg">
             Skip to main content
           </a>
 
-          <header role="banner" className="w-full bg-transparent relative layer-2">
+          <header role="banner" className="w-full bg-transparent relative z-20">
             <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-x-4 gap-y-2 px-6 md:px-10 py-4 max-w-[900px] w-full mx-auto">
               {/* Left: Logo */}
               <div className="flex items-center flex-shrink-0 order-1">
@@ -336,7 +396,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   </button>
 
                   {showNotifications && (
-                    <div className="absolute right-0 mt-2.5 w-[290px] sm:w-[360px] bg-bg2 border border-border rounded-[20px] backdrop-blur-[20px] p-5 layer-3 text-left animate-fadeIn">
+                    <div className="absolute right-0 mt-2.5 w-[290px] sm:w-[360px] bg-bg2-solid/95 md:bg-bg2/95 border border-border rounded-[20px] shadow-[0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-xl p-5 z-50 text-left animate-fadeIn">
                       <div className="flex items-center justify-between pb-3 border-b border-border mb-3">
                         <div className="font-[family-name:var(--font-serif)] text-sm font-medium text-text">
                           ✦ Aria's Reached Out
@@ -471,7 +531,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               onWheel={handleWheel}
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
-              className="flex items-center gap-1.5 sm:gap-2 px-5 py-2.5 overflow-x-auto scrollbar-none max-w-[820px] w-full mx-auto bg-bg2/40 backdrop-blur-md border border-border/60 rounded-full layer-2"
+              className="flex items-center gap-1.5 sm:gap-2 px-5 py-2.5 overflow-x-auto scrollbar-none max-w-[820px] w-full mx-auto bg-bg2-solid/90 md:bg-bg2/90 backdrop-blur-md border border-border/80 rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.25)] relative z-20"
             >
               {navItems.map((item) => {
                 const isActive = location.pathname === item.path;

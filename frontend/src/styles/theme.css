@@ -183,7 +183,6 @@
     background-attachment: fixed;
     color: var(--text);
     position: relative;
-    perspective: 1200px; /* 3D perspective context for child translateZ transformations */
   }
 
   /* Scrollbar */
@@ -213,40 +212,31 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Dimensional Layering & Elevation Utilities (Genjutsu 1-4 Level Hierarchy)
+   Dimensional Layering & Elevation Utilities (Clean 1-4 Level Hierarchy)
    ───────────────────────────────────────────────────────────────────────────── */
-
-.perspective-stage {
-  perspective: 1200px;
-  transform-style: preserve-3d;
-}
 
 /* Level 1: Flat/resting content cards, list containers, ambient panels */
 .layer-1, .elevation-1 {
   z-index: var(--z-level-1);
   box-shadow: var(--shadow-elevation-1);
-  transform: translateZ(0);
 }
 
 /* Level 2: Raised interactive cards (hover/active), sticky nav bars, headers */
 .layer-2, .elevation-2 {
   z-index: var(--z-level-2);
   box-shadow: var(--shadow-elevation-2);
-  transform: translateZ(8px);
 }
 
 /* Level 3: Floating dropdown menus, popovers, search pills */
 .layer-3, .elevation-3 {
   z-index: var(--z-level-3);
   box-shadow: var(--shadow-elevation-3);
-  transform: translateZ(18px);
 }
 
 /* Level 4: Overlays, modals, dialogs, drawers */
 .layer-4, .elevation-4 {
   z-index: var(--z-level-4);
   box-shadow: var(--shadow-elevation-4);
-  transform: translateZ(32px);
 }
 
 /* Calm Ground Physics: Resting cards remain tranquil and grounded */
@@ -262,18 +252,105 @@
   border-color: rgba(255, 255, 255, 0.16);
 }
 
-button {
+/* ─────────────────────────────────────────────────────────────────
+   Genjutsu :: Tactile Jelly / Bounce for Buttons
+   Briefly squishes, wobbles, and stretches elastically on hover
+   ───────────────────────────────────────────────────────────────── */
+@keyframes jellyBounce {
+  0% {
+    transform: scale(1, 1);
+  }
+  28% {
+    transform: scale(1.12, 0.88);
+  }
+  48% {
+    transform: scale(0.94, 1.06);
+  }
+  68% {
+    transform: scale(1.04, 0.97);
+  }
+  84% {
+    transform: scale(0.99, 1.01);
+  }
+  100% {
+    transform: scale(1.02, 1.02);
+  }
+}
+
+button,
+.btn,
+a.bg-gradient-to-r,
+[role="button"] {
   min-height: 40px;
   min-width: 40px;
+  transform-origin: center center;
   transition: border-color 0.25s ease,
               background-color 0.25s ease,
-              transform 0.25s ease,
+              box-shadow 0.25s ease,
               filter 0.25s ease;
 }
 
-button:hover:not(:disabled) {
-  filter: brightness(105%);
-  transform: translateY(-1px);
+button:hover:not(:disabled),
+.btn:hover:not(:disabled),
+a.bg-gradient-to-r:hover,
+[role="button"]:hover:not(:disabled) {
+  animation: jellyBounce 0.46s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  filter: brightness(106%);
+}
+
+button:active:not(:disabled),
+.btn:active:not(:disabled),
+a.bg-gradient-to-r:active,
+[role="button"]:active:not(:disabled) {
+  animation: none;
+  transform: scale(0.95, 0.95);
+  transition: transform 0.1s ease;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Genjutsu :: Material Ripple for Cards
+   Circular wave expands outward from cursor entry or click point
+   ───────────────────────────────────────────────────────────────── */
+.card-ripple-host {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.card-material-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(251, 113, 133, 0.24) 0%, rgba(251, 113, 133, 0.08) 50%, transparent 75%);
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0);
+  animation: cardRippleExpand 0.65s cubic-bezier(0.1, 0.7, 0.2, 1) forwards;
+  z-index: 2;
+}
+
+@keyframes cardRippleExpand {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0.85;
+  }
+  75% {
+    opacity: 0.35;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(3.5);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:hover:not(:disabled),
+  .btn:hover:not(:disabled),
+  a.bg-gradient-to-r:hover,
+  [role="button"]:hover:not(:disabled) {
+    animation: none !important;
+    transform: none !important;
+  }
+  .card-material-ripple {
+    display: none !important;
+  }
 }
 
 /* High-contrast text overlay for solid accent backgrounds and light-gradient primary buttons */
