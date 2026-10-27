@@ -996,9 +996,21 @@ export const growth = {
 };
 
 export function getCognitoHostedUiUrl(): string {
-  const domain = (import.meta.env.VITE_COGNITO_DOMAIN || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
-  const clientId = import.meta.env.VITE_COGNITO_CLIENT_ID || '';
-  const redirectUri = import.meta.env.VITE_COGNITO_REDIRECT_URI || `${window.location.origin}/auth/callback`;
+  const domain = (
+    import.meta.env.VITE_COGNITO_DOMAIN ||
+    'us-east-1fhcz4bfnt.auth.us-east-1.amazoncognito.com'
+  ).replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+  const clientId = (
+    import.meta.env.VITE_COGNITO_CLIENT_ID ||
+    '40b9rngks4e3invmigbaje80ng'
+  );
+
+  const redirectUri = (
+    import.meta.env.VITE_COGNITO_REDIRECT_URI ||
+    `${window.location.origin}/auth/callback`
+  );
+
   if (!domain || !clientId) return '';
   return `https://${domain}/login?client_id=${encodeURIComponent(clientId)}&response_type=code&scope=email+openid+profile&redirect_uri=${encodeURIComponent(redirectUri)}`;
 }

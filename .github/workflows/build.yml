@@ -49,6 +49,9 @@ jobs:
       - name: Build frontend image
         run: |
           docker build \
+            --build-arg VITE_COGNITO_DOMAIN="https://us-east-1fhcz4bfnt.auth.us-east-1.amazoncognito.com" \
+            --build-arg VITE_COGNITO_CLIENT_ID="40b9rngks4e3invmigbaje80ng" \
+            --build-arg VITE_COGNITO_REDIRECT_URI="https://mindcradle.online/auth/callback" \
             -t ${{ env.FRONTEND_IMAGE }}:${{ github.sha }} \
             -t ${{ env.FRONTEND_IMAGE }}:latest \
             -f frontend/Dockerfile .
