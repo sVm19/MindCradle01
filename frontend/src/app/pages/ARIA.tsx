@@ -54,7 +54,7 @@ const renderMessageContent = (content: string) => {
 export default function ARIA() {
   const { user, setAuthModalOpen } = useAuth();
   const navigate = useNavigate();
-  const initials = user ? getInitials(user.name || user.email) : '?';
+  const initials = user ? getInitials(user.name, user.email) : '?';
 
   const {
     messages,

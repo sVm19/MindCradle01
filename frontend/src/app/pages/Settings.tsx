@@ -9,7 +9,7 @@ import GuestGate from '@/app/components/GuestGate';
 export default function Settings() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const initials = user ? getInitials(user.name || user.email) : '?';
+  const initials = user ? getInitials(user.name, user.email) : '?';
 
   const [emergencyContact, setEmergencyContact] = useState('');
   const [notifyOnCrisis, setNotifyOnCrisis] = useState(false);

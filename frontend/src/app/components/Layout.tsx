@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useAuth, getInitials, getAvatarGradient, UserSketchAvatar } from '@/lib/auth';
+import { useAuth, getInitials, getAvatarGradient, UserSketchAvatar, formatDisplayName } from '@/lib/auth';
 import { mood as moodApi, resources as resourcesApi, ai as aiApi, user as userApi } from '@/lib/api';
 import { LayoutDashboard, Sun, Smile, BookOpen, Brain, Moon, Settings, Bell, AlertTriangle, X, User, Award, Sparkles, Search, Lock } from 'lucide-react';
 
@@ -285,7 +285,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { path: '/wind-down', label: 'Wind Down', icon: <Moon size={15} /> },
   ];
 
-  const initials = user ? getInitials(user.name || user.email) : '?';
+  const displayName = user ? formatDisplayName(user.name, user.email) : 'guest';
+  const firstName = displayName.split(' ')[0];
+  const initials = user ? getInitials(user.name, user.email) : '?';
   const greeting = new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening';
 
   const publicPaths = ['/', '/about', '/pricing', '/privacy', '/terms', '/refund'];
@@ -341,13 +343,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <div className="font-[family-name:var(--font-serif)] text-xs sm:text-base md:text-lg font-light text-text italic leading-tight whitespace-normal md:truncate">
                   {user ? (
                     didCheckInToday ? (
-                      <>Welcome back, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Today's check-in is complete.</>
+                      <>Welcome back, <span className="not-italic text-accent">{firstName}</span>. Today's check-in is complete.</>
                     ) : didCheckInYesterday ? (
-                      <>Welcome back, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Let's check in for today.</>
+                      <>Welcome back, <span className="not-italic text-accent">{firstName}</span>. Let's check in for today.</>
                     ) : streak > 0 ? (
-                      <>Good {greeting}, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Let's rebuild your streak.</>
+                      <>Good {greeting}, <span className="not-italic text-accent">{firstName}</span>. Let's rebuild your streak.</>
                     ) : (
-                      <>Good {greeting}, <span className="not-italic text-accent">{user.name?.split(' ')[0]}</span>. Let's pause to check in.</>
+                      <>Good {greeting}, <span className="not-italic text-accent">{firstName}</span>. Let's pause to check in.</>
                     )
                   ) : (
                     <>Good {greeting}, <span className="not-italic text-accent">guest</span></>

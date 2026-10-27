@@ -35,11 +35,29 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const STORAGE_USER_KEY = 'mc_user';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function formatDisplayName(name?: string, email?: string): string {
+  if (name && !UUID_REGEX.test(name.trim())) {
+    return name.trim();
+  }
+  if (email && email.includes('@')) {
+    const raw = email.split('@')[0];
+    const parts = raw.split(/[._+]/).filter(Boolean);
+    if (parts.length > 0) {
+      return parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+    }
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  }
+  return 'Friend';
+}
+
 function toUser(res: AuthResponse): User {
+  const cleanName = formatDisplayName(res.name, res.email);
   return {
     token: res.token,
     userId: res.user_id,
-    name: res.name,
+    name: cleanName,
     email: res.email,
   };
 }
@@ -228,8 +246,9 @@ export function useAuth(): AuthContextValue {
 }
 
 /** Returns initials for the avatar (up to 2 chars). */
-export function getInitials(name: string): string {
-  return name
+export function getInitials(name?: string, email?: string): string {
+  const display = formatDisplayName(name, email);
+  return display
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)

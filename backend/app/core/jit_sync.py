@@ -13,17 +13,39 @@ _sync_cache: Dict[str, tuple[str, float]] = {}
 CACHE_TTL_SECONDS = 600  # 10 minutes
 
 
-async def sync_user_to_supabase(user_id: str, email: Optional[str], name: Optional[str] = None) -> str:
+import re
+
+UUID_REGEX = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+
+
+def resolve_display_name(raw_name: Optional[str], email: Optional[str], db_name: Optional[str] = None) -> str:
+    """Resolve a clean human name, discarding any internal Cognito UUID."""
+    if db_name and not UUID_REGEX.match(db_name.strip()):
+        return db_name.strip()
+    if raw_name and not UUID_REGEX.match(raw_name.strip()):
+        return raw_name.strip()
+    if email and "@" in email:
+        local_part = email.split("@")[0].strip()
+        parts = [p.capitalize() for p in re.split(r'[._+]', local_part) if p]
+        return " ".join(parts) or local_part.capitalize()
+    return "Friend"
+
+
+async def sync_user_to_supabase(
+    user_id: str, email: Optional[str], name: Optional[str] = None
+) -> tuple[str, str]:
     """
     Idempotently upsert user profile into Supabase.
-    Returns the canonical Supabase user_id (linked to auth.users).
+    Returns (canonical_user_id, clean_display_name).
     """
     now = time.time()
     cached = _sync_cache.get(user_id)
-    if cached and now < cached[1]:
-        return cached[0]
+    if cached and now < cached[2]:
+        return (cached[0], cached[1])
 
     canonical_user_id = user_id
+    resolved_name = resolve_display_name(name, email)
+
     try:
         # Call the atomic RPC function (created in migration 030)
         res = await pb.call_rpc(
@@ -31,14 +53,18 @@ async def sync_user_to_supabase(user_id: str, email: Optional[str], name: Option
             {
                 "p_cognito_sub": user_id,
                 "p_email_address": email or "",
-                "p_user_name": name or "",
+                "p_user_name": resolved_name,
             },
         )
-        if res and isinstance(res, list) and len(res) > 0 and res[0].get("user_id"):
-            canonical_user_id = str(res[0]["user_id"])
-            logger.info("JIT User synced to Supabase via RPC: cognito_sub=%s -> canonical_user_id=%s", user_id, canonical_user_id)
-            _sync_cache[user_id] = (canonical_user_id, now + CACHE_TTL_SECONDS)
-            return canonical_user_id
+        if res and isinstance(res, list) and len(res) > 0:
+            row = res[0]
+            if row.get("user_id"):
+                canonical_user_id = str(row["user_id"])
+            db_name = row.get("user_name")
+            resolved_name = resolve_display_name(name, email, db_name)
+            logger.info("JIT User synced to Supabase via RPC: cognito_sub=%s -> canonical_user_id=%s, name=%s", user_id, canonical_user_id, resolved_name)
+            _sync_cache[user_id] = (canonical_user_id, resolved_name, now + CACHE_TTL_SECONDS)
+            return (canonical_user_id, resolved_name)
     except Exception as rpc_err:
         logger.warning("RPC get_or_create_cognito_user failed, falling back: %s", rpc_err)
 
@@ -48,15 +74,16 @@ async def sync_user_to_supabase(user_id: str, email: Optional[str], name: Option
             "user_id": canonical_user_id,
             "cognito_sub": user_id,
             "email": email or "",
-            "name": name or "",
+            "name": resolved_name,
         }
         await pb.upsert_records("user_profiles", [record], on_conflict="user_id")
-        _sync_cache[user_id] = (canonical_user_id, now + CACHE_TTL_SECONDS)
-        logger.info("JIT User synced to user_profiles fallback: user_id=%s", canonical_user_id)
+        _sync_cache[user_id] = (canonical_user_id, resolved_name, now + CACHE_TTL_SECONDS)
+        logger.info("JIT User synced to user_profiles fallback: user_id=%s, name=%s", canonical_user_id, resolved_name)
     except Exception as fallback_err:
         logger.warning("JIT sync fallback failed for user %s: %s", user_id, fallback_err)
 
-    return canonical_user_id
+    return (canonical_user_id, resolved_name)
+
 
 
 async def get_current_user_and_sync(
@@ -109,11 +136,11 @@ async def get_current_user_and_sync(
         )
 
     # 3. Perform Just-In-Time sync to Supabase (debounced by in-memory TTL cache)
-    canonical_id = await sync_user_to_supabase(user_id=user_id, email=user_email, name=user_name)
+    canonical_id, clean_name = await sync_user_to_supabase(user_id=user_id, email=user_email, name=user_name)
 
     return {
         "user_id": canonical_id,
         "email": user_email,
-        "name": user_name,
+        "name": clean_name,
         "auth_provider": auth_provider,
     }
