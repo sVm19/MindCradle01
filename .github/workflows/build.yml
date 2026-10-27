@@ -103,12 +103,12 @@ jobs:
               ENV_FLAG="--env-file .env"
             fi
 
-            # Detect compose file (.yaml or .yml)
+            # Detect compose file (prioritizing docker-compose.yml)
             COMPOSE_FILE=""
-            if [ -f "docker-compose.yaml" ]; then
-              COMPOSE_FILE="docker-compose.yaml"
-            elif [ -f "docker-compose.yml" ]; then
+            if [ -f "docker-compose.yml" ]; then
               COMPOSE_FILE="docker-compose.yml"
+            elif [ -f "docker-compose.yaml" ]; then
+              COMPOSE_FILE="docker-compose.yaml"
             elif [ -f "docker-compose.prod.yml" ]; then
               COMPOSE_FILE="docker-compose.prod.yml"
             fi
