@@ -1012,7 +1012,7 @@ export function getCognitoHostedUiUrl(): string {
   );
 
   if (!domain || !clientId) return '';
-  return `https://${domain}/login?client_id=${encodeURIComponent(clientId)}&response_type=code&scope=email+openid+profile&redirect_uri=${encodeURIComponent(redirectUri)}`;
+  return `https://${domain}/oauth2/authorize?client_id=${encodeURIComponent(clientId)}&response_type=code&scope=openid+email+profile&redirect_uri=${encodeURIComponent(redirectUri)}`;
 }
 
 
