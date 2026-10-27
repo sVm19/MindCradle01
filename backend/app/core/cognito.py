@@ -322,3 +322,41 @@ async def cognito_resend_confirmation_code(email: str) -> bool:
     await _call_cognito_idp("ResendConfirmationCode", body)
     return True
 
+
+async def cognito_forgot_password(email: str) -> Dict[str, Any]:
+    """Trigger AWS Cognito ForgotPassword flow to email a 6-digit reset code."""
+    if not COGNITO_APP_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="COGNITO_APP_CLIENT_ID is not configured.")
+
+    username = email.strip().lower()
+    body: Dict[str, Any] = {
+        "ClientId": COGNITO_APP_CLIENT_ID,
+        "Username": username,
+    }
+    secret_hash = calculate_secret_hash(username)
+    if secret_hash:
+        body["SecretHash"] = secret_hash
+
+    return await _call_cognito_idp("ForgotPassword", body)
+
+
+async def cognito_confirm_forgot_password(email: str, code: str, new_password: str) -> bool:
+    """Confirm password reset with the 6-digit code and set new password."""
+    if not COGNITO_APP_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="COGNITO_APP_CLIENT_ID is not configured.")
+
+    username = email.strip().lower()
+    body: Dict[str, Any] = {
+        "ClientId": COGNITO_APP_CLIENT_ID,
+        "Username": username,
+        "ConfirmationCode": code.strip(),
+        "Password": new_password,
+    }
+    secret_hash = calculate_secret_hash(username)
+    if secret_hash:
+        body["SecretHash"] = secret_hash
+
+    await _call_cognito_idp("ConfirmForgotPassword", body)
+    return True
+
+

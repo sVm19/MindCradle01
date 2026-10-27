@@ -483,6 +483,22 @@ export const auth = {
       false
     ),
 
+  cognitoForgotPassword: (email: string) =>
+    request<{ success: boolean; message: string }>(
+      'POST',
+      '/auth/cognito/forgot-password',
+      { email },
+      false
+    ),
+
+  cognitoConfirmForgotPassword: (email: string, code: string, newPassword: string) =>
+    request<{ success: boolean; message: string }>(
+      'POST',
+      '/auth/cognito/confirm-forgot-password',
+      { email, code, new_password: newPassword },
+      false
+    ),
+
   checkAlbSession: () =>
     request<AuthResponse>('GET', '/auth/alb-session', undefined, false),
 

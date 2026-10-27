@@ -14,6 +14,7 @@ import {
   ArrowRight,
   ArrowLeft,
   KeyRound,
+  RotateCcw,
 } from 'lucide-react';
 
 interface CognitoAuthFormProps {
@@ -31,6 +32,7 @@ export default function CognitoAuthForm({
 
   const [tab, setTab] = useState<'signin' | 'signup'>(initialTab);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [forgotStep, setForgotStep] = useState<'none' | 'request' | 'confirm'>('none');
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -38,6 +40,11 @@ export default function CognitoAuthForm({
   const [showPassword, setShowPassword] = useState(false);
   const [confirmCode, setConfirmCode] = useState('');
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
+
+  // Forgot password specific fields
+  const [resetCode, setResetCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -116,7 +123,6 @@ export default function CognitoAuthForm({
         setCountdown(30);
         setSuccessMsg(`A 6-digit confirmation code has been sent to ${email.trim()}.`);
       } else {
-        // Automatically sign in if confirmation is not required
         await loginWithCognitoDirect(email.trim(), password);
         onSuccess?.();
       }
@@ -140,7 +146,6 @@ export default function CognitoAuthForm({
     try {
       await authApi.cognitoConfirmSignup(email.trim(), confirmCode.trim());
 
-      // Attempt immediate login if password is in state
       if (password) {
         setSuccessMsg('Account verified! Signing you in...');
         try {
@@ -162,7 +167,7 @@ export default function CognitoAuthForm({
     }
   };
 
-  const handleResendCode = async () => {
+  const handleResendConfirmCode = async () => {
     if (countdown > 0 || isResending) return;
     resetMessages();
     setIsResending(true);
@@ -177,7 +182,278 @@ export default function CognitoAuthForm({
     }
   };
 
-  // ── Confirmation Code View ───────────────────────────────────────────────
+  // ── Forgot Password Handlers ─────────────────────────────────────────────
+  const handleForgotPasswordRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetMessages();
+
+    if (!email.trim()) {
+      setError('Please enter your email address.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await authApi.cognitoForgotPassword(email.trim());
+      setForgotStep('confirm');
+      setCountdown(30);
+      setSuccessMsg(`A 6-digit password reset code was sent to ${email.trim()}.`);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to send recovery code. Please check the email.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetMessages();
+
+    if (!resetCode.trim()) {
+      setError('Please enter the 6-digit recovery code.');
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 8) {
+      setError('New password must be at least 8 characters long.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await authApi.cognitoConfirmForgotPassword(email.trim(), resetCode.trim(), newPassword);
+      setPassword(newPassword);
+      setResetCode('');
+      setNewPassword('');
+      setForgotStep('none');
+      setTab('signin');
+      setSuccessMsg('Password updated successfully! Please sign in with your new password.');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to reset password. Please verify the code.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendForgotCode = async () => {
+    if (countdown > 0 || isResending) return;
+    resetMessages();
+    setIsResending(true);
+    try {
+      await authApi.cognitoForgotPassword(email.trim());
+      setCountdown(30);
+      setSuccessMsg(`A fresh recovery code was sent to ${email.trim()}.`);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to resend recovery code.');
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  // ── Forgot Password View (Step 1: Request Email) ──────────────────────────
+  if (forgotStep === 'request') {
+    return (
+      <div className="space-y-4 text-left">
+        <div className="flex items-center gap-2 mb-1">
+          <button
+            type="button"
+            onClick={() => {
+              setForgotStep('none');
+              resetMessages();
+            }}
+            className="text-text3 hover:text-text transition-colors flex items-center gap-1 text-xs cursor-pointer"
+          >
+            <ArrowLeft size={14} />
+            <span>Back to Sign In</span>
+          </button>
+        </div>
+
+        <div>
+          <h2 className="text-xl font-light text-text mb-1 flex items-center gap-2">
+            <RotateCcw size={20} className="text-accent" />
+            Reset Password
+          </h2>
+          <p className="text-xs text-text3 leading-relaxed">
+            Enter the email associated with your account and we&apos;ll send a 6-digit recovery code.
+          </p>
+        </div>
+
+        {error && (
+          <div className="bg-rose/10 border border-rose/30 text-rose text-xs rounded-[12px] px-3.5 py-2.5 flex items-start gap-2">
+            <ShieldAlert className="shrink-0 mt-0.5" size={15} />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs rounded-[12px] px-3.5 py-2.5 flex items-start gap-2">
+            <CheckCircle2 className="shrink-0 mt-0.5" size={15} />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleForgotPasswordRequest} className="space-y-3.5">
+          <div>
+            <label className="block text-[11px] font-medium text-text3 uppercase tracking-wider mb-1">
+              Email Address
+            </label>
+            <div className="relative">
+              <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text3" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@domain.com"
+                className="w-full pl-10 pr-3.5 py-2.5 bg-bg3/60 border border-border rounded-[14px] text-sm text-text placeholder:text-text3/50 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+                autoComplete="email"
+                required
+                autoFocus
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading || !email.trim()}
+            className="w-full mt-2 flex items-center justify-center gap-2 rounded-[14px] bg-accent text-white px-4 py-3 text-sm font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shadow-lg shadow-accent/20"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>Sending Code...</span>
+              </>
+            ) : (
+              <>
+                <span>Send Recovery Code</span>
+                <ArrowRight size={16} />
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  // ── Forgot Password View (Step 2: Confirm Code & Set New Password) ─────────
+  if (forgotStep === 'confirm') {
+    return (
+      <div className="space-y-4 text-left">
+        <div className="flex items-center gap-2 mb-1">
+          <button
+            type="button"
+            onClick={() => {
+              setForgotStep('request');
+              resetMessages();
+            }}
+            className="text-text3 hover:text-text transition-colors flex items-center gap-1 text-xs cursor-pointer"
+          >
+            <ArrowLeft size={14} />
+            <span>Back</span>
+          </button>
+        </div>
+
+        <div>
+          <h2 className="text-xl font-light text-text mb-1 flex items-center gap-2">
+            <KeyRound size={20} className="text-accent" />
+            Set New Password
+          </h2>
+          <p className="text-xs text-text3 leading-relaxed">
+            Enter the 6-digit code sent to <strong className="text-text font-medium">{email}</strong> and your new password.
+          </p>
+        </div>
+
+        {error && (
+          <div className="bg-rose/10 border border-rose/30 text-rose text-xs rounded-[12px] px-3.5 py-2.5 flex items-start gap-2">
+            <ShieldAlert className="shrink-0 mt-0.5" size={15} />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs rounded-[12px] px-3.5 py-2.5 flex items-start gap-2">
+            <CheckCircle2 className="shrink-0 mt-0.5" size={15} />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleConfirmForgotPassword} className="space-y-3.5">
+          <div>
+            <label className="block text-[11px] font-medium text-text3 uppercase tracking-wider mb-1">
+              6-Digit Recovery Code
+            </label>
+            <input
+              type="text"
+              maxLength={6}
+              value={resetCode}
+              onChange={(e) => setResetCode(e.target.value.replace(/\D/g, ''))}
+              placeholder="123456"
+              className="w-full text-center tracking-[0.35em] text-lg font-mono px-4 py-2.5 bg-bg3/60 border border-border rounded-[14px] text-text placeholder:text-text3/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+              autoFocus
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-medium text-text3 uppercase tracking-wider mb-1">
+              New Password <span className="text-text3/60 lowercase font-normal">(min 8 characters)</span>
+            </label>
+            <div className="relative">
+              <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text3" />
+              <input
+                type={showNewPassword ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="New strong password"
+                className="w-full pl-10 pr-10 py-2.5 bg-bg3/60 border border-border rounded-[14px] text-sm text-text placeholder:text-text3/50 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+                autoComplete="new-password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-text3 hover:text-text transition-colors cursor-pointer"
+                aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+              >
+                {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading || resetCode.length < 6 || newPassword.length < 8}
+            className="w-full mt-2 flex items-center justify-center gap-2 rounded-[14px] bg-accent text-white px-4 py-3 text-sm font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shadow-lg shadow-accent/20"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>Updating Password...</span>
+              </>
+            ) : (
+              <>
+                <span>Reset Password</span>
+                <ArrowRight size={16} />
+              </>
+            )}
+          </button>
+
+          <div className="flex items-center justify-between text-xs text-text3 pt-1">
+            <span>Didn&apos;t get the code?</span>
+            <button
+              type="button"
+              onClick={handleResendForgotCode}
+              disabled={countdown > 0 || isResending}
+              className="text-accent hover:underline disabled:text-text3/50 disabled:no-underline font-medium cursor-pointer"
+            >
+              {countdown > 0 ? `Resend in ${countdown}s` : isResending ? 'Sending...' : 'Resend code'}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // ── Confirmation Code View (Sign Up Flow) ─────────────────────────────────
   if (showConfirm) {
     return (
       <div className="space-y-4 text-left">
@@ -258,7 +534,7 @@ export default function CognitoAuthForm({
             <span>Didn&apos;t receive a code?</span>
             <button
               type="button"
-              onClick={handleResendCode}
+              onClick={handleResendConfirmCode}
               disabled={countdown > 0 || isResending}
               className="text-accent hover:underline disabled:text-text3/50 disabled:no-underline font-medium cursor-pointer"
             >
@@ -341,9 +617,21 @@ export default function CognitoAuthForm({
           </div>
 
           <div>
-            <label className="block text-[11px] font-medium text-text3 uppercase tracking-wider mb-1">
-              Password
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-[11px] font-medium text-text3 uppercase tracking-wider">
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setForgotStep('request');
+                  resetMessages();
+                }}
+                className="text-[11px] text-accent hover:underline cursor-pointer"
+              >
+                Forgot password?
+              </button>
+            </div>
             <div className="relative">
               <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text3" />
               <input

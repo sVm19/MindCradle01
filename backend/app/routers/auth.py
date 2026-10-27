@@ -22,6 +22,8 @@ from app.models.schemas import (
     CognitoDirectSignupRequest,
     CognitoConfirmSignupRequest,
     CognitoResendCodeRequest,
+    CognitoForgotPasswordRequest,
+    CognitoConfirmForgotPasswordRequest,
 )
 from app.utils.security import (
     hash_password,
@@ -43,6 +45,8 @@ from app.core.cognito import (
     cognito_direct_sign_up,
     cognito_confirm_sign_up,
     cognito_resend_confirmation_code,
+    cognito_forgot_password,
+    cognito_confirm_forgot_password,
 )
 from app.core.jit_sync import sync_user_to_supabase
 from app import config as settings
@@ -963,6 +967,35 @@ async def cognito_resend_code(req: CognitoResendCodeRequest):
         "success": True,
         "message": "A new verification code has been sent to your email.",
     }
+
+
+@router.post("/cognito/forgot-password")
+async def cognito_forgot_password_endpoint(req: CognitoForgotPasswordRequest):
+    """
+    Trigger AWS Cognito ForgotPassword flow to send 6-digit reset code via email.
+    """
+    await cognito_forgot_password(email=req.email)
+    return {
+        "success": True,
+        "message": "A 6-digit password recovery code has been sent to your email.",
+    }
+
+
+@router.post("/cognito/confirm-forgot-password")
+async def cognito_confirm_forgot_password_endpoint(req: CognitoConfirmForgotPasswordRequest):
+    """
+    Confirm password reset with the 6-digit code and set new password in AWS Cognito.
+    """
+    await cognito_confirm_forgot_password(
+        email=req.email,
+        code=req.code,
+        new_password=req.new_password,
+    )
+    return {
+        "success": True,
+        "message": "Password successfully updated. You may now sign in.",
+    }
+
 
 
 

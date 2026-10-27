@@ -69,6 +69,17 @@ class CognitoResendCodeRequest(BaseModel):
     email: EmailStr
 
 
+class CognitoForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class CognitoConfirmForgotPasswordRequest(BaseModel):
+    email: EmailStr
+    code: str
+    new_password: str
+
+
+
 
 
 class ResetPasswordRequest(BaseModel):
