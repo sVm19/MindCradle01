@@ -18,7 +18,7 @@ function formatDate(d: Date): string {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const { user, authModalOpen, setAuthModalOpen } = useAuth();
+  const { user, isLoading, authModalOpen, setAuthModalOpen } = useAuth();
   const [streak, setStreak] = useState(0);
   const [didCheckInToday, setDidCheckInToday] = useState(false);
   const [didCheckInYesterday, setDidCheckInYesterday] = useState(false);
@@ -98,6 +98,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       window.history.replaceState({}, document.title);
     }
   }, [location.state, setAuthModalOpen]);
+
+  // Prompt new visitors to sign up after 45 seconds of exploring
+  useEffect(() => {
+    if (user || isLoading) return;
+
+    // Skip if user already closed or saw the signup popup during this session
+    if (sessionStorage.getItem('mc_signup_popup_shown')) return;
+
+    const timer = setTimeout(() => {
+      // Re-check authentication before popping up
+      if (!localStorage.getItem('mc_user')) {
+        setAuthModalOpen(true);
+        sessionStorage.setItem('mc_signup_popup_shown', 'true');
+      }
+    }, 45000); // 45 seconds
+
+    return () => clearTimeout(timer);
+  }, [user, isLoading, setAuthModalOpen]);
 
   // Reload Trustpilot widget on route transitions
   useEffect(() => {

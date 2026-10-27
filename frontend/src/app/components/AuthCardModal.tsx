@@ -15,6 +15,7 @@ export default function AuthCardModal() {
     setError('');
     setPrivacyAccepted(false);
     setAuthModalOpen(false);
+    sessionStorage.setItem('mc_signup_popup_shown', 'true');
   };
 
   const handleCognitoClick = () => {
@@ -44,7 +45,12 @@ export default function AuthCardModal() {
   if (!authModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleClose();
+      }}
+    >
       <div className="w-full max-w-[390px] bg-bg2 border border-border rounded-[24px] px-8 py-8 relative layer-4 animate-slideIn">
         {/* Close button */}
         <button
@@ -57,16 +63,19 @@ export default function AuthCardModal() {
         </button>
 
         {/* Logo */}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-5">
           <Logo className="h-10 w-auto text-text" />
         </div>
 
         <div className="text-xs text-accent tracking-[0.1em] uppercase mb-1">
-          Secure Login & Registration
+          Welcome to MindCradle
         </div>
-        <h1 className="text-2xl font-light text-text mb-6">
-          Sign in to MindCradle
+        <h1 className="text-2xl font-light text-text mb-1.5">
+          Begin Your Journey
         </h1>
+        <p className="text-xs text-text3 mb-5 leading-relaxed">
+          Create your free account or sign in to preserve your mindful reflections and insights.
+        </p>
 
         {error && (
           <div className="bg-rose/10 border border-rose/30 text-rose text-sm rounded-[12px] px-4 py-3 mb-5 flex items-start gap-2">
