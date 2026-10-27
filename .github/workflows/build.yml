@@ -92,22 +92,31 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            if [ -d "$HOME/mindcradle" ]; then
-              cd "$HOME/mindcradle"
-            elif [ -d "/home/ubuntu/mindcradle" ]; then
-              cd "/home/ubuntu/mindcradle"
-            else
-              cd "$HOME"
-            fi
-
+            cd "$HOME"
             echo "Current deployment directory: $(pwd)"
 
-            if [ -f "docker-compose.prod.yml" ]; then
-              docker compose -f docker-compose.prod.yml pull
-              docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            # Detect env file (.env.production or .env)
+            ENV_FLAG=""
+            if [ -f ".env.production" ]; then
+              ENV_FLAG="--env-file .env.production"
+            elif [ -f ".env" ]; then
+              ENV_FLAG="--env-file .env"
+            fi
+
+            # Detect compose file (.yaml or .yml)
+            COMPOSE_FILE=""
+            if [ -f "docker-compose.yaml" ]; then
+              COMPOSE_FILE="docker-compose.yaml"
             elif [ -f "docker-compose.yml" ]; then
-              docker compose pull
-              docker compose up -d --remove-orphans
+              COMPOSE_FILE="docker-compose.yml"
+            elif [ -f "docker-compose.prod.yml" ]; then
+              COMPOSE_FILE="docker-compose.prod.yml"
+            fi
+
+            if [ -n "$COMPOSE_FILE" ]; then
+              echo "Deploying with $COMPOSE_FILE $ENV_FLAG"
+              docker compose -f "$COMPOSE_FILE" $ENV_FLAG pull
+              docker compose -f "$COMPOSE_FILE" $ENV_FLAG up -d --remove-orphans
             else
               echo "No compose file found, pulling images directly..."
               docker pull ${{ secrets.DOCKERHUB_USERNAME || 'xuvm19' }}/mindcradle-backend:latest
