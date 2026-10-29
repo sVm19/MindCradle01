@@ -52,7 +52,7 @@ export default function CognitoAuthForm({
   const [successMsg, setSuccessMsg] = useState('');
   const [countdown, setCountdown] = useState(0);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (countdown > 0) {

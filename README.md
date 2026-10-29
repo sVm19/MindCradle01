@@ -11,6 +11,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Production-brightgreen?style=flat-square" alt="Production Status" />
   <img src="https://img.shields.io/badge/AWS-ALB%20%7C%20EC2%20%7C%20Route53-orange?style=flat-square&logo=amazon-aws" alt="AWS Infrastructure" />
+  <img src="https://img.shields.io/badge/Monitoring-CloudWatch%20%7C%20SNS-FF4F00?style=flat-square&logo=amazon-cloudwatch" alt="CloudWatch & SNS Monitoring" />
   <img src="https://img.shields.io/badge/Auth-Amazon%20Cognito-blue?style=flat-square&logo=jsonwebtokens" alt="Amazon Cognito" />
   <img src="https://img.shields.io/badge/Database-Supabase%20pgvector-emerald?style=flat-square&logo=supabase" alt="Supabase Database" />
   <img src="https://img.shields.io/badge/Container-Docker%20Hub-2496ED?style=flat-square&logo=docker" alt="Docker Hub" />
@@ -74,6 +75,17 @@ flowchart LR
         HealthCurl["Live Health Verification: GET /api/health (200 OK)"]
     end
 
+    subgraph S6["6. Continuous Telemetry & Incident Alerting"]
+        direction TB
+        CWAgent["CloudWatch Unified Agent (RAM, Disk, Docker Logs)"]
+        ALBTelemetry["ALB Metrics (5XX Errors, Latency, Target Group)"]
+        Canary["Synthetics Canary (Heartbeat: /api/health)"]
+        CWAlarms["CloudWatch Alarms (Static & Anomaly Detection)"]
+        SNSTopic["Amazon SNS Topic (mindcradle-production-alerts)"]
+        OnCall["Engineering Alerts (Email, PagerDuty, Slack)"]
+        Dashboard["CloudWatch Dashboard (MindCradle-Production-Overview)"]
+    end
+
     GitCommit -->|Open Pull Request| S2
     S2 -->|All checks pass & merged| MergeMain
     MergeMain --> BuildBackend & BuildFrontend
@@ -85,9 +97,46 @@ flowchart LR
     DockerPull --> ComposeUp
     ComposeUp --> ImagePrune
     ImagePrune --> HealthCurl
+    HealthCurl -->|Verify Release & Hand Off| S6
+    CWAgent & ALBTelemetry & Canary --> CWAlarms & Dashboard
+    CWAlarms -->|Threshold Breach| SNSTopic
+    SNSTopic -->|Instant Notification| OnCall
 ```
 
+### Detailed CI/CD Pipeline & Continuous Operations Specification
+
+1. **Stage 1 — Local Development**:
+   - Engineers develop frontend (React 19, Tailwind) and backend (FastAPI, Python 3.11) components locally.
+   - Pre-commit hooks via Husky execute linters and formatting checks prior to commit.
+
+2. **Stage 2 — Pull Request Validation (`ci.yml`)**:
+   - Automated checks trigger on PR creation: Ruff linting, Pytest test suites, Vite compilation with `prerender.py` static generation.
+   - Security auditing runs Gitleaks for secret detection and Trivy for filesystem dependencies.
+
+3. **Stage 3 & 4 — Production Build & Registry Staging (`build.yml`)**:
+   - Merges to `main` compile multi-stage production Docker containers via Buildx with embedded Cognito client configuration.
+   - Trivy performs vulnerability scanning on image layers before pushing to Docker Hub (`xuvm19/mindcradle-backend` and `xuvm19/mindcradle-frontend`).
+
+4. **Stage 5 — Production EC2 Rollout**:
+   - GitHub Actions invokes `appleboy/ssh-action` over secure SSH to EC2 host `mindcradle-prod` (`i-0b532745ffac5d935`).
+   - Executes zero-downtime rolling pull and restart (`docker compose pull && docker compose up -d --remove-orphans`).
+   - Automates post-deploy health polling against `https://mindcradle.online/api/health` (15 retries, 5s delay) requiring HTTP 200 OK before marking deployment successful.
+
+5. **Stage 6 — Continuous Telemetry, CloudWatch Monitoring & Amazon SNS Incident Alerting**:
+   - **Unified Host & Container Observability**: The `amazon-cloudwatch-agent` runs as a system daemon under IAM role `MindCradle-EC2-CloudWatch-Role`. It collects memory (`mem_used_percent`) and storage (`disk_used_percent`) every 60 seconds into custom namespace `MindCradle/System`, while tailing Docker container logs (`/var/lib/docker/containers/*/*-json.log`) into `/mindcradle/prod/docker`.
+   - **Edge & Target Group Telemetry**: The Application Load Balancer (`mindcradle-alb`) and Target Group (`mindcradle-tg`) stream request volume, latency p95 (`TargetResponseTime`), and error codes (`HTTPCode_Target_5XX_Count`).
+   - **CloudWatch Synthetics Canary**: An automated uptime monitor continuously exercises `https://mindcradle.online/api/health` from external AWS locations every 5 minutes.
+   - **Multi-Vector CloudWatch Alarms**:
+     - `MindCradle-ALB-Unhealthy-Host`: Triggers if target group unhealthy host count $\ge 1$.
+     - `MindCradle-High-5XX-Errors`: Triggers if ALB 5XX error count $\ge 5$ across a 5-minute window.
+     - `MindCradle-EC2-High-Memory`: Triggers if host memory usage exceeds 85%.
+     - `MindCradle-EC2-Disk-Space-Low`: Triggers if host filesystem storage usage exceeds 85%.
+     - `MindCradle-EC2-System-Check-Failed`: Triggers if underlying AWS EC2 hardware checks fail.
+   - **Amazon SNS Incident Alerting**: All alarms publish state changes directly to the `mindcradle-production-alerts` SNS topic, which broadcasts immediate notifications to subscribed engineers via Email, Slack, or webhook endpoints.
+   - **Single-Pane Operations Dashboard**: The `MindCradle-Production-Overview` CloudWatch dashboard aggregates alarm health status bars, CPU/RAM utilization curves, latency percentiles, and live FastAPI error streams.
+
 ---
+
 
 ## Web Application Infrastructure & Network Flow
 
@@ -174,6 +223,18 @@ flowchart TD
         - Privacy-Gated Telemetry & Event Tracking"]
     end
 
+    subgraph AWS_Monitoring["AWS Observability & Incident Response"]
+        direction TB
+        CWAgent["CloudWatch Unified Agent (EC2 Daemon)
+        - Memory & Disk: MindCradle/System (60s)
+        - Docker Logs: /mindcradle/prod/docker"]
+        CWAlarms["CloudWatch Alarms (ALB 5xx, Memory, Disk, TG Health)"]
+        SNSTopic["Amazon SNS Topic (mindcradle-production-alerts)"]
+        CWDashboard["CloudWatch Dashboard (MindCradle-Production-Overview)"]
+        CWAgent --> CWAlarms & CWDashboard
+        CWAlarms -->|Threshold Breach| SNSTopic
+    end
+
     UserClient -->|HTTPS Request :443| R53
     R53 --> ACM
     ACM --> HTTPSListener
@@ -192,6 +253,9 @@ flowchart TD
     BackendContainer <-->|AI Reflections & Vector Search| OpenRouterAPI
     BackendContainer <-->|Payment Verification & Webhooks| CreemAPI
     UserClient <-->|Consented User Events| MixpanelTelemetry
+    AWS_EC2 -.->|System & Container Logs| CWAgent
+    AWS_ALB -.->|Request & 5xx Metrics| CWAlarms
+    AWS_TG -.->|Host Health Metrics| CWAlarms
 ```
 
 ### Detailed AWS Network Routing Specification
@@ -223,6 +287,13 @@ flowchart TD
    - Inside the host, Docker Compose exposes port 8080 through the Nginx frontend container.
    - Nginx serves pre-rendered static assets directly to clients with cache headers, and reverse-proxies `/api/*` traffic over the internal Docker network `app-network` to `http://backend:8080`.
    - FastAPI parses `x-amzn-oidc-data` or verifies Bearer tokens, runs atomic Just-In-Time synchronization against Supabase, and connects to OpenRouter for AI inference.
+
+6. **Observability, Metric Ingestion & Incident Alerting**:
+   - The **Amazon CloudWatch Unified Agent** (`amazon-cloudwatch-agent`) runs as an in-guest daemon under IAM role `MindCradle-EC2-CloudWatch-Role`.
+   - OS-level telemetry (`mem_used_percent`, `disk_used_percent`) is ingested every 60 seconds into custom namespace `MindCradle/System`, while container output (`/var/lib/docker/containers/*/*-json.log`) and `/var/log/syslog` stream to CloudWatch Log Groups.
+   - ALB and Target Group metrics (`UnHealthyHostCount`, `HTTPCode_Target_5XX_Count`, `TargetResponseTime`) track edge and ingress health.
+   - Five static and anomaly alarms monitor uptime and infrastructure thresholds. Any metric breach automatically publishes to the **Amazon SNS** topic `mindcradle-production-alerts` for instant notification routing.
+   - Engineering teams operate with the unified **CloudWatch Dashboard** (`MindCradle-Production-Overview`) providing real-time visibility across all layers.
 
 ---
 
@@ -365,6 +436,7 @@ The following secrets must be configured in the GitHub repository settings (`Set
 ```
 
 ---
+
 
 ## License
 

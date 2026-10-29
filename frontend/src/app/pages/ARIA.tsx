@@ -5,7 +5,7 @@ import { ai as aiApi, resources as resourcesApi, mood as moodApi, journal as jou
 import type { ResourceItem, MoodItem, JournalItem } from '@/lib/api';
 import { useAuth, getInitials, getAvatarGradient, UserSketchAvatar } from '@/lib/auth';
 import { useARIA } from '@/context/ARIAContext';
-import { Lock, Heart, Brain, Target, Lightbulb, Sparkles, Phone, MessageSquare, ThumbsUp, ThumbsDown, Meh, Wind, PhoneCall, X, Zap, Flower2, AlignLeft, HeartHandshake, Search, Pause } from 'lucide-react';
+import { Lock, Heart, Brain, Target, Lightbulb, Sparkles, Phone, MessageSquare, ThumbsUp, ThumbsDown, Meh, Wind, PhoneCall, X, Zap, Flower2, AlignLeft, HeartHandshake, Search } from 'lucide-react';
 import { auth as authApi } from '@/lib/api';
 import GuestGate from '@/app/components/GuestGate';
 import Logo from '@/app/components/Logo';
@@ -278,21 +278,6 @@ export default function ARIA() {
     }
   }, [messages, loading]);
 
-  const handleStopThinking = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    setLoading(false);
-    setShowContextIndicator(false);
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: 'aria',
-        content: 'Reflection paused.'
-      }
-    ]);
-  };
 
   const sendMessage = async (text: string, responseType?: string, contextData?: any) => {
     if (!text.trim() || loading) return;
@@ -1431,15 +1416,7 @@ export default function ARIA() {
                         ? "I'm putting this together with what I know about you..."
                         : "Thinking..."}
                     </span>
-                    <button
-                      type="button"
-                      onClick={handleStopThinking}
-                      className="ml-2 px-2.5 py-0.5 bg-rose/15 hover:bg-rose/25 border border-rose/30 text-rose rounded-full text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer not-italic shadow-sm hover:scale-105"
-                      title="Pause ARIA from thinking"
-                    >
-                      <Pause size={11} className="fill-rose" />
-                      <span>Pause</span>
-                    </button>
+
                   </div>
                   <div className="bg-bg3 border border-border px-4 py-3 rounded-[14px] flex items-center gap-1.5 w-fit">
                     <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -1520,25 +1497,13 @@ export default function ARIA() {
                     : "ARIA will remember this conversation"}
                 </span>
               </div>
-              {loading ? (
-                <button
-                  type="button"
-                  onClick={handleStopThinking}
-                  className="px-5 py-3 bg-rose/20 hover:bg-rose/30 border border-rose/40 text-rose rounded-xl font-semibold text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer h-fit smooth-hover-btn"
-                  title="Pause ARIA from thinking"
-                >
-                  <Pause size={14} className="fill-rose" />
-                  <span>Pause</span>
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={!input.trim()}
-                  className="px-6 py-3 bg-accent text-white rounded-lg font-medium text-sm hover:bg-accent2 transition-all disabled:opacity-40 disabled:cursor-not-allowed h-fit smooth-hover-btn"
-                >
-                  Send
-                </button>
-              )}
+              <button
+                type="submit"
+                disabled={loading || !input.trim()}
+                className="px-6 py-3 bg-accent text-white rounded-lg font-medium text-sm hover:bg-accent2 transition-all disabled:opacity-40 disabled:cursor-not-allowed h-fit smooth-hover-btn"
+              >
+                Send
+              </button>
             </form>
           )}
         </section>
